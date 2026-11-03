@@ -23,7 +23,18 @@
 
     initBallot();
     initLive();
+    initPlanForm();
   });
+
+  // ---------- Төлөвлөгөөний маягт: чухал үед дуусах огноо хэрэггүй ----------
+  function initPlanForm() {
+    var kind = $('[data-plan-kind]');
+    var end = $('[data-plan-end]');
+    if (!kind || !end) return;
+    function update() { end.style.display = kind.value === 'milestone' ? 'none' : ''; }
+    kind.addEventListener('change', update);
+    update();
+  }
 
   // ---------- Саналын хуудас: сонголтын хязгаар ----------
   function initBallot() {

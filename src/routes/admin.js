@@ -159,6 +159,76 @@ router.post('/news/:id/delete', wrap(async (req, res) => {
   res.redirect('/admin/news');
 }));
 
+// ---------- Төлөвлөгөө ----------
+const { PLAN_COLORS, loadItems } = require('../plan');
+
+function planFields(body) {
+  const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !Number.isNaN(Date.parse(s));
+  const kind = body.kind === 'milestone' ? 'milestone' : 'task';
+  const start = String(body.start_date || '');
+  let end = kind === 'milestone' ? null : String(body.end_date || '') || start;
+  const errors = [];
+  const title = clean(body.title, 200);
+  if (!title) errors.push('Ажлын нэрийг бичнэ үү.');
+  if (!isDate(start)) errors.push('Эхлэх огноог зөв оруулна уу.');
+  if (end && !isDate(end)) errors.push('Дуусах огноог зөв оруулна уу.');
+  if (end && isDate(start) && end < start) errors.push('Дуусах огноо эхлэхээс өмнө байж болохгүй.');
+  const color = PLAN_COLORS.some((c) => c.hex === body.color) ? body.color : PLAN_COLORS[0].hex;
+  return {
+    errors,
+    fields: {
+      title, kind, start_date: start, end_date: end, color,
+      description: clean(body.description, 3000) || null,
+      responsible: clean(body.responsible, 150) || null,
+    },
+  };
+}
+
+router.get('/plans', wrap(async (req, res) => {
+  res.render('admin/plans', { title: 'Төлөвлөгөө — Админ', items: await loadItems() });
+}));
+
+router.get('/plans/new', (req, res) => {
+  res.render('admin/plan-form', {
+    title: 'Шинэ ажил', PLAN_COLORS, errors: [],
+    item: { kind: req.query.kind === 'milestone' ? 'milestone' : 'task', title: '', start_date: '', end_date: '', color: PLAN_COLORS[0].hex },
+  });
+});
+
+router.get('/plans/:id', wrap(async (req, res, next) => {
+  const [[item]] = await pool.query(
+    `SELECT *, DATE_FORMAT(start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date
+     FROM plan_items WHERE id = ?`, [req.params.id]);
+  if (!item) return next();
+  res.render('admin/plan-form', { title: 'Ажил засах', PLAN_COLORS, errors: [], item });
+}));
+
+router.post('/plans', wrap(async (req, res) => {
+  const { errors, fields } = planFields(req.body);
+  if (errors.length) {
+    return res.status(400).render('admin/plan-form', { title: 'Шинэ ажил', PLAN_COLORS, errors, item: fields });
+  }
+  await pool.query('INSERT INTO plan_items SET ?', [fields]);
+  flash(req, 'success', 'Төлөвлөгөөнд нэмэгдлээ.');
+  res.redirect('/admin/plans');
+}));
+
+router.post('/plans/:id', wrap(async (req, res) => {
+  const { errors, fields } = planFields(req.body);
+  if (errors.length) {
+    return res.status(400).render('admin/plan-form', { title: 'Ажил засах', PLAN_COLORS, errors, item: { ...fields, id: req.params.id } });
+  }
+  await pool.query('UPDATE plan_items SET ? WHERE id = ?', [fields, req.params.id]);
+  flash(req, 'success', 'Хадгалагдлаа.');
+  res.redirect('/admin/plans');
+}));
+
+router.post('/plans/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM plan_items WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Устгагдлаа.');
+  res.redirect('/admin/plans');
+}));
+
 // ---------- Сургуулиуд ----------
 router.get('/schools', wrap(async (req, res) => {
   const [schools] = await pool.query(

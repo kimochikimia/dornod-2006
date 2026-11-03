@@ -1,0 +1,139 @@
+<%- include('partials/head') %>
+<%
+  var statusLabel = { done: 'Дууссан', active: 'Явагдаж буй', upcoming: 'Төлөвлөсөн' };
+  var statusClass = { done: 'success', active: 'grad', upcoming: '' };
+%>
+<div class="container">
+  <div class="page-head row between">
+    <div>
+      <h1>Төлөвлөгөө</h1>
+      <p style="margin:0">Төгсөгчдийн холбооны төлөвлөсөн ажил, чухал үйл явдлууд.</p>
+    </div>
+    <% if (isAdmin) { %><a class="btn btn-primary" href="/admin/plans/new">+ Ажил нэмэх</a><% } %>
+  </div>
+
+  <div class="tabs">
+    <a class="tab <%= view === 'timeline' ? 'active' : '' %>" href="/plan?view=timeline">📍 Цагийн шугам</a>
+    <a class="tab <%= view === 'monthly' ? 'active' : '' %>" href="/plan?view=monthly">🗓️ Сарын хуваарь</a>
+  </div>
+
+  <% if (!items.length) { %>
+    <div class="empty">Одоогоор төлөвлөгөө оруулаагүй байна.</div>
+  <% } %>
+
+  <%# ---------- 1. Цагийн шугам ---------- %>
+  <% if (timeline) { var ROW = 52; %>
+    <div class="card tl-card">
+      <div class="tl-scroll">
+        <div class="tl">
+          <div class="tl-top">
+            <% timeline.milestones.forEach(function (m) { %>
+              <div class="tl-ms lvl-<%= m.level %>" style="left:<%= m.left.toFixed(3) %>%" title="<%= m.description || '' %>">
+                <div class="tl-ms-label"><strong><%= m.title %></strong><small><%= m.shortRange %></small></div>
+                <div class="tl-diamond" style="background:<%= m.color %>"></div>
+                <div class="tl-ms-stem"></div>
+              </div>
+            <% }) %>
+          </div>
+          <div class="tl-axis">
+            <% timeline.ticks.forEach(function (t) { %>
+              <div class="tl-tick" style="left:<%= t.left.toFixed(3) %>%"><span><%= t.label %></span></div>
+            <% }) %>
+          </div>
+          <div class="tl-rows" style="height:<%= Math.max(timeline.tasks.length, 1) * ROW + 10 %>px">
+            <% timeline.tasks.forEach(function (t, i) { %>
+              <div class="tl-conn" style="left:<%= t.left.toFixed(3) %>%;height:<%= 40 + i * ROW + ROW / 2 %>px"></div>
+              <div class="tl-row" style="top:<%= i * ROW %>px;height:<%= ROW %>px">
+                <div class="tl-bar" style="left:<%= t.left.toFixed(3) %>%;width:<%= t.width.toFixed(3) %>%;background:<%= t.color %>" title="<%= t.title %> · <%= t.range %><%= t.responsible ? ' · ' + t.responsible : '' %>">
+                  <% if (t.labelSide === 'inside') { %><span class="tl-inlabel"><%= t.title %> · <%= t.shortRange %></span><% } %>
+                </div>
+                <% if (t.labelSide === 'left') { %>
+                  <div class="tl-label left" style="right:<%= (100 - t.left).toFixed(3) %>%"><strong><%= t.title %></strong><small><%= t.shortRange %></small></div>
+                <% } else if (t.labelSide === 'right') { %>
+                  <div class="tl-label right" style="left:<%= (t.left + t.width).toFixed(3) %>%"><strong><%= t.title %></strong><small><%= t.shortRange %></small></div>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+          <% if (timeline.today !== null) { %>
+            <div class="tl-today" style="left:<%= timeline.today.toFixed(3) %>%"><span>Өнөөдөр</span></div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <%# ---------- 2. Сарын хуваарь ---------- %>
+  <% if (monthly && items.length) { %>
+    <div class="card">
+      <div class="row between" style="margin-bottom:1rem">
+        <h2 style="margin:0"><%= monthly.year %> оны хуваарь</h2>
+        <div class="row" style="gap:.35rem">
+          <a class="btn btn-sm" href="/plan?view=monthly&year=<%= monthly.year - 1 %>">← <%= monthly.year - 1 %></a>
+          <a class="btn btn-sm" href="/plan?view=monthly&year=<%= monthly.year + 1 %>"><%= monthly.year + 1 %> →</a>
+        </div>
+      </div>
+      <div class="gantt-scroll">
+        <div class="gantt">
+          <div class="g-row g-head">
+            <div class="g-label"></div>
+            <div class="g-months">
+              <% monthly.months.forEach(function (m) { %><div style="background:<%= m.color %>"><%= m.name %></div><% }) %>
+            </div>
+          </div>
+          <% if (!monthly.rows.length) { %>
+            <div class="g-row"><div class="g-label muted">—</div><div class="g-track"><span class="g-empty">Энэ жилд төлөвлөсөн ажил алга.</span></div></div>
+          <% } %>
+          <% monthly.rows.forEach(function (r) { %>
+            <div class="g-row">
+              <div class="g-label">
+                <strong><%= r.kind === 'milestone' ? '◆ ' : '' %><%= r.title %></strong>
+                <small><%= r.shortRange %><%= r.responsible ? ' · ' + r.responsible : '' %></small>
+              </div>
+              <div class="g-track">
+                <% if (monthly.today !== null) { %><div class="g-today" style="left:<%= monthly.today.toFixed(3) %>%"></div><% } %>
+                <% if (r.kind === 'milestone') { %>
+                  <div class="g-ms" style="left:<%= r.left.toFixed(3) %>%;background:<%= r.color %>" title="<%= r.title %> · <%= r.range %>"></div>
+                <% } else { %>
+                  <div class="g-bar" style="left:<%= r.left.toFixed(3) %>%;width:<%= r.width.toFixed(3) %>%;background:<%= r.color %>" title="<%= r.title %> · <%= r.range %>"><%= r.outside ? '' : r.title %></div>
+                <% } %>
+                <% if (r.outside === 'after') { %>
+                  <div class="g-out" style="left:calc(<%= (r.left + r.width).toFixed(3) %>% + 12px)"><%= r.title %></div>
+                <% } else if (r.outside === 'before') { %>
+                  <div class="g-out before" style="right:calc(<%= (100 - r.left).toFixed(3) %>% + 12px)"><%= r.title %></div>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <%# ---------- Ажлын жагсаалт ---------- %>
+  <% if (items.length) { %>
+    <h2 style="margin-top:2rem">Ажлын жагсаалт</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ажил</th><th>Эхлэх</th><th>Дуусах</th><th>Хугацаа</th><th>Хариуцагч</th><th>Төлөв</th></tr></thead>
+        <tbody>
+          <% items.forEach(function (i) { %>
+            <tr>
+              <td>
+                <span class="dot" style="background:<%= i.color %>"></span>
+                <strong><%= i.kind === 'milestone' ? '◆ ' : '' %><%= i.title %></strong>
+                <% if (i.description) { %><div class="small muted"><%= i.description %></div><% } %>
+              </td>
+              <td class="small"><%= i.start_date.replace(/-/g, '.') %></td>
+              <td class="small"><%= i.kind === 'milestone' ? '—' : i.end_date.replace(/-/g, '.') %></td>
+              <td class="small"><%= i.kind === 'milestone' ? 'Чухал үе' : i.days + ' хоног' %></td>
+              <td class="small"><%= i.responsible || '—' %></td>
+              <td><span class="badge <%= statusClass[i.status] %>"><%= statusLabel[i.status] %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

@@ -101,3 +101,16 @@ CREATE TABLE IF NOT EXISTS ballots (
   CONSTRAINT fk_ballot_election FOREIGN KEY (election_id) REFERENCES elections(id) ON DELETE CASCADE,
   CONSTRAINT fk_ballot_user FOREIGN KEY (voter_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Төлөвлөгөөт ажил (task) болон чухал үе (milestone)
+CREATE TABLE IF NOT EXISTS plan_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NULL,
+  kind ENUM('task','milestone') NOT NULL DEFAULT 'task',
+  start_date DATE NOT NULL,
+  end_date DATE NULL,
+  color VARCHAR(7) NOT NULL DEFAULT '#4f7cff',
+  responsible VARCHAR(150) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

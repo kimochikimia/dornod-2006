@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
 const { flash, wrap, requireLogin, requireMember } = require('../middleware');
 const { clean } = require('../helpers');
+const plan = require('../plan');
 
 const router = express.Router();
 
@@ -32,6 +33,20 @@ router.get('/news/:id', wrap(async (req, res, next) => {
   const [[item]] = await pool.query('SELECT * FROM announcements WHERE id = ?', [req.params.id]);
   if (!item) return next();
   res.render('news/show', { title: item.title, item });
+}));
+
+router.get('/plan', wrap(async (req, res) => {
+  const items = await plan.loadItems();
+  const view = req.query.view === 'monthly' ? 'monthly' : 'timeline';
+  const qYear = Number(req.query.year);
+  const year = qYear >= 2000 && qYear <= 2100 ? qYear : plan.defaultYear(items);
+  res.render('plan', {
+    title: 'Төлөвлөгөө',
+    items,
+    view,
+    timeline: view === 'timeline' ? plan.buildTimeline(items) : null,
+    monthly: view === 'monthly' ? plan.buildMonthly(items, year) : null,
+  });
 }));
 
 router.get('/members', requireMember, wrap(async (req, res) => {

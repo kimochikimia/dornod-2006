@@ -1,0 +1,59 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card">
+    <h2><%= item.id ? 'Засах' : (item.kind === 'milestone' ? 'Шинэ чухал үе' : 'Шинэ ажил') %></h2>
+    <% if (errors.length) { %>
+      <div class="flash error"><% errors.forEach(function (e) { %><div>• <%= e %></div><% }) %></div>
+    <% } %>
+    <form method="post" action="/admin/plans<%= item.id ? '/' + item.id : '' %>" class="form" data-plan-form>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field">
+          <label>Төрөл</label>
+          <select name="kind" data-plan-kind>
+            <option value="task" <%= item.kind !== 'milestone' ? 'selected' : '' %>>Ажил (хугацаатай)</option>
+            <option value="milestone" <%= item.kind === 'milestone' ? 'selected' : '' %>>◆ Чухал үе (нэг өдөр)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Нэр</label>
+          <input type="text" name="title" value="<%= item.title %>" maxlength="200" required placeholder="ж: 20 жилийн ойн уулзалт">
+        </div>
+        <div class="field">
+          <label>Эхлэх огноо</label>
+          <input type="date" name="start_date" value="<%= item.start_date || '' %>" required>
+        </div>
+        <div class="field" data-plan-end>
+          <label>Дуусах огноо</label>
+          <input type="date" name="end_date" value="<%= item.end_date || '' %>">
+          <div class="hint">Хоосон бол эхлэх өдөртэй ижил.</div>
+        </div>
+        <div class="field">
+          <label>Хариуцагч</label>
+          <input type="text" name="responsible" value="<%= item.responsible || '' %>" maxlength="150">
+        </div>
+        <div class="field">
+          <label>Өнгө</label>
+          <div class="swatches">
+            <% PLAN_COLORS.forEach(function (c) { %>
+              <label class="swatch" title="<%= c.name %>">
+                <input type="radio" name="color" value="<%= c.hex %>" <%= item.color === c.hex ? 'checked' : '' %>>
+                <span style="background:<%= c.hex %>"></span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Тайлбар</label>
+        <textarea name="description" maxlength="3000"><%= item.description || '' %></textarea>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" type="submit">Хадгалах</button>
+        <a class="btn btn-ghost" href="/admin/plans">Буцах</a>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include('../partials/foot') %>

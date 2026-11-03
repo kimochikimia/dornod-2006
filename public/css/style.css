@@ -277,3 +277,74 @@ details.noms ul { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; 
 .site-footer { border-top: 1px solid var(--border); padding: 2rem 0; margin-top: 3rem; color: var(--faint); font-size: 0.88rem; }
 .empty { padding: 2.5rem; text-align: center; color: var(--muted); border: 1px dashed var(--border-strong); border-radius: var(--radius); }
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+/* ---------- Tabs ---------- */
+.tabs { display: inline-flex; gap: 0.25rem; padding: 0.3rem; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); margin-bottom: 1.25rem; }
+.tab { padding: 0.5rem 1rem; border-radius: 9px; color: var(--muted); font-weight: 600; font-size: 0.92rem; }
+.tab:hover { color: #fff; }
+.tab.active { background: var(--grad); color: #fff; box-shadow: 0 8px 24px -12px rgba(139, 92, 246, 0.9); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.5rem; vertical-align: middle; }
+
+/* ---------- Төлөвлөгөө: цагийн шугам ---------- */
+.tl-card { padding: 1.5rem 0.5rem; }
+.tl-scroll { overflow-x: auto; }
+.tl { position: relative; min-width: 900px; margin: 0 90px; }
+.tl-top { position: relative; height: 150px; }
+.tl-ms { position: absolute; bottom: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.tl-ms-label { display: flex; flex-direction: column; align-items: center; white-space: nowrap; font-size: 0.9rem; line-height: 1.25; margin-bottom: 0.35rem; }
+.tl-ms-label small { color: var(--muted); font-size: 0.78rem; }
+.tl-diamond { width: 16px; height: 16px; transform: rotate(45deg); border: 2px solid rgba(255, 255, 255, 0.85); box-shadow: 0 0 14px rgba(139, 92, 246, 0.6); }
+.tl-ms-stem { width: 0; border-left: 2px dashed rgba(255, 255, 255, 0.35); height: 14px; margin-top: 2px; }
+.tl-ms.lvl-1 .tl-ms-stem { height: 56px; }
+.tl-ms.lvl-2 .tl-ms-stem { height: 98px; }
+.tl-axis { position: relative; height: 44px; }
+.tl-axis::before { content: ''; position: absolute; left: -12px; right: -12px; top: 0; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #4f7cff, #8b5cf6); }
+.tl-tick { position: absolute; top: -3px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.tl-tick::before { content: ''; width: 10px; height: 12px; border-radius: 2px; background: #cdd3ff; }
+.tl-tick span { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; white-space: nowrap; }
+.tl-rows { position: relative; }
+.tl-row { position: absolute; left: 0; right: 0; }
+.tl-conn { position: absolute; top: -40px; width: 0; border-left: 1px solid rgba(165, 184, 255, 0.35); }
+.tl-bar { position: absolute; top: 50%; height: 20px; transform: translateY(-50%); border-radius: 4px; min-width: 6px; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.8); overflow: visible; }
+.tl-bar::before { content: ''; position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; background: #cdd3ff; transform: translateY(-50%) rotate(45deg); }
+.tl-inlabel { position: absolute; left: 12px; right: 6px; top: 50%; transform: translateY(-50%); font-size: 0.78rem; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.tl-label { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; font-size: 0.85rem; line-height: 1.2; white-space: nowrap; }
+.tl-label small { color: var(--muted); font-size: 0.75rem; }
+.tl-label.left { padding-right: 14px; align-items: flex-end; text-align: right; }
+.tl-label.right { padding-left: 10px; }
+.tl-today { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed rgba(52, 211, 153, 0.7); pointer-events: none; }
+.tl-today span { position: absolute; top: -2px; left: 6px; font-size: 0.72rem; font-weight: 700; color: #a7f3d0; white-space: nowrap; }
+
+/* ---------- Төлөвлөгөө: сарын хуваарь ---------- */
+.gantt-scroll { overflow-x: auto; }
+.gantt { min-width: 900px; }
+.g-row { display: grid; grid-template-columns: 200px 1fr; border-bottom: 1px dashed var(--border-strong); }
+.g-head { border-bottom: none; }
+.g-label { padding: 0.6rem 0.75rem 0.6rem 0; display: flex; flex-direction: column; justify-content: center; min-width: 0; font-size: 0.88rem; }
+.g-label strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-label small { color: var(--faint); font-size: 0.75rem; }
+.g-months { display: grid; grid-template-columns: repeat(12, 1fr); }
+.g-months div { text-align: center; padding: 0.55rem 0.2rem; font-size: 0.8rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.g-months div:first-child { border-top-left-radius: 8px; }
+.g-months div:last-child { border-top-right-radius: 8px; }
+.g-track {
+  position: relative; min-height: 52px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 calc(100% / 12), transparent calc(100% / 12) calc(100% / 6));
+}
+.g-bar {
+  position: absolute; top: 50%; transform: translateY(-50%); height: 24px; border-radius: 3px; padding: 0 0.5rem;
+  font-size: 0.75rem; font-weight: 600; line-height: 24px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.8); min-width: 6px;
+}
+.g-ms { position: absolute; top: 50%; width: 16px; height: 16px; transform: translate(-50%, -50%) rotate(45deg); border: 2px solid rgba(255, 255, 255, 0.85); }
+.g-today { position: absolute; top: 0; bottom: 0; border-left: 2px dashed rgba(52, 211, 153, 0.6); z-index: 1; pointer-events: none; }
+.g-empty { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.88rem; }
+
+/* ---------- Өнгө сонгогч ---------- */
+.swatches { display: flex; flex-wrap: wrap; gap: 0.45rem; padding-top: 0.2rem; }
+.swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.swatch span { display: block; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: transform 0.12s; }
+.swatch span:hover { transform: scale(1.08); }
+.swatch input:checked + span { border-color: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5); }
+.swatch input:focus-visible + span { outline: 2px solid #fff; outline-offset: 2px; }
+.g-out { position: absolute; top: 50%; transform: translateY(-50%); font-size: 0.78rem; font-weight: 600; color: #dfe3ff; white-space: nowrap; pointer-events: none; }
