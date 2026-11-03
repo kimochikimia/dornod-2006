@@ -17,18 +17,8 @@ async function getElection(req) {
   return e;
 }
 
-router.get('/', wrap(async (req, res) => {
-  await sched.syncAll();
-  const isAdmin = can(req.user, 'manage_elections');
-  const [elections] = await pool.query(
-    `SELECT e.*,
-       (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id AND c.status='accepted') AS accepted_count,
-       (SELECT COUNT(*) FROM ballots b WHERE b.election_id = e.id) AS ballot_count
-     FROM elections e ${isAdmin ? '' : "WHERE e.phase <> 'draft' OR e.auto_schedule = 1"}
-     ORDER BY e.created_at DESC`
-  );
-  res.render('elections/list', { title: 'Сонгууль', elections });
-}));
+// Сонгуулийн жагсаалт "Удирдах зөвлөл" хуудсанд шилжсэн
+router.get('/', (req, res) => res.redirect(301, '/board#elections'));
 
 router.get('/:id', wrap(async (req, res, next) => {
   const e = await getElection(req);

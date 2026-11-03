@@ -23,7 +23,7 @@
       <a href="/" class="<%= path === '/' ? 'active' : '' %>">Нүүр</a>
       <a href="/news" class="<%= path.startsWith('/news') ? 'active' : '' %>">Мэдээ</a>
       <a href="/plan" class="<%= path.startsWith('/plan') ? 'active' : '' %>">Төлөвлөгөө</a>
-      <a href="/elections" class="<%= path.startsWith('/elections') ? 'active' : '' %>">Удирдах зөвлөл</a>
+      <a href="/board" class="<%= path.startsWith('/board') || path.startsWith('/elections') ? 'active' : '' %>">Удирдах зөвлөл</a>
       <% if (can('view_members')) { %>
         <a href="/members" class="<%= path.startsWith('/members') ? 'active' : '' %>">Төгсөгчид</a>
       <% } %>

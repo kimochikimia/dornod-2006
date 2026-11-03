@@ -15,6 +15,7 @@ const PERMISSIONS = [
   { key: 'vote', group: 'Оролцох', label: 'Сонгуульд санал өгөх' },
   { key: 'manage_news', group: 'Удирдах', label: 'Мэдээ оруулах, засах, устгах' },
   { key: 'manage_plans', group: 'Удирдах', label: 'Төлөвлөгөө оруулах, засах' },
+  { key: 'manage_board', group: 'Удирдах', label: 'Удирдах зөвлөлийн гишүүд, хариуцсан ажлыг засах' },
   { key: 'approve_users', group: 'Удирдах', label: 'Шинэ бүртгэл батлах, татгалзах' },
   { key: 'edit_users', group: 'Удирдах', label: 'Төгсөгчийн мэдээлэл засах, нууц үг шинэчлэх, устгах' },
   { key: 'manage_requests', group: 'Удирдах', label: 'Засварын хүсэлт шийдвэрлэх' },
@@ -49,6 +50,10 @@ async function loadPermissions() {
 
 // Шинэ төлөв нэмэгдэхэд (жишээ нь Дэд админ) зөвхөн тэр төлөвт анхны эрхийг нэг удаа тавина.
 // Админ эрхийг бүгдийг нь хассан ч дахин сэргээгдэхгүй.
+// Хожим нэмэгдсэн эрхийг одоо байгаа өгөгдлийн санд нэг удаа олгох: { эрх: [төлөвүүд] }
+const ADDED_PERMS = { manage_board: ['subadmin', 'admin'] };
+const META = '__meta';
+
 async function seedPermissions() {
   const [rows] = await pool.query('SELECT role, permission FROM role_permissions');
   for (const role of ROLES) {
@@ -58,6 +63,13 @@ async function seedPermissions() {
       for (const p of DEFAULTS[role]) await pool.query('INSERT INTO role_permissions (role, permission) VALUES (?, ?)', [role, p]);
     }
     await pool.query('INSERT IGNORE INTO role_permissions (role, permission) VALUES (?, ?)', [role, SEEDED]);
+  }
+  for (const [perm, roles] of Object.entries(ADDED_PERMS)) {
+    const marker = `added:${perm}`;
+    const [[done]] = await pool.query('SELECT 1 AS x FROM role_permissions WHERE role = ? AND permission = ?', [META, marker]);
+    if (done) continue;
+    for (const r of roles) await pool.query('INSERT IGNORE INTO role_permissions (role, permission) VALUES (?, ?)', [r, perm]);
+    await pool.query('INSERT INTO role_permissions (role, permission) VALUES (?, ?)', [META, marker]);
   }
   await loadPermissions();
 }
@@ -76,7 +88,7 @@ async function savePermissions(input) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    await conn.query('DELETE FROM role_permissions');
+    await conn.query('DELETE FROM role_permissions WHERE role IN (?)', [ROLES]);
     for (const role of ROLES) {
       let keys = input && input[role];
       if (!Array.isArray(keys)) keys = keys ? [keys] : [];

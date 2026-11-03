@@ -12,7 +12,7 @@
 %>
 <div class="container">
   <div class="page-head">
-    <a href="/elections" class="small">← Сонгуулиуд</a>
+    <a href="/board" class="small">← Удирдах зөвлөл</a>
     <div class="row" style="margin-top:.75rem">
       <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
       <% } else { %><span class="badge grad"><%= e.phase === 'draft' && times ? 'Эхлээгүй' : h.PHASE_LABELS[e.phase] %></span><% } %>

@@ -1,0 +1,84 @@
+<%- include('../partials/head') %>
+<datalist id="positions">
+  <option value="Тэргүүн"><option value="Дарга"><option value="Дэд дарга"><option value="Нарийн бичгийн дарга">
+  <option value="Санхүү хариуцсан гишүүн"><option value="Арга хэмжээ хариуцсан гишүүн"><option value="Гишүүн">
+</datalist>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Удирдах зөвлөлийн гишүүд</h2>
+    <div class="row" style="gap:.5rem">
+      <a class="btn" href="/board">Нийтийн хуудас →</a>
+      <button class="btn btn-primary" type="button" data-open-dialog="add-member">＋ Гишүүн нэмэх</button>
+    </div>
+  </div>
+
+  <% if (closed.length) { %>
+    <form method="post" action="/admin/board/import" class="card row" style="margin-bottom:1.25rem"
+          data-confirm="Сонгогдсон гишүүдийг зөвлөлд нэмэх үү? (Аль хэдийн байгаа гишүүдийг давхардуулахгүй)">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <span>🗳️ Сонгуулийн дүнгээс:</span>
+      <select name="election_id" style="flex:1;min-width:200px">
+        <% closed.forEach(function (e) { %><option value="<%= e.id %>"><%= e.title %><%= e.voting_ended_at ? ' (' + h.fmtDay(e.voting_ended_at) + ')' : '' %></option><% }) %>
+      </select>
+      <button class="btn" type="submit">Сонгогдсон гишүүдийг нэмэх</button>
+    </form>
+  <% } %>
+
+  <% if (!members.length) { %>
+    <div class="empty">Зөвлөлд гишүүн нэмээгүй байна. "Гишүүн нэмэх" эсвэл сонгуулийн дүнгээс нэмнэ үү.</div>
+  <% } %>
+
+  <div class="stack">
+    <% members.forEach(function (m) { %>
+      <form method="post" action="/admin/board/<%= m.id %>" class="card board-edit" id="m<%= m.id %>">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="board-edit-head">
+          <%- avatar(m, m.user_id) %>
+          <div style="flex:1;min-width:0">
+            <strong><%= m.surname %> <%= m.name %></strong>
+            <div class="small muted"><%= m.school_name || '—' %></div>
+          </div>
+          <div class="field" style="width:90px"><label class="small">Эрэмбэ</label><input type="number" name="sort_order" value="<%= m.sort_order %>"></div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>Албан тушаал</label><input type="text" name="position" value="<%= m.position %>" list="positions" maxlength="100" required></div>
+          <div class="field"><label>Бүрэн эрхийн хугацаа</label><input type="text" name="term" value="<%= m.term || '' %>" maxlength="50" placeholder="ж: 2026–2028"></div>
+        </div>
+        <div class="field">
+          <label>Хариуцсан ажил <span class="faint small">(мөр бүр нэг ажил)</span></label>
+          <textarea name="responsibilities" rows="3" maxlength="3000" placeholder="Жишээ нь:&#10;Төгсөгчдийн уулзалт зохион байгуулах&#10;Хандивын санг хариуцах"><%= m.responsibilities || '' %></textarea>
+        </div>
+        <div class="row between">
+          <button class="btn btn-primary btn-sm" type="submit">Хадгалах</button>
+          <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/board/<%= m.id %>/delete" formnovalidate
+                  data-confirm="<%= m.surname %> <%= m.name %>-г зөвлөлөөс хасах уу?">Зөвлөлөөс хасах</button>
+        </div>
+      </form>
+    <% }) %>
+  </div>
+
+  <dialog id="add-member" class="dialog">
+    <form method="post" action="/admin/board" class="dialog-body">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+      <h3>Зөвлөлд гишүүн нэмэх</h3>
+      <input type="search" placeholder="🔍 Нэрээр хайх" data-filter-select="board-user" autocomplete="off">
+      <select id="board-user" name="user_id" size="6" class="nominee-list" required>
+        <% candidates.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %> <%= u.surname %><%= u.school_name ? ' — ' + u.school_name : '' %></option><% }) %>
+      </select>
+      <div class="form-grid">
+        <div class="field"><label>Албан тушаал</label><input type="text" name="position" list="positions" maxlength="100" placeholder="Гишүүн"></div>
+        <div class="field"><label>Бүрэн эрх</label><input type="text" name="term" maxlength="50" placeholder="2026–2028"></div>
+      </div>
+      <div class="field"><label>Хариуцсан ажил</label><textarea name="responsibilities" rows="3" maxlength="3000" placeholder="Мөр бүр нэг ажил"></textarea></div>
+      <input type="hidden" name="sort_order" value="100">
+      <div class="row" style="justify-content:flex-end">
+        <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+        <button class="btn btn-primary" type="submit">Нэмэх</button>
+      </div>
+    </form>
+  </dialog>
+</div>
+<%- include('../partials/foot') %>

@@ -1,0 +1,84 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="page-head row between">
+    <div>
+      <h1>Удирдах зөвлөл</h1>
+      <p style="margin:0">Дорнод аймгийн 2006 оны төгсөгчдийн холбооны удирдах зөвлөлийн бүрэлдэхүүн, хариуцсан ажил.</p>
+    </div>
+    <% if (can('manage_board')) { %><a class="btn" href="/admin/board">✎ Зөвлөл засах</a><% } %>
+  </div>
+
+  <%# ---------- Явагдаж буй / удахгүй эхлэх сонгууль ---------- %>
+  <% active.forEach(function (e) { %>
+    <a class="card glow card-link election-banner" href="/elections/<%= e.id %>">
+      <div>
+        <div class="row" style="margin-bottom:.4rem;gap:.5rem">
+          <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
+          <% } else { %><span class="badge grad"><%= e.phase === 'draft' ? 'Удахгүй эхэлнэ' : h.PHASE_LABELS[e.phase] %></span><% } %>
+          <span class="badge">🗳️ Сонгууль</span>
+        </div>
+        <h3 style="margin:0"><%= e.title %></h3>
+        <% if (e.deadline) { %><p class="small muted" style="margin:.35rem 0 0"><%= e.deadline.label %>: <strong data-countdown="<%= e.deadline.at %>">—</strong></p><% } %>
+      </div>
+      <span class="btn btn-primary">Оролцох →</span>
+    </a>
+  <% }) %>
+
+  <%# ---------- Зөвлөлийн гишүүд ---------- %>
+  <h2 style="margin-top:1.5rem">Зөвлөлийн гишүүд</h2>
+  <% if (!members.length) { %>
+    <div class="empty">Удирдах зөвлөлийн бүрэлдэхүүнийг удахгүй нийтэлнэ.</div>
+  <% } else { %>
+    <div class="board-grid">
+      <% members.forEach(function (m, i) { %>
+        <article class="card board-card <%= i === 0 ? 'lead' : '' %>">
+          <div class="board-top">
+            <%- avatar(m, m.user_id, 'xl') %>
+            <div style="min-width:0">
+              <span class="badge grad"><%= m.position %></span>
+              <h3 style="margin:.45rem 0 .15rem"><%= m.surname %> <%= m.name %></h3>
+              <div class="small muted"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
+              <% if (m.occupation || m.city) { %><div class="small muted"><%= [m.occupation, m.city].filter(Boolean).join(' · ') %></div><% } %>
+              <% if (m.term) { %><div class="small faint" style="margin-top:.2rem">📅 Бүрэн эрх: <%= m.term %></div><% } %>
+            </div>
+          </div>
+          <% if (m.responsibilities) { %>
+            <div class="board-duties">
+              <div class="board-duties-title">Хариуцсан ажил</div>
+              <ul>
+                <% m.responsibilities.split(/\r?\n/).map(function (l) { return l.replace(/^[\s•\-*]+/, '').trim(); }).filter(Boolean).forEach(function (l) { %>
+                  <li><%= l %></li>
+                <% }) %>
+              </ul>
+            </div>
+          <% } %>
+          <% if (m.phone || m.facebook) { %>
+            <div class="board-contacts">
+              <% if (m.phone) { %><a href="tel:<%= m.phone %>">📞 <%= m.phone %></a><% } %>
+              <% if (m.email) { %><a href="mailto:<%= m.email %>">✉️ И-мэйл</a><% } %>
+              <% if (m.facebook) { %><a class="fb-link" href="<%= m.facebook %>" target="_blank" rel="noopener noreferrer nofollow"><span class="fb-icon">f</span> Facebook</a><% } %>
+            </div>
+          <% } %>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <%# ---------- Сонгуулийн түүх (хамгийн доор) ---------- %>
+  <% if (others.length) { %>
+    <h2 id="elections" style="margin-top:2.5rem">Сонгуулийн түүх</h2>
+    <div class="grid grid-2">
+      <% others.forEach(function (e) { %>
+        <a class="card card-link" href="/elections/<%= e.id %>">
+          <div class="row" style="margin-bottom:.5rem;gap:.5rem">
+            <span class="badge <%= e.phase === 'closed' ? 'success' : '' %>"><%= h.PHASE_LABELS[e.phase] %></span>
+            <% if (e.voting_ended_at) { %><span class="badge">📅 <%= h.fmtDay(e.voting_ended_at) %></span><% } %>
+          </div>
+          <h3><%= e.title %></h3>
+          <p class="muted small" style="margin:0"><%= e.seats %> суудал · <%= e.accepted_count %> нэр дэвшигч · <%= e.ballot_count %> хүн санал өгсөн</p>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

@@ -7,6 +7,7 @@ const perms = require('../permissions');
 const sched = require('../electionSchedule');
 const { fromUbInput, parsePhoto, normalizeFacebook } = require('../helpers');
 const photos = require('../photos');
+const { electionStats } = require('../electionStats');
 
 const router = express.Router();
 router.use(requireManage);
@@ -14,6 +15,7 @@ router.use(requireManage);
 // Хэсэг бүрийн эрх
 router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
+router.use('/board', requirePerm('manage_board'));
 router.use('/requests', requirePerm('manage_requests'));
 router.use('/elections', requirePerm('manage_elections'));
 router.use('/schools', requirePerm('manage_schools'));
@@ -331,6 +333,83 @@ router.post('/plans/:id/delete', wrap(async (req, res) => {
   await pool.query('DELETE FROM plan_items WHERE id = ?', [req.params.id]);
   flash(req, 'success', 'Устгагдлаа.');
   res.redirect('/admin/plans');
+}));
+
+// ---------- Удирдах зөвлөл ----------
+function boardFields(body) {
+  return {
+    position: clean(body.position, 100) || 'Гишүүн',
+    responsibilities: clean(body.responsibilities, 3000) || null,
+    term: clean(body.term, 50) || null,
+    sort_order: Number.isFinite(Number(body.sort_order)) && body.sort_order !== '' ? Number(body.sort_order) : 100,
+  };
+}
+
+router.get('/board', wrap(async (req, res) => {
+  const [members] = await pool.query(
+    `SELECT b.*, u.surname, u.name, u.photo_v, s.name AS school_name
+     FROM board_members b JOIN users u ON u.id = b.user_id LEFT JOIN schools s ON s.id = u.school_id
+     ORDER BY b.sort_order, b.id`
+  );
+  const [candidates] = await pool.query(
+    `SELECT u.id, u.surname, u.name, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+     WHERE u.status = 'approved' AND u.id NOT IN (SELECT user_id FROM board_members)
+     ORDER BY u.name, u.surname`
+  );
+  const [closed] = await pool.query("SELECT id, title, voting_ended_at FROM elections WHERE phase = 'closed' ORDER BY voting_ended_at DESC");
+  res.render('admin/board', { title: 'Удирдах зөвлөл — Удирдлага', members, candidates, closed });
+}));
+
+router.post('/board', wrap(async (req, res) => {
+  const userId = Number(req.body.user_id);
+  const [[u]] = await pool.query("SELECT id, surname, name FROM users WHERE id = ? AND status = 'approved'", [userId]);
+  if (!u) {
+    flash(req, 'error', 'Баталгаажсан төгсөгч сонгоно уу.');
+    return res.redirect('/admin/board');
+  }
+  try {
+    await pool.query('INSERT INTO board_members SET ?', [{ user_id: u.id, ...boardFields(req.body) }]);
+    flash(req, 'success', `${u.surname} ${u.name} зөвлөлд нэмэгдлээ.`);
+  } catch (err) {
+    if (err.code !== 'ER_DUP_ENTRY') throw err;
+    flash(req, 'warn', 'Энэ төгсөгч зөвлөлд аль хэдийн байна.');
+  }
+  res.redirect('/admin/board');
+}));
+
+// Дууссан сонгуулийн сонгогдсон гишүүдийг зөвлөлд нэмэх
+router.post('/board/import', wrap(async (req, res) => {
+  const [[e]] = await pool.query("SELECT * FROM elections WHERE id = ? AND phase = 'closed'", [req.body.election_id]);
+  if (!e) {
+    flash(req, 'error', 'Дууссан сонгууль сонгоно уу.');
+    return res.redirect('/admin/board');
+  }
+  const stats = await electionStats(e);
+  const winners = (stats.candidates || []).filter((c) => c.winner);
+  const [[{ maxSort }]] = await pool.query('SELECT COALESCE(MAX(sort_order), 0) AS maxSort FROM board_members');
+  let added = 0;
+  for (const [i, w] of winners.entries()) {
+    const [[cand]] = await pool.query('SELECT user_id FROM candidates WHERE id = ?', [w.id]);
+    const [r] = await pool.query(
+      "INSERT IGNORE INTO board_members (user_id, position, sort_order, election_id) VALUES (?, 'Гишүүн', ?, ?)",
+      [cand.user_id, maxSort + (i + 1) * 10, e.id]
+    );
+    added += r.affectedRows;
+  }
+  flash(req, 'success', `"${e.title}"-оос ${winners.length} сонгогдсон гишүүн байна: ${added} нь шинээр нэмэгдлээ. Албан тушаал, хариуцсан ажлыг нь тохируулна уу.`);
+  res.redirect('/admin/board');
+}));
+
+router.post('/board/:bid', wrap(async (req, res) => {
+  await pool.query('UPDATE board_members SET ? WHERE id = ?', [boardFields(req.body), req.params.bid]);
+  flash(req, 'success', 'Хадгалагдлаа.');
+  res.redirect(`/admin/board#m${req.params.bid}`);
+}));
+
+router.post('/board/:bid/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM board_members WHERE id = ?', [req.params.bid]);
+  flash(req, 'success', 'Зөвлөлөөс хасагдлаа.');
+  res.redirect('/admin/board');
 }));
 
 // ---------- Сургуулиуд ----------

@@ -20,6 +20,13 @@
     </div>
     <p class="muted" style="margin-top:.5rem">Одоогийн шат: <span class="badge grad"><%= PHASE_LABELS[e.phase] %></span> — <%= hint[e.phase] %></p>
     <p class="small muted">Нэр дэвшигч: <%= candidates.length %> · Зөвшөөрсөн: <%= candidates.filter(function (c) { return c.status === 'accepted'; }).length %> · Санал өгсөн: <%= ballots %></p>
+    <% if (e.phase === 'closed' && can('manage_board')) { %>
+      <form method="post" action="/admin/board/import" class="inline" data-confirm="Энэ сонгуулиар сонгогдсон гишүүдийг удирдах зөвлөлд нэмэх үү?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="hidden" name="election_id" value="<%= e.id %>">
+        <button class="btn btn-sm btn-primary" type="submit">👥 Сонгогдсон гишүүдийг зөвлөлд нэмэх</button>
+      </form>
+    <% } %>
 
     <% if (auto) { %>
       <h3 style="margin-top:1rem">⏱ Хуваарийн дагуу автоматаар явж байна</h3>

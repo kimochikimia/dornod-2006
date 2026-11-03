@@ -55,6 +55,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use(require('./src/routes/auth'));
 app.use(require('./src/routes/main'));
+app.use('/board', require('./src/routes/board'));
 app.use('/elections', require('./src/routes/elections'));
 app.use('/admin', require('./src/routes/admin'));
 
