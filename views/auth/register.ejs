@@ -9,6 +9,18 @@
     <% } %>
     <form method="post" action="/register" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="photo-picker" data-photo-picker>
+        <div class="photo-preview" data-photo-preview>
+          <% if (form.photo_data) { %><img src="<%= form.photo_data %>" alt=""><% } else { %><span>📷</span><% } %>
+        </div>
+        <div>
+          <label class="btn btn-sm" for="photo_file">Зураг сонгох</label>
+          <input id="photo_file" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file hidden>
+          <button type="button" class="btn btn-sm btn-ghost" data-photo-clear <%= form.photo_data ? '' : 'hidden' %>>Арилгах</button>
+          <div class="hint">Нүүр царай тод харагдах зураг. Автоматаар дөрвөлжин болж багасна.</div>
+          <input type="hidden" name="photo_data" value="<%= form.photo_data || '' %>" data-photo-data>
+        </div>
+      </div>
       <div class="form-grid">
         <div class="field">
           <label for="surname">Овог <span class="req">*</span></label>
@@ -47,6 +59,10 @@
           <input id="city" type="text" name="city" value="<%= form.city || '' %>" maxlength="100" placeholder="ж: Улаанбаатар">
         </div>
         <div class="field">
+          <label for="facebook">Facebook линк</label>
+          <input id="facebook" type="text" name="facebook" value="<%= form.facebook || '' %>" maxlength="300" placeholder="ж: facebook.com/таны.нэр" inputmode="url">
+        </div>
+        <div class="field">
           <label for="password">Нууц үг <span class="req">*</span></label>
           <input id="password" type="password" name="password" minlength="8" autocomplete="new-password" required>
           <div class="hint">Дор хаяж 8 тэмдэгт.</div>
@@ -56,7 +72,7 @@
           <input id="password2" type="password" name="password2" minlength="8" autocomplete="new-password" required>
         </div>
       </div>
-      <p class="small faint">Бүртгүүлснээр таны нэр, сургууль, анги, ажил, хот бусад баталгаажсан төгсөгчдөд харагдана. Бүртгэлийн дараах мэдээллийн өөрчлөлтийг админ хийнэ.</p>
+      <p class="small faint">Бүртгүүлснээр таны нэр, зураг, сургууль, анги, ажил, хот бусад баталгаажсан төгсөгчдөд харагдана. Утас, и-мэйл, Facebook линк зөвхөн эрх бүхий гишүүдэд харагдана. Бүртгэлийн дараах мэдээллийн өөрчлөлтийг админ хийнэ.</p>
       <button class="btn btn-primary btn-lg" type="submit">Бүртгүүлэх</button>
     </form>
     <hr class="sep">

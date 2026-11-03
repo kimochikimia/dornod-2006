@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { pool } = require('./db');
 const helpers = require('./helpers');
 const perms = require('./permissions');
+const { avatarHtml } = require('./photos');
 
 function flash(req, type, message) {
   if (!req.session.flash) req.session.flash = [];
@@ -53,6 +54,7 @@ function locals(req, res, next) {
   res.locals.can = (p) => can(req.user, p);
   res.locals.canManage = canManage(req.user);
   res.locals.canTouch = (target) => canTouch(req.user, target);
+  res.locals.avatar = (user, id, cls) => avatarHtml(req.user, user, id, cls);
   res.locals.isApproved = !!(req.user && req.user.status === 'approved');
   res.locals.ROLE_LABELS = perms.ROLE_LABELS;
   res.locals.flash = req.session.flash || [];

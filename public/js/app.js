@@ -73,12 +73,65 @@
       });
     });
 
+    initPhotoPickers();
     initCountdowns();
     initScheduleForm();
     initBallot();
     initLive();
     initPlanForm();
   });
+
+  // ---------- Зураг сонгогч: 400×400 дөрвөлжин болгож JPEG-ээр багасгана ----------
+  function initPhotoPickers() {
+    $$('[data-photo-picker]').forEach(function (box) {
+      var file = $('[data-photo-file]', box);
+      var data = $('[data-photo-data]', box);
+      var preview = $('[data-photo-preview]', box);
+      var clear = $('[data-photo-clear]', box);
+      var save = $('[data-photo-save]', box);
+      if (!file || !data || !preview) return;
+
+      function show(src) {
+        preview.innerHTML = '';
+        if (src) { var img = new Image(); img.src = src; img.alt = ''; preview.appendChild(img); }
+        else { var s = document.createElement('span'); s.textContent = '📷'; preview.appendChild(s); }
+        if (clear) clear.hidden = !src;
+        if (save) save.hidden = !src;
+      }
+
+      file.addEventListener('change', function () {
+        var f = file.files && file.files[0];
+        if (!f) return;
+        if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { window.alert('JPG, PNG эсвэл WEBP зураг сонгоно уу.'); file.value = ''; return; }
+        if (f.size > 15 * 1024 * 1024) { window.alert('Зураг 15MB-аас бага байх ёстой.'); file.value = ''; return; }
+        var reader = new FileReader();
+        reader.onload = function () {
+          var img = new Image();
+          img.onload = function () {
+            var size = 400;
+            var side = Math.min(img.naturalWidth, img.naturalHeight);
+            var sx = (img.naturalWidth - side) / 2;
+            var sy = (img.naturalHeight - side) / 2;
+            var canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+            var url = canvas.toDataURL('image/jpeg', 0.85);
+            data.value = url;
+            show(url);
+          };
+          img.onerror = function () { window.alert('Зургийг уншиж чадсангүй.'); };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(f);
+      });
+
+      if (clear) clear.addEventListener('click', function () { data.value = ''; file.value = ''; show(null); });
+    });
+  }
 
   // ---------- Хугацааны тоолуур: data-countdown="ISO огноо" ----------
   function initCountdowns() {

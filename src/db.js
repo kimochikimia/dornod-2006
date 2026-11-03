@@ -151,6 +151,8 @@ async function init() {
   await ensureSchoolCategory();
   await ensureModeratorRole();
   await ensureElectionSchedule();
+  await ensureColumn('users', 'facebook', 'VARCHAR(255) NULL AFTER city');
+  await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
   await syncSchools();
 
   await seedAdmin();

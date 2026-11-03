@@ -28,7 +28,7 @@ app.use(
   })
 );
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: isProd ? '7d' : 0 }));
-app.use(express.urlencoded({ extended: true, limit: '200kb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' })); // зураг (base64) багтаахаар
 
 if (isProd && !process.env.SESSION_SECRET) {
   console.error('SESSION_SECRET тохируулаагүй байна! Railway дээр Variables хэсэгт SESSION_SECRET нэмнэ үү.');
@@ -75,6 +75,7 @@ app.use((err, req, res, next) => {
     flash: res.locals.flash || [],
     path: res.locals.path || req.path,
     csrf: res.locals.csrf || '',
+    avatar: res.locals.avatar || (() => ''),
   });
   res.status(500).render('error', { title: 'Алдаа гарлаа', message: 'Серверт алдаа гарлаа. Дахин оролдоно уу.' });
 });

@@ -432,3 +432,17 @@ dialog.dialog::backdrop { background: rgba(4, 6, 16, 0.72); backdrop-filter: blu
 .nominee-list option:checked { background: linear-gradient(90deg, rgba(79, 124, 255, 0.55), rgba(139, 92, 246, 0.55)); color: #fff; }
 .schedule-item form { margin-top: 0.5rem; }
 .schedule-item.next { border-style: dashed; border-color: var(--border-strong); }
+
+/* ---------- Зураг, Facebook ---------- */
+img.avatar { object-fit: cover; display: block; padding: 0; background: var(--panel-2); }
+.photo-picker { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
+.photo-picker > div:last-child { flex: 1; min-width: 200px; }
+.photo-picker .hint { margin-top: 0.45rem; font-size: 0.8rem; color: var(--faint); }
+.photo-preview {
+  width: 96px; height: 96px; border-radius: 24px; overflow: hidden; flex-shrink: 0; display: grid; place-items: center;
+  background: rgba(8, 10, 26, 0.7); border: 2px dashed var(--border-strong); font-size: 2rem;
+}
+.photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-preview:has(img) { border-style: solid; border-color: var(--violet); }
+.fb-link { display: inline-flex; align-items: center; gap: 0.45rem; }
+.fb-icon { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: #1877f2; color: #fff; font-weight: 800; font-size: 0.8rem; font-family: Arial, sans-serif; }

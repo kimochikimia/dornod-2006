@@ -19,7 +19,7 @@
     <div class="grid grid-3">
       <% members.forEach(function (m) { %>
         <a class="card card-link member-card" href="/members/<%= m.id %>">
-          <div class="avatar"><%= h.initials(m) %></div>
+          <%- avatar(m, m.id) %>
           <div style="min-width:0">
             <div style="font-weight:700"><%= m.surname %> <%= m.name %> <% if (m.role !== 'member') { %><span class="badge grad"><%= ROLE_LABELS[m.role] %></span><% } %></div>
             <div class="meta"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>

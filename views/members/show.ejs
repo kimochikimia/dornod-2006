@@ -3,7 +3,7 @@
   <div class="page-head"><a href="/members" class="small">← Төгсөгчид</a></div>
   <div class="card glow">
     <div class="row" style="gap:1.25rem;margin-bottom:1.5rem">
-      <div class="avatar lg"><%= h.initials(member) %></div>
+      <%- avatar(member, member.id, 'lg') %>
       <div>
         <h1 style="margin:0"><%= member.surname %> <%= member.name %></h1>
         <div class="muted"><%= member.school_name || '—' %><%= member.class_name ? ' · ' + member.class_name + ' анги' : '' %></div>
@@ -16,6 +16,7 @@
       <% if (can('view_contacts')) { %>
         <dt>Утас</dt><dd><a href="tel:<%= member.phone %>"><%= member.phone %></a></dd>
         <dt>И-мэйл</dt><dd><% if (member.email) { %><a href="mailto:<%= member.email %>"><%= member.email %></a><% } else { %>—<% } %></dd>
+        <dt>Facebook</dt><dd><% if (member.facebook) { %><a class="fb-link" href="<%= member.facebook %>" target="_blank" rel="noopener noreferrer nofollow"><span class="fb-icon">f</span> Facebook хуудас</a><% } else { %>—<% } %></dd>
       <% } %>
       <dt>Бүртгүүлсэн</dt><dd><%= h.fmtDay(member.created_at) %></dd>
     </dl>

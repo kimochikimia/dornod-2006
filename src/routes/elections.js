@@ -35,7 +35,7 @@ router.get('/:id', wrap(async (req, res, next) => {
   if (!e) return next();
 
   const [candidates] = await pool.query(
-    `SELECT c.*, u.surname, u.name, u.occupation, u.class_name, s.name AS school_name,
+    `SELECT c.*, u.surname, u.name, u.occupation, u.class_name, u.photo_v, s.name AS school_name,
             (SELECT COUNT(*) FROM nominations n WHERE n.candidate_id = c.id) AS nomination_count
      FROM candidates c JOIN users u ON u.id = c.user_id
      LEFT JOIN schools s ON s.id = u.school_id

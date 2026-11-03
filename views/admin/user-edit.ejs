@@ -7,6 +7,19 @@
       <span class="badge <%= user.status %>"><%= h.STATUS_LABELS[user.status] %></span>
     </div>
     <p class="small faint">Бүртгүүлсэн: <%= h.fmtDate(user.created_at) %></p>
+    <form method="post" action="/admin/users/<%= user.id %>/photo" class="photo-picker" data-photo-picker style="margin-bottom:1.25rem">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="photo-preview" data-photo-preview>
+        <% if (user.photo_v) { %><img src="/photos/<%= user.id %>?v=<%= user.photo_v %>" alt=""><% } else { %><span>📷</span><% } %>
+      </div>
+      <div class="row" style="gap:.5rem">
+        <label class="btn btn-sm" for="photo_file">Зураг сонгох</label>
+        <input id="photo_file" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file hidden>
+        <input type="hidden" name="photo_data" data-photo-data>
+        <button class="btn btn-sm btn-primary" type="submit" name="action" value="save" data-photo-save hidden>Зураг хадгалах</button>
+        <% if (user.photo_v) { %><button class="btn btn-sm btn-danger" type="submit" name="action" value="delete" formnovalidate>Зураг устгах</button><% } %>
+      </div>
+    </form>
     <form method="post" action="/admin/users/<%= user.id %>" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <div class="form-grid">
@@ -23,6 +36,7 @@
         <div class="field"><label>Анги</label><input type="text" name="class_name" value="<%= user.class_name || '' %>" maxlength="20"></div>
         <div class="field"><label>Ажил, мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
         <div class="field"><label>Хот</label><input type="text" name="city" value="<%= user.city || '' %>" maxlength="100"></div>
+        <div class="field"><label>Facebook линк</label><input type="text" name="facebook" value="<%= user.facebook || '' %>" maxlength="300" placeholder="facebook.com/нэр"></div>
         <div class="field"><label>Бүртгэлийн төлөв</label>
           <select name="status" <%= user.id === me.id || !can('approve_users') ? 'disabled' : '' %>>
             <% ['pending','approved','rejected'].forEach(function (s) { %><option value="<%= s %>" <%= user.status === s ? 'selected' : '' %>><%= h.STATUS_LABELS[s] %></option><% }) %>

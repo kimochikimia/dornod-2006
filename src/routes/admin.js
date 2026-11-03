@@ -5,7 +5,8 @@ const { flash, wrap, requireManage, requirePerm, can, canTouch, forbidden } = re
 const { clean, PHASES, PHASE_LABELS } = require('../helpers');
 const perms = require('../permissions');
 const sched = require('../electionSchedule');
-const { fromUbInput } = require('../helpers');
+const { fromUbInput, parsePhoto, normalizeFacebook } = require('../helpers');
+const photos = require('../photos');
 
 const router = express.Router();
 router.use(requireManage);
@@ -147,20 +148,44 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
     flash(req, 'error', 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.');
     return res.redirect(`/admin/users/${id}`);
   }
+  const facebook = normalizeFacebook(req.body.facebook);
+  if (facebook === false) {
+    flash(req, 'error', 'Facebook линк буруу байна (ж: facebook.com/нэр).');
+    return res.redirect(`/admin/users/${id}`);
+  }
   // Өөрийн төлөв, бүртгэлийн төлөвийг өөрөө өөрчлөхгүй; эрхгүй бол хуучнаар нь үлдээнэ.
   const self = id === req.user.id;
   const role = !self && can(req.user, 'manage_roles') && perms.ROLES.includes(req.body.role) ? req.body.role : target.role;
   const status = !self && can(req.user, 'approve_users') && ['pending', 'approved', 'rejected'].includes(req.body.status)
     ? req.body.status : target.status;
   await pool.query(
-    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, city=?, bio=?, role=?, status=?
+    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, city=?, facebook=?, bio=?, role=?, status=?
      WHERE id = ?`,
     [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
       Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null, clean(req.body.occupation, 150) || null,
-      clean(req.body.city, 100) || null, clean(req.body.bio, 3000) || null, role, status, id]
+      clean(req.body.city, 100) || null, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
   flash(req, 'success', 'Мэдээлэл хадгалагдлаа.');
   res.redirect(`/admin/users/${id}`);
+}));
+
+router.post('/users/:id/photo', requirePerm('edit_users'), wrap(async (req, res, next) => {
+  const target = await getTarget(req, res);
+  if (target === false) return;
+  if (!target) return next();
+  if (req.body.action === 'delete') {
+    await photos.deletePhoto(target.id);
+    flash(req, 'success', 'Зураг устгагдлаа.');
+  } else {
+    const photo = parsePhoto(req.body.photo_data);
+    if (!photo) flash(req, 'error', 'Зураг сонгоно уу.');
+    else if (photo.error) flash(req, 'error', photo.error);
+    else {
+      await photos.savePhoto(target.id, photo);
+      flash(req, 'success', 'Зураг шинэчлэгдлээ.');
+    }
+  }
+  res.redirect(`/admin/users/${target.id}`);
 }));
 
 router.post('/users/:id/password', requirePerm('edit_users'), wrap(async (req, res, next) => {

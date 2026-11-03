@@ -33,7 +33,7 @@
     </nav>
     <div class="nav-actions">
       <% if (me) { %>
-        <a href="/me" class="nav-user <%= path === '/me' ? 'active' : '' %>"><span class="avatar xs"><%= h.initials(me) %></span><%= me.name %></a>
+        <a href="/me" class="nav-user <%= path === '/me' ? 'active' : '' %>"><%- avatar(me, me.id, 'xs') %><%= me.name %></a>
         <form method="post" action="/logout" class="inline">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
           <button class="btn btn-sm btn-ghost" type="submit">Гарах</button>

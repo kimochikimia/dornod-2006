@@ -137,7 +137,7 @@
       <div class="grid grid-2">
         <% candidates.forEach(function (c) { var noms = nomsByCandidate[c.id] || []; %>
           <div class="card cand">
-            <div class="avatar"><%= h.initials(c) %></div>
+            <%- avatar(c, c.user_id) %>
             <div class="body">
               <div class="row between">
                 <strong><%= c.surname %> <%= c.name %></strong>
@@ -181,7 +181,7 @@
           <% accepted.forEach(function (c) { %>
             <label class="ballot-option">
               <input type="checkbox" name="choices" value="<%= c.id %>">
-              <div class="avatar"><%= h.initials(c) %></div>
+              <%- avatar(c, c.user_id) %>
               <div class="body" style="flex:1;min-width:0">
                 <strong><%= c.surname %> <%= c.name %></strong>
                 <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>

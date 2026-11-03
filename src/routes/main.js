@@ -52,6 +52,16 @@ router.get('/plan', wrap(async (req, res) => {
   });
 }));
 
+// Төгсөгчийн зураг: зөвхөн нэвтэрсэн хэрэглэгчид
+router.get('/photos/:id', requireLogin, wrap(async (req, res, next) => {
+  const [[p]] = await pool.query('SELECT mime, data FROM user_photos WHERE user_id = ?', [req.params.id]);
+  if (!p) return next();
+  res.set('Content-Type', p.mime);
+  res.set('Cache-Control', 'private, max-age=604800'); // ?v= өөрчлөгдөхөд шинэчлэгдэнэ
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(p.data);
+}));
+
 router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
   const q = clean(req.query.q, 80);
   const school = Number(req.query.school) || null;
@@ -66,7 +76,7 @@ router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
     params.push(school);
   }
   const [members] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.class_name, u.occupation, u.city, u.role, s.name AS school_name
+    `SELECT u.id, u.surname, u.name, u.class_name, u.occupation, u.city, u.role, u.photo_v, s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE ${where.join(' AND ')} ORDER BY s.sort_order, u.name`,
     params
@@ -77,7 +87,7 @@ router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
 
 router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.class_name, u.occupation, u.city, u.bio, u.role, u.created_at,
+    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.city, u.bio, u.role, u.created_at,
             s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE u.id = ? AND u.status = 'approved'`,
@@ -87,6 +97,7 @@ router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, ne
   if (!can(req.user, 'view_contacts')) {
     member.phone = null;
     member.email = null;
+    member.facebook = null;
   }
   res.render('members/show', { title: `${member.surname} ${member.name}`, member });
 }));

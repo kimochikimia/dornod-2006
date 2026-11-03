@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 const { flash, wrap } = require('../middleware');
-const { clean } = require('../helpers');
+const { clean, parsePhoto, normalizeFacebook } = require('../helpers');
+const { savePhoto } = require('../photos');
 
 const router = express.Router();
 
@@ -50,6 +51,8 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
     class_name: clean(req.body.class_name, 20),
     occupation: clean(req.body.occupation, 150),
     city: clean(req.body.city, 100),
+    facebook: clean(req.body.facebook, 300),
+    photo_data: String(req.body.photo_data || ''),
   };
   const password = String(req.body.password || '');
   const errors = [];
@@ -58,6 +61,10 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   if (!/^\+?\d{8,15}$/.test(form.phone)) errors.push('Утасны дугаар буруу байна (8-15 оронтой тоо).');
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.push('И-мэйл хаяг буруу байна.');
   if (!form.school_id) errors.push('Төгссөн сургуулиа сонгоно уу.');
+  const facebook = normalizeFacebook(form.facebook);
+  if (facebook === false) errors.push('Facebook линк буруу байна (ж: facebook.com/таны.нэр).');
+  const photo = parsePhoto(form.photo_data);
+  if (photo && photo.error) { errors.push(photo.error); form.photo_data = ''; }
   if (password.length < 8) errors.push('Нууц үг дор хаяж 8 тэмдэгт байх ёстой.');
   if (password !== req.body.password2) errors.push('Нууц үг хоорондоо таарахгүй байна.');
 
@@ -72,11 +79,12 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const [result] = await pool.query(
-    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, city)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, city, facebook)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [form.surname, form.name, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
-      form.occupation || null, form.city || null]
+      form.occupation || null, form.city || null, facebook || null]
   );
+  if (photo) await savePhoto(result.insertId, photo);
   await startSession(req, result.insertId);
   flash(req, 'success', 'Бүртгэл амжилттай үүслээ! Админ таныг 2006 оны төгсөгч мөн эсэхийг шалгаж баталгаажуулна.');
   res.redirect('/me');
