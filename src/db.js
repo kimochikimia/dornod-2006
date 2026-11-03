@@ -61,6 +61,16 @@ async function ensureSchoolCategory() {
   if (!cols.length) await pool.query('ALTER TABLE schools ADD COLUMN category VARCHAR(80) NULL AFTER name');
 }
 
+// users.role-д 'moderator' утга нэмэх (хуучин өгөгдлийн санд).
+async function ensureModeratorRole() {
+  const [[col]] = await pool.query(
+    "SELECT COLUMN_TYPE AS t FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'"
+  );
+  if (col && !String(col.t).includes('moderator')) {
+    await pool.query("ALTER TABLE users MODIFY role ENUM('member','moderator','admin') NOT NULL DEFAULT 'member'");
+  }
+}
+
 // Анхны жагсаалт эсвэл хуучин (бүлэггүй) жагсаалтыг шинэ бүлэгтэй жагсаалт руу нэг удаа шилжүүлнэ.
 // Төгсөгч бүртгэлтэй хуучин сургуулийг устгахгүй — админ дараа нь шилжүүлнэ.
 async function syncSchools() {
@@ -123,6 +133,7 @@ async function init() {
   for (const stmt of statements) await pool.query(stmt);
 
   await ensureSchoolCategory();
+  await ensureModeratorRole();
   await syncSchools();
 
   await seedAdmin();

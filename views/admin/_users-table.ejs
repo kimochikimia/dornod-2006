@@ -1,17 +1,33 @@
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Овог, нэр</th><th>Утас</th><th>Сургууль</th><th>Бүртгүүлсэн</th><th>Төлөв</th><th></th></tr></thead>
+    <thead><tr><th>Овог, нэр</th><th>Утас</th><th>Сургууль</th><th>Төлөв</th><th>Бүртгэл</th><th></th></tr></thead>
     <tbody>
-      <% users.forEach(function (u) { %>
+      <% users.forEach(function (u) {
+           var touch = u.id === me.id || u.role === 'member' || can('manage_roles'); %>
         <tr>
-          <td><a href="/admin/users/<%= u.id %>"><strong><%= u.surname %> <%= u.name %></strong></a><% if (u.role === 'admin') { %> <span class="badge grad">Админ</span><% } %></td>
+          <td>
+            <% if (can('edit_users') && touch) { %><a href="/admin/users/<%= u.id %>"><strong><%= u.surname %> <%= u.name %></strong></a>
+            <% } else { %><strong><%= u.surname %> <%= u.name %></strong><% } %>
+            <div class="small faint"><%= h.fmtDate(u.created_at) %></div>
+          </td>
           <td><%= u.phone %></td>
           <td class="small"><%= u.school_name || '—' %><%= u.class_name ? ' · ' + u.class_name : '' %></td>
-          <td class="small muted"><%= h.fmtDate(u.created_at) %></td>
+          <td>
+            <% if (can('manage_roles') && u.id !== me.id) { %>
+              <form method="post" action="/admin/users/<%= u.id %>/role" class="inline" data-autosubmit>
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <select name="role" class="select-sm">
+                  <% Object.keys(ROLE_LABELS).forEach(function (r) { %><option value="<%= r %>" <%= u.role === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option><% }) %>
+                </select>
+              </form>
+            <% } else { %>
+              <span class="badge <%= u.role !== 'member' ? 'grad' : '' %>"><%= ROLE_LABELS[u.role] %></span>
+            <% } %>
+          </td>
           <td><span class="badge <%= u.status %>"><%= h.STATUS_LABELS[u.status] %></span></td>
           <td>
             <div class="row" style="gap:.35rem;flex-wrap:nowrap">
-              <% if (u.id !== me.id) { %>
+              <% if (u.id !== me.id && touch && can('approve_users')) { %>
                 <% if (u.status !== 'approved') { %>
                   <form method="post" action="/admin/users/<%= u.id %>/status" class="inline">
                     <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="status" value="approved">
@@ -25,7 +41,7 @@
                   </form>
                 <% } %>
               <% } %>
-              <a class="btn btn-sm" href="/admin/users/<%= u.id %>">Засах</a>
+              <% if (can('edit_users') && touch) { %><a class="btn btn-sm" href="/admin/users/<%= u.id %>">Засах</a><% } %>
             </div>
           </td>
         </tr>

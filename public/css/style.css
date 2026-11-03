@@ -348,3 +348,10 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
 .swatch input:checked + span { border-color: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5); }
 .swatch input:focus-visible + span { outline: 2px solid #fff; outline-offset: 2px; }
 .g-out { position: absolute; top: 50%; transform: translateY(-50%); font-size: 0.78rem; font-weight: 600; color: #dfe3ff; white-space: nowrap; pointer-events: none; }
+
+/* ---------- Эрх, төлөв ---------- */
+select.select-sm { width: auto; padding: 0.3rem 0.6rem; font-size: 0.85rem; border-radius: 8px; }
+.perm-table td.center, .perm-table th.center { text-align: center; width: 130px; }
+.perm-group td { background: rgba(79, 124, 255, 0.08); color: #c4b5fd; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.perm-check { display: inline-flex; cursor: pointer; padding: 0.25rem; }
+.perm-check input { width: 20px; height: 20px; accent-color: var(--violet); cursor: pointer; }

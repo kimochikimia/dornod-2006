@@ -1,12 +1,14 @@
 <div class="page-head">
-  <h1>Админы самбар</h1>
+  <h1><%= me.role === 'admin' ? 'Админы самбар' : 'Удирдлагын самбар' %></h1>
+  <p style="margin:0">Таны төлөв: <span class="badge grad"><%= ROLE_LABELS[me.role] %></span></p>
 </div>
 <nav class="admin-nav">
   <a href="/admin" class="<%= path === '/admin' ? 'active' : '' %>">Хянах самбар</a>
-  <a href="/admin/users" class="<%= path.startsWith('/admin/users') ? 'active' : '' %>">Төгсөгчид</a>
-  <a href="/admin/elections" class="<%= path.startsWith('/admin/elections') ? 'active' : '' %>">Сонгууль</a>
-  <a href="/admin/plans" class="<%= path.startsWith('/admin/plans') ? 'active' : '' %>">Төлөвлөгөө</a>
-  <a href="/admin/news" class="<%= path.startsWith('/admin/news') ? 'active' : '' %>">Мэдээ</a>
-  <a href="/admin/requests" class="<%= path.startsWith('/admin/requests') ? 'active' : '' %>">Хүсэлтүүд</a>
-  <a href="/admin/schools" class="<%= path.startsWith('/admin/schools') ? 'active' : '' %>">Сургуулиуд</a>
+  <% if (can('approve_users') || can('edit_users')) { %><a href="/admin/users" class="<%= path.startsWith('/admin/users') ? 'active' : '' %>">Төгсөгчид</a><% } %>
+  <% if (can('manage_roles')) { %><a href="/admin/roles" class="<%= path.startsWith('/admin/roles') ? 'active' : '' %>">Эрх, төлөв</a><% } %>
+  <% if (can('manage_elections')) { %><a href="/admin/elections" class="<%= path.startsWith('/admin/elections') ? 'active' : '' %>">Сонгууль</a><% } %>
+  <% if (can('manage_plans')) { %><a href="/admin/plans" class="<%= path.startsWith('/admin/plans') ? 'active' : '' %>">Төлөвлөгөө</a><% } %>
+  <% if (can('manage_news')) { %><a href="/admin/news" class="<%= path.startsWith('/admin/news') ? 'active' : '' %>">Мэдээ</a><% } %>
+  <% if (can('manage_requests')) { %><a href="/admin/requests" class="<%= path.startsWith('/admin/requests') ? 'active' : '' %>">Хүсэлтүүд</a><% } %>
+  <% if (can('manage_schools')) { %><a href="/admin/schools" class="<%= path.startsWith('/admin/schools') ? 'active' : '' %>">Сургуулиуд</a><% } %>
 </nav>

@@ -68,8 +68,10 @@ app.use((err, req, res, next) => {
   // locals middleware-ээс өмнө алдаа гарсан тохиолдолд шаблонд хэрэгтэй утгуудыг бөглөнө.
   Object.assign(res.locals, {
     me: res.locals.me || null,
-    isAdmin: !!res.locals.isAdmin,
-    isMember: !!res.locals.isMember,
+    can: res.locals.can || (() => false),
+    canManage: !!res.locals.canManage,
+    isApproved: !!res.locals.isApproved,
+    ROLE_LABELS: res.locals.ROLE_LABELS || {},
     flash: res.locals.flash || [],
     path: res.locals.path || req.path,
     csrf: res.locals.csrf || '',
@@ -80,6 +82,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 init()
+  .then(() => require('./src/permissions').seedPermissions())
   .then(() => app.listen(PORT, () => console.log(`Сайт ажиллаж байна: http://localhost:${PORT}`)))
   .catch((err) => {
     console.error('Өгөгдлийн сантай холбогдож чадсангүй:', err.message);

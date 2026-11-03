@@ -21,7 +21,7 @@
         <a class="card card-link member-card" href="/members/<%= m.id %>">
           <div class="avatar"><%= h.initials(m) %></div>
           <div style="min-width:0">
-            <div style="font-weight:700"><%= m.surname %> <%= m.name %> <% if (m.role === 'admin') { %><span class="badge grad">Админ</span><% } %></div>
+            <div style="font-weight:700"><%= m.surname %> <%= m.name %> <% if (m.role !== 'member') { %><span class="badge grad"><%= ROLE_LABELS[m.role] %></span><% } %></div>
             <div class="meta"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
             <% if (m.occupation || m.city) { %><div class="meta"><%= [m.occupation, m.city].filter(Boolean).join(' · ') %></div><% } %>
           </div>

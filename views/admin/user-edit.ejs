@@ -23,16 +23,16 @@
         <div class="field"><label>Анги</label><input type="text" name="class_name" value="<%= user.class_name || '' %>" maxlength="20"></div>
         <div class="field"><label>Ажил, мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
         <div class="field"><label>Хот</label><input type="text" name="city" value="<%= user.city || '' %>" maxlength="100"></div>
-        <div class="field"><label>Төлөв</label>
-          <select name="status" <%= user.id === me.id ? 'disabled' : '' %>>
+        <div class="field"><label>Бүртгэлийн төлөв</label>
+          <select name="status" <%= user.id === me.id || !can('approve_users') ? 'disabled' : '' %>>
             <% ['pending','approved','rejected'].forEach(function (s) { %><option value="<%= s %>" <%= user.status === s ? 'selected' : '' %>><%= h.STATUS_LABELS[s] %></option><% }) %>
           </select>
         </div>
-        <div class="field"><label>Эрх</label>
-          <select name="role" <%= user.id === me.id ? 'disabled' : '' %>>
-            <option value="member" <%= user.role === 'member' ? 'selected' : '' %>>Төгсөгч</option>
-            <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Админ</option>
+        <div class="field"><label>Төлөв (эрх)</label>
+          <select name="role" <%= user.id === me.id || !can('manage_roles') ? 'disabled' : '' %>>
+            <% Object.keys(ROLE_LABELS).forEach(function (r) { %><option value="<%= r %>" <%= user.role === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option><% }) %>
           </select>
+          <% if (can('manage_roles')) { %><div class="hint">Төлөв бүрийн эрхийг <a href="/admin/roles">Эрх, төлөв</a> хэсэгт тохируулна.</div><% } %>
         </div>
       </div>
       <div class="field"><label>Танилцуулга</label><textarea name="bio" maxlength="3000"><%= user.bio || '' %></textarea></div>

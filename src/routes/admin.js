@@ -1,11 +1,38 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
-const { flash, wrap, requireAdmin } = require('../middleware');
+const { flash, wrap, requireManage, requirePerm, can, forbidden } = require('../middleware');
 const { clean, PHASES, PHASE_LABELS } = require('../helpers');
+const perms = require('../permissions');
 
 const router = express.Router();
-router.use(requireAdmin);
+router.use(requireManage);
+
+// Хэсэг бүрийн эрх
+router.use('/news', requirePerm('manage_news'));
+router.use('/plans', requirePerm('manage_plans'));
+router.use('/requests', requirePerm('manage_requests'));
+router.use('/elections', requirePerm('manage_elections'));
+router.use('/schools', requirePerm('manage_schools'));
+router.use('/roles', requirePerm('manage_roles'));
+router.use('/users', requirePerm('approve_users', 'edit_users'));
+
+// "Эрх тохируулах" эрхгүй хүн модератор, админы бүртгэлд хүрч болохгүй.
+function canTouch(actor, target) {
+  if (!target) return false;
+  if (target.id === actor.id) return true;
+  return target.role === 'member' || can(actor, 'manage_roles');
+}
+
+async function getTarget(req, res) {
+  const [[user]] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+  if (!user) return null;
+  if (!canTouch(req.user, user)) {
+    forbidden(res);
+    return false;
+  }
+  return user;
+}
 
 // ---------- Хянах самбар ----------
 router.get('/', wrap(async (req, res) => {
@@ -17,20 +44,50 @@ router.get('/', wrap(async (req, res) => {
       (SELECT COUNT(*) FROM announcements) AS news,
       (SELECT COUNT(*) FROM elections WHERE phase NOT IN ('draft','closed')) AS activeElections`
   );
-  const [pendingUsers] = await pool.query(
-    `SELECT u.*, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
-     WHERE u.status = 'pending' ORDER BY u.created_at LIMIT 10`
+  let pendingUsers = [];
+  if (can(req.user, 'approve_users')) {
+    [pendingUsers] = await pool.query(
+      `SELECT u.*, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+       WHERE u.status = 'pending' ORDER BY u.created_at LIMIT 10`
+    );
+  }
+  res.render('admin/index', { title: 'Удирдлага', counts, pendingUsers });
+}));
+
+// ---------- Эрх, төлөв ----------
+router.get('/roles', wrap(async (req, res) => {
+  const [counts] = await pool.query("SELECT role, COUNT(*) AS n FROM users WHERE status='approved' GROUP BY role");
+  const roleCounts = Object.fromEntries(counts.map((r) => [r.role, r.n]));
+  const [staff] = await pool.query(
+    `SELECT u.id, u.surname, u.name, u.role, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+     WHERE u.role <> 'member' ORDER BY FIELD(u.role,'admin','moderator'), u.name`
   );
-  res.render('admin/index', { title: 'Админ', counts, pendingUsers });
+  res.render('admin/roles', {
+    title: 'Эрх, төлөв — Админ', perms, current: perms.rolePerms(), roleCounts, staff,
+  });
+}));
+
+router.post('/roles', wrap(async (req, res) => {
+  await perms.savePermissions(req.body.perms || {});
+  flash(req, 'success', 'Эрхийн тохиргоо хадгалагдлаа.');
+  res.redirect('/admin/roles');
+}));
+
+router.post('/roles/reset', wrap(async (req, res) => {
+  await perms.savePermissions(perms.DEFAULTS);
+  flash(req, 'success', 'Эрхийг анхны тохиргоонд буцаалаа.');
+  res.redirect('/admin/roles');
 }));
 
 // ---------- Төгсөгчид ----------
 router.get('/users', wrap(async (req, res) => {
   const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : '';
+  const role = perms.ROLES.includes(req.query.role) ? req.query.role : '';
   const q = clean(req.query.q, 80);
   const where = [];
   const params = [];
   if (status) { where.push('u.status = ?'); params.push(status); }
+  if (role) { where.push('u.role = ?'); params.push(role); }
   if (q) {
     where.push('(u.name LIKE ? OR u.surname LIKE ? OR u.phone LIKE ?)');
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
@@ -41,29 +98,49 @@ router.get('/users', wrap(async (req, res) => {
      ORDER BY FIELD(u.status,'pending','approved','rejected'), u.created_at DESC`,
     params
   );
-  res.render('admin/users', { title: 'Төгсөгчид — Админ', users, status, q });
+  res.render('admin/users', { title: 'Төгсөгчид — Удирдлага', users, status, role, q });
 }));
 
-router.post('/users/:id/status', wrap(async (req, res) => {
+router.post('/users/:id/status', requirePerm('approve_users'), wrap(async (req, res) => {
   const status = ['pending', 'approved', 'rejected'].includes(req.body.status) ? req.body.status : null;
-  const id = Number(req.params.id);
-  if (status && id !== req.user.id) {
+  const target = await getTarget(req, res);
+  if (target === false) return;
+  if (status && target && target.id !== req.user.id) {
     // Татгалзсан хэрэглэгчийн сесс loadUser дээр автоматаар хүчингүй болно.
-    await pool.query('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    await pool.query('UPDATE users SET status = ? WHERE id = ?', [status, target.id]);
     flash(req, 'success', status === 'approved' ? 'Бүртгэлийг баталгаажууллаа.' : 'Төлөв шинэчлэгдлээ.');
   }
   res.redirect(req.get('Referer') || '/admin/users');
 }));
 
-router.get('/users/:id', wrap(async (req, res, next) => {
-  const [[user]] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+// Төлөв (Төгсөгч / Модератор / Админ) олгох
+router.post('/users/:id/role', requirePerm('manage_roles'), wrap(async (req, res, next) => {
+  const target = await getTarget(req, res);
+  if (target === false) return;
+  if (!target) return next();
+  const role = perms.ROLES.includes(req.body.role) ? req.body.role : null;
+  if (target.id === req.user.id) {
+    flash(req, 'error', 'Өөрийн төлөвийг өөрчлөх боломжгүй.');
+  } else if (role) {
+    await pool.query('UPDATE users SET role = ? WHERE id = ?', [role, target.id]);
+    flash(req, 'success', `${target.surname} ${target.name}: "${perms.ROLE_LABELS[role]}" төлөвтэй боллоо.`);
+  }
+  res.redirect(req.get('Referer') || `/admin/users/${target.id}`);
+}));
+
+router.get('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next) => {
+  const user = await getTarget(req, res);
+  if (user === false) return;
   if (!user) return next();
   const [schools] = await pool.query('SELECT * FROM schools ORDER BY sort_order, name');
   res.render('admin/user-edit', { title: 'Төгсөгч засах', user, schools });
 }));
 
-router.post('/users/:id', wrap(async (req, res) => {
-  const id = Number(req.params.id);
+router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next) => {
+  const target = await getTarget(req, res);
+  if (target === false) return;
+  if (!target) return next();
+  const id = target.id;
   const phone = String(req.body.phone || '').replace(/[\s-]/g, '').slice(0, 20);
   if (!/^\+?\d{8,15}$/.test(phone)) {
     flash(req, 'error', 'Утасны дугаар буруу байна.');
@@ -74,10 +151,11 @@ router.post('/users/:id', wrap(async (req, res) => {
     flash(req, 'error', 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.');
     return res.redirect(`/admin/users/${id}`);
   }
-  // Админ өөрийн эрхийг өөрөө хасахгүй.
-  const role = id === req.user.id ? 'admin' : req.body.role === 'admin' ? 'admin' : 'member';
-  const status = id === req.user.id ? 'approved'
-    : ['pending', 'approved', 'rejected'].includes(req.body.status) ? req.body.status : 'pending';
+  // Өөрийн төлөв, бүртгэлийн төлөвийг өөрөө өөрчлөхгүй; эрхгүй бол хуучнаар нь үлдээнэ.
+  const self = id === req.user.id;
+  const role = !self && can(req.user, 'manage_roles') && perms.ROLES.includes(req.body.role) ? req.body.role : target.role;
+  const status = !self && can(req.user, 'approve_users') && ['pending', 'approved', 'rejected'].includes(req.body.status)
+    ? req.body.status : target.status;
   await pool.query(
     `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, city=?, bio=?, role=?, status=?
      WHERE id = ?`,
@@ -89,23 +167,28 @@ router.post('/users/:id', wrap(async (req, res) => {
   res.redirect(`/admin/users/${id}`);
 }));
 
-router.post('/users/:id/password', wrap(async (req, res) => {
+router.post('/users/:id/password', requirePerm('edit_users'), wrap(async (req, res, next) => {
+  const target = await getTarget(req, res);
+  if (target === false) return;
+  if (!target) return next();
   const password = String(req.body.password || '');
   if (password.length < 8) {
     flash(req, 'error', 'Нууц үг дор хаяж 8 тэмдэгт байх ёстой.');
   } else {
-    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(password, 12), req.params.id]);
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(password, 12), target.id]);
     flash(req, 'success', 'Нууц үг шинэчлэгдлээ. Төгсөгчид шинэ нууц үгийг нь мэдэгдээрэй.');
   }
-  res.redirect(`/admin/users/${req.params.id}`);
+  res.redirect(`/admin/users/${target.id}`);
 }));
 
-router.post('/users/:id/delete', wrap(async (req, res) => {
-  const id = Number(req.params.id);
-  if (id === req.user.id) {
+router.post('/users/:id/delete', requirePerm('edit_users'), wrap(async (req, res, next) => {
+  const target = await getTarget(req, res);
+  if (target === false) return;
+  if (!target) return next();
+  if (target.id === req.user.id) {
     flash(req, 'error', 'Өөрийгөө устгах боломжгүй.');
   } else {
-    await pool.query('DELETE FROM users WHERE id = ?', [id]);
+    await pool.query('DELETE FROM users WHERE id = ?', [target.id]);
     flash(req, 'success', 'Хэрэглэгч устгагдлаа.');
   }
   res.redirect('/admin/users');

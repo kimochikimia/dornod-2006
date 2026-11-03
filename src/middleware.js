@@ -1,10 +1,19 @@
 const crypto = require('crypto');
 const { pool } = require('./db');
 const helpers = require('./helpers');
+const perms = require('./permissions');
 
 function flash(req, type, message) {
   if (!req.session.flash) req.session.flash = [];
   req.session.flash.push({ type, message });
+}
+
+function can(user, permission) {
+  return !!(user && user.perms && user.perms.has(permission));
+}
+
+function canManage(user) {
+  return perms.MANAGE_PERMS.some((p) => can(user, p));
 }
 
 async function loadUser(req, res, next) {
@@ -16,8 +25,12 @@ async function loadUser(req, res, next) {
          LEFT JOIN schools s ON s.id = u.school_id WHERE u.id = ?`,
         [req.session.userId]
       );
-      if (rows[0] && rows[0].status !== 'rejected') req.user = rows[0];
-      else delete req.session.userId;
+      if (rows[0] && rows[0].status !== 'rejected') {
+        req.user = rows[0];
+        req.user.perms = perms.permsFor(req.user);
+      } else {
+        delete req.session.userId;
+      }
     } catch (err) {
       return next(err);
     }
@@ -29,8 +42,10 @@ function locals(req, res, next) {
   if (!req.session.csrf) req.session.csrf = crypto.randomBytes(24).toString('hex');
   res.locals.csrf = req.session.csrf;
   res.locals.me = req.user;
-  res.locals.isAdmin = !!(req.user && req.user.role === 'admin');
-  res.locals.isMember = !!(req.user && req.user.status === 'approved');
+  res.locals.can = (p) => can(req.user, p);
+  res.locals.canManage = canManage(req.user);
+  res.locals.isApproved = !!(req.user && req.user.status === 'approved');
+  res.locals.ROLE_LABELS = perms.ROLE_LABELS;
   res.locals.flash = req.session.flash || [];
   delete req.session.flash;
   res.locals.path = req.path;
@@ -59,12 +74,29 @@ function requireMember(req, res, next) {
   res.redirect('/me');
 }
 
-function requireAdmin(req, res, next) {
-  if (req.user && req.user.role === 'admin') return next();
-  res.status(403).render('error', { title: 'Хандалт хориглогдлоо', message: 'Энэ хэсэг зөвхөн админд нээлттэй.' });
+function forbidden(res) {
+  res.status(403).render('error', { title: 'Хандалт хориглогдлоо', message: 'Танд энэ үйлдлийг хийх эрх олгогдоогүй байна.' });
+}
+
+// Жагсаасан эрхүүдийн аль нэг нь байвал нэвтрүүлнэ.
+function requirePerm(...keys) {
+  return (req, res, next) => {
+    if (!req.user) return requireLogin(req, res, next);
+    if (keys.some((k) => can(req.user, k))) return next();
+    if (req.user.status !== 'approved') return requireMember(req, res, next);
+    forbidden(res);
+  };
+}
+
+function requireManage(req, res, next) {
+  if (!req.user) return requireLogin(req, res, next);
+  if (canManage(req.user)) return next();
+  forbidden(res);
 }
 
 // async route handler-ийн алдааг next() руу дамжуулна.
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-module.exports = { flash, loadUser, locals, csrfCheck, requireLogin, requireMember, requireAdmin, wrap };
+module.exports = {
+  flash, can, canManage, loadUser, locals, csrfCheck, requireLogin, requireMember, requirePerm, requireManage, forbidden, wrap,
+};

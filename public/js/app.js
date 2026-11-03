@@ -21,6 +21,16 @@
       });
     });
 
+    // Төлөв сонгоход маягтыг шууд илгээнэ
+    $$('form[data-autosubmit] select').forEach(function (sel) {
+      var prev = sel.value;
+      sel.addEventListener('change', function () {
+        var label = sel.options[sel.selectedIndex].text;
+        if (window.confirm('Төлөвийг "' + label + '" болгох уу?')) sel.form.submit();
+        else sel.value = prev;
+      });
+    });
+
     initBallot();
     initLive();
     initPlanForm();

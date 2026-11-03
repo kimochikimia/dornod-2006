@@ -2,19 +2,27 @@
 <div class="container">
   <%- include('_nav') %>
   <div class="grid grid-4" style="margin-bottom:1.5rem">
-    <a class="card stat card-link" href="/admin/users?status=pending"><div class="num" style="color:var(--warn)"><%= counts.pending %></div><div class="label">Баталгаажуулалт хүлээж буй</div></a>
-    <a class="card stat card-link" href="/admin/users?status=approved"><div class="num grad-text"><%= counts.approved %></div><div class="label">Баталгаажсан төгсөгч</div></a>
-    <a class="card stat card-link" href="/admin/requests"><div class="num grad-text"><%= counts.requests %></div><div class="label">Шийдвэрлээгүй хүсэлт</div></a>
-    <a class="card stat card-link" href="/admin/elections"><div class="num grad-text"><%= counts.activeElections %></div><div class="label">Идэвхтэй сонгууль</div></a>
-  </div>
-
-  <div class="card">
-    <h2>Шинэ бүртгэлүүд</h2>
-    <% if (!pendingUsers.length) { %>
-      <p class="muted">Баталгаажуулах бүртгэл алга.</p>
-    <% } else { %>
-      <%- include('_users-table', { users: pendingUsers }) %>
+    <% if (can('approve_users')) { %>
+      <a class="card stat card-link" href="/admin/users?status=pending"><div class="num" style="color:var(--warn)"><%= counts.pending %></div><div class="label">Баталгаажуулалт хүлээж буй</div></a>
+    <% } %>
+    <div class="card stat"><div class="num grad-text"><%= counts.approved %></div><div class="label">Баталгаажсан төгсөгч</div></div>
+    <% if (can('manage_requests')) { %>
+      <a class="card stat card-link" href="/admin/requests"><div class="num grad-text"><%= counts.requests %></div><div class="label">Шийдвэрлээгүй хүсэлт</div></a>
+    <% } %>
+    <% if (can('manage_elections')) { %>
+      <a class="card stat card-link" href="/admin/elections"><div class="num grad-text"><%= counts.activeElections %></div><div class="label">Идэвхтэй сонгууль</div></a>
     <% } %>
   </div>
+
+  <% if (can('approve_users')) { %>
+    <div class="card">
+      <h2>Шинэ бүртгэлүүд</h2>
+      <% if (!pendingUsers.length) { %>
+        <p class="muted">Баталгаажуулах бүртгэл алга.</p>
+      <% } else { %>
+        <%- include('_users-table', { users: pendingUsers }) %>
+      <% } %>
+    </div>
+  <% } %>
 </div>
 <%- include('../partials/foot') %>

@@ -10,9 +10,11 @@
         <a class="btn btn-lg" href="/login">Нэвтрэх</a>
       <% } else if (election) { %>
         <a class="btn btn-primary btn-lg" href="/elections/<%= election.id %>">Сонгуульд оролцох</a>
-        <a class="btn btn-lg" href="/members">Төгсөгчид</a>
-      <% } else { %>
+        <% if (can('view_members')) { %><a class="btn btn-lg" href="/members">Төгсөгчид</a><% } %>
+      <% } else if (can('view_members')) { %>
         <a class="btn btn-primary btn-lg" href="/members">Төгсөгчид</a>
+      <% } else { %>
+        <a class="btn btn-primary btn-lg" href="/plan">Төлөвлөгөө</a>
       <% } %>
     </div>
   </div>

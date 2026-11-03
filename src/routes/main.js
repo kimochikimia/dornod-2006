@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
-const { flash, wrap, requireLogin, requireMember } = require('../middleware');
+const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware');
 const { clean } = require('../helpers');
 const plan = require('../plan');
 
@@ -49,7 +49,7 @@ router.get('/plan', wrap(async (req, res) => {
   });
 }));
 
-router.get('/members', requireMember, wrap(async (req, res) => {
+router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
   const q = clean(req.query.q, 80);
   const school = Number(req.query.school) || null;
   const where = ["u.status = 'approved'"];
@@ -72,7 +72,7 @@ router.get('/members', requireMember, wrap(async (req, res) => {
   res.render('members/list', { title: 'Төгсөгчид', members, schools, q, school });
 }));
 
-router.get('/members/:id', requireMember, wrap(async (req, res, next) => {
+router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
     `SELECT u.id, u.surname, u.name, u.phone, u.email, u.class_name, u.occupation, u.city, u.bio, u.role, u.created_at,
             s.name AS school_name
@@ -81,6 +81,10 @@ router.get('/members/:id', requireMember, wrap(async (req, res, next) => {
     [req.params.id]
   );
   if (!member) return next();
+  if (!can(req.user, 'view_contacts')) {
+    member.phone = null;
+    member.email = null;
+  }
   res.render('members/show', { title: `${member.surname} ${member.name}`, member });
 }));
 

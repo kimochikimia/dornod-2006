@@ -18,7 +18,7 @@
       <% } else { %><span class="badge grad"><%= h.PHASE_LABELS[e.phase] %></span><% } %>
       <span class="badge"><%= e.seats %> суудал</span>
       <span class="badge">Нэг хүн <%= e.max_choices %> хүртэл нэр дэвшигчид санал өгнө</span>
-      <% if (isAdmin) { %><a class="btn btn-sm" href="/admin/elections/<%= e.id %>">Админ: удирдах</a><% } %>
+      <% if (can('manage_elections')) { %><a class="btn btn-sm" href="/admin/elections/<%= e.id %>">Админ: удирдах</a><% } %>
     </div>
     <h1 style="margin-top:.75rem"><%= e.title %></h1>
     <% if (e.description) { %><div class="prose muted"><%- h.text(e.description) %></div><% } %>
@@ -63,7 +63,7 @@
   <% if (e.phase === 'nomination') { %>
     <div class="card" style="margin-bottom:1.5rem">
       <h2>Нэр дэвшүүлэх</h2>
-      <% if (isMember) { %>
+      <% if (isApproved && can('nominate')) { %>
         <p class="muted">Удирдах зөвлөлд тохиромжтой гэж үзсэн төгсөгчөө (эсвэл өөрийгөө) сонгоно уу. Нэр дэвшигч зөвшөөрсний дараа саналын хуудсанд орно. Өөрийгөө дэвшүүлбэл автоматаар зөвшөөрсөнд тооцогдоно.</p>
         <form method="post" action="/elections/<%= e.id %>/nominate" class="form">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -86,7 +86,7 @@
           <div><button class="btn btn-primary" type="submit">Нэр дэвшүүлэх</button></div>
         </form>
       <% } else if (me) { %>
-        <p class="muted">Таны бүртгэл баталгаажсаны дараа нэр дэвшүүлэх боломжтой.</p>
+        <p class="muted"><%= isApproved ? 'Танд нэр дэвшүүлэх эрх олгогдоогүй байна.' : 'Таны бүртгэл баталгаажсаны дараа нэр дэвшүүлэх боломжтой.' %></p>
       <% } else { %>
         <p class="muted"><a href="/login?next=/elections/<%= e.id %>">Нэвтэрч</a> нэр дэвшүүлнэ үү.</p>
       <% } %>
@@ -132,7 +132,7 @@
                   </ul>
                 </details>
               <% } %>
-              <% if (e.phase === 'nomination' && isMember && !myNominations.has(c.id)) { %>
+              <% if (e.phase === 'nomination' && can('nominate') && !myNominations.has(c.id)) { %>
                 <form method="post" action="/elections/<%= e.id %>/nominate" style="margin-top:.75rem">
                   <input type="hidden" name="_csrf" value="<%= csrf %>">
                   <input type="hidden" name="nominee_id" value="<%= c.user_id %>">
@@ -148,7 +148,7 @@
 
   <%# ---------- 3. Санал хураалт ---------- %>
   <% if (e.phase === 'voting') { %>
-    <% if (isMember && !hasVoted) { %>
+    <% if (can('vote') && !hasVoted) { %>
       <div class="card glow" style="margin-bottom:1.5rem">
         <h2>Саналын хуудас</h2>
         <p class="muted">Удирдах зөвлөлд <strong><%= e.max_choices %></strong> хүртэл нэр дэвшигч сонгоно уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
@@ -174,7 +174,7 @@
     <% } else if (hasVoted) { %>
       <div class="flash success" style="margin-bottom:1.5rem">✓ Та саналаа өгсөн байна. Баярлалаа! Доор сонгуулийн явцыг шууд харж болно.</div>
     <% } else if (me) { %>
-      <div class="flash warn" style="margin-bottom:1.5rem">Таны бүртгэл баталгаажаагүй тул санал өгөх боломжгүй.</div>
+      <div class="flash warn" style="margin-bottom:1.5rem"><%= isApproved ? 'Танд санал өгөх эрх олгогдоогүй байна.' : 'Таны бүртгэл баталгаажаагүй тул санал өгөх боломжгүй.' %></div>
     <% } else { %>
       <div class="flash info" style="margin-bottom:1.5rem"><a href="/login?next=/elections/<%= e.id %>">Нэвтэрч</a> саналаа өгнө үү.</div>
     <% } %>

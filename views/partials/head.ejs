@@ -23,11 +23,11 @@
       <a href="/news" class="<%= path.startsWith('/news') ? 'active' : '' %>">Мэдээ</a>
       <a href="/plan" class="<%= path.startsWith('/plan') ? 'active' : '' %>">Төлөвлөгөө</a>
       <a href="/elections" class="<%= path.startsWith('/elections') ? 'active' : '' %>">Удирдах зөвлөл</a>
-      <% if (isMember) { %>
+      <% if (can('view_members')) { %>
         <a href="/members" class="<%= path.startsWith('/members') ? 'active' : '' %>">Төгсөгчид</a>
       <% } %>
-      <% if (isAdmin) { %>
-        <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">Админ</a>
+      <% if (canManage) { %>
+        <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><%= me.role === 'admin' ? 'Админ' : 'Удирдлага' %></a>
       <% } %>
       <% if (me) { %>
         <a href="/me" class="<%= path === '/me' ? 'active' : '' %>"><%= me.name %></a>

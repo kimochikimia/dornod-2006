@@ -6,6 +6,6 @@
     <p class="small faint"><%= h.fmtDate(item.created_at) %></p>
   </div>
   <article class="card prose"><%- h.text(item.body) %></article>
-  <% if (isAdmin) { %><p style="margin-top:1rem"><a class="btn btn-sm" href="/admin/news/<%= item.id %>">Засах</a></p><% } %>
+  <% if (can('manage_news')) { %><p style="margin-top:1rem"><a class="btn btn-sm" href="/admin/news/<%= item.id %>">Засах</a></p><% } %>
 </div>
 <%- include('../partials/foot') %>

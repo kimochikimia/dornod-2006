@@ -1,0 +1,97 @@
+<%- include('../partials/head') %>
+<%
+  var roles = perms.ROLES;
+  var groups = [];
+  perms.PERMISSIONS.forEach(function (p) { if (groups.indexOf(p.group) === -1) groups.push(p.group); });
+  var locked = function (role, key) { return (perms.LOCKED[role] || []).indexOf(key) !== -1; };
+%>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="grid grid-3" style="margin-bottom:1.25rem">
+    <% roles.forEach(function (r) { %>
+      <a class="card stat card-link" href="/admin/users?role=<%= r %>">
+        <div class="num grad-text"><%= roleCounts[r] || 0 %></div>
+        <div class="label"><%= ROLE_LABELS[r] %> · <%= current[r].size %> эрхтэй</div>
+      </a>
+    <% }) %>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="row between">
+      <h2 style="margin:0">Төлөв бүрийн эрх</h2>
+      <form method="post" action="/admin/roles/reset" class="inline" data-confirm="Бүх төлөвийн эрхийг анхны тохиргоонд буцаах уу?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn btn-sm btn-ghost">Анхны тохиргоо</button>
+      </form>
+    </div>
+    <p class="muted small">Чагтлаад "Хадгалах" дарна. Эрх тухайн төлөвтэй бүх баталгаажсан хэрэглэгчид шууд үйлчилнэ. Баталгаажаагүй бүртгэлд ямар ч эрх үйлчлэхгүй. 🔒 — админаас авах боломжгүй эрх (бүгд удирдлагаас түгжигдэхээс сэргийлнэ).</p>
+    <form method="post" action="/admin/roles">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="table-wrap">
+        <table class="perm-table">
+          <thead>
+            <tr>
+              <th>Эрх</th>
+              <% roles.forEach(function (r) { %><th class="center"><%= ROLE_LABELS[r] %></th><% }) %>
+            </tr>
+          </thead>
+          <tbody>
+            <% groups.forEach(function (g) { %>
+              <tr class="perm-group"><td colspan="<%= roles.length + 1 %>"><%= g %></td></tr>
+              <% perms.PERMISSIONS.filter(function (p) { return p.group === g; }).forEach(function (p) { %>
+                <tr>
+                  <td><%= p.label %></td>
+                  <% roles.forEach(function (r) { var on = current[r].has(p.key); %>
+                    <td class="center">
+                      <% if (locked(r, p.key)) { %>
+                        <span title="Админаас авах боломжгүй">🔒</span>
+                        <input type="hidden" name="perms[<%= r %>][]" value="<%= p.key %>">
+                      <% } else { %>
+                        <label class="perm-check"><input type="checkbox" name="perms[<%= r %>][]" value="<%= p.key %>" <%= on ? 'checked' : '' %>></label>
+                      <% } %>
+                    </td>
+                  <% }) %>
+                </tr>
+              <% }) %>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:1rem"><button class="btn btn-primary" type="submit">Хадгалах</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Модератор, админууд</h2>
+    <p class="muted small">Төлөв олгохдоо <a href="/admin/users">Төгсөгчид</a> хэсгийн "Төлөв" баганаас сонгоно.</p>
+    <% if (!staff.length) { %>
+      <p class="muted">Алга.</p>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Овог, нэр</th><th>Сургууль</th><th>Төлөв</th></tr></thead>
+          <tbody>
+            <% staff.forEach(function (u) { %>
+              <tr>
+                <td><strong><%= u.surname %> <%= u.name %></strong></td>
+                <td class="small"><%= u.school_name || '—' %></td>
+                <td>
+                  <% if (u.id !== me.id) { %>
+                    <form method="post" action="/admin/users/<%= u.id %>/role" class="inline" data-autosubmit>
+                      <input type="hidden" name="_csrf" value="<%= csrf %>">
+                      <select name="role" class="select-sm">
+                        <% roles.forEach(function (r) { %><option value="<%= r %>" <%= u.role === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option><% }) %>
+                      </select>
+                    </form>
+                  <% } else { %><span class="badge grad"><%= ROLE_LABELS[u.role] %></span> <span class="small faint">(та)</span><% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/foot') %>

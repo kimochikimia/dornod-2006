@@ -7,18 +7,20 @@
       <div>
         <h1 style="margin:0"><%= member.surname %> <%= member.name %></h1>
         <div class="muted"><%= member.school_name || '—' %><%= member.class_name ? ' · ' + member.class_name + ' анги' : '' %></div>
-        <% if (member.role === 'admin') { %><span class="badge grad" style="margin-top:.4rem">Сайтын админ</span><% } %>
+        <% if (member.role !== 'member') { %><span class="badge grad" style="margin-top:.4rem"><%= ROLE_LABELS[member.role] %></span><% } %>
       </div>
     </div>
     <dl class="dl">
       <dt>Ажил, мэргэжил</dt><dd><%= member.occupation || '—' %></dd>
       <dt>Амьдарч буй газар</dt><dd><%= member.city || '—' %></dd>
-      <dt>Утас</dt><dd><a href="tel:<%= member.phone %>"><%= member.phone %></a></dd>
-      <dt>И-мэйл</dt><dd><% if (member.email) { %><a href="mailto:<%= member.email %>"><%= member.email %></a><% } else { %>—<% } %></dd>
+      <% if (can('view_contacts')) { %>
+        <dt>Утас</dt><dd><a href="tel:<%= member.phone %>"><%= member.phone %></a></dd>
+        <dt>И-мэйл</dt><dd><% if (member.email) { %><a href="mailto:<%= member.email %>"><%= member.email %></a><% } else { %>—<% } %></dd>
+      <% } %>
       <dt>Бүртгүүлсэн</dt><dd><%= h.fmtDay(member.created_at) %></dd>
     </dl>
     <% if (member.bio) { %><hr class="sep"><div class="prose"><%- h.text(member.bio) %></div><% } %>
-    <% if (isAdmin) { %><hr class="sep"><a class="btn btn-sm" href="/admin/users/<%= member.id %>">Админ: засах</a><% } %>
+    <% if (can('edit_users') && (member.role === 'member' || can('manage_roles') || member.id === me.id)) { %><hr class="sep"><a class="btn btn-sm" href="/admin/users/<%= member.id %>">Мэдээлэл засах</a><% } %>
   </div>
 </div>
 <%- include('../partials/foot') %>

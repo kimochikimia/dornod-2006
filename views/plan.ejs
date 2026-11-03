@@ -9,7 +9,7 @@
       <h1>Төлөвлөгөө</h1>
       <p style="margin:0">Төгсөгчдийн холбооны төлөвлөсөн ажил, чухал үйл явдлууд.</p>
     </div>
-    <% if (isAdmin) { %><a class="btn btn-primary" href="/admin/plans/new">+ Ажил нэмэх</a><% } %>
+    <% if (can('manage_plans')) { %><a class="btn btn-primary" href="/admin/plans/new">+ Ажил нэмэх</a><% } %>
   </div>
 
   <div class="tabs">

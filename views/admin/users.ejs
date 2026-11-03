@@ -9,6 +9,10 @@
       <option value="approved" <%= status === 'approved' ? 'selected' : '' %>>Баталгаажсан</option>
       <option value="rejected" <%= status === 'rejected' ? 'selected' : '' %>>Татгалзсан</option>
     </select>
+    <select name="role" style="flex:1;min-width:140px">
+      <option value="">Бүх төлөв (эрх)</option>
+      <% Object.keys(ROLE_LABELS).forEach(function (r) { %><option value="<%= r %>" <%= role === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option><% }) %>
+    </select>
     <button class="btn btn-primary" type="submit">Шүүх</button>
   </form>
   <p class="muted small"><%= users.length %> хэрэглэгч</p>

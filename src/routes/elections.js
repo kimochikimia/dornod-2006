@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { flash, wrap, requireMember } = require('../middleware');
+const { flash, wrap, requireMember, requirePerm, can } = require('../middleware');
 const { clean } = require('../helpers');
 const { electionStats } = require('../electionStats');
 
@@ -9,12 +9,12 @@ const router = express.Router();
 async function getElection(req) {
   const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
   if (!e) return null;
-  if (e.phase === 'draft' && !(req.user && req.user.role === 'admin')) return null;
+  if (e.phase === 'draft' && !can(req.user, 'manage_elections')) return null;
   return e;
 }
 
 router.get('/', wrap(async (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = can(req.user, 'manage_elections');
   const [elections] = await pool.query(
     `SELECT e.*,
        (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id AND c.status='accepted') AS accepted_count,
@@ -95,7 +95,7 @@ router.get('/:id/live.json', wrap(async (req, res) => {
 }));
 
 // 1-р шат: нэр дэвшүүлэх (өөрийгөө эсвэл бусдыг)
-router.post('/:id/nominate', requireMember, wrap(async (req, res, next) => {
+router.post('/:id/nominate', requirePerm('nominate'), wrap(async (req, res, next) => {
   const e = await getElection(req);
   if (!e) return next();
   const back = `/elections/${e.id}`;
@@ -165,7 +165,7 @@ router.post('/:id/respond', requireMember, wrap(async (req, res, next) => {
 }));
 
 // 3-р шат: санал өгөх (нууц санал — хэнд өгснийг хадгалахгүй)
-router.post('/:id/vote', requireMember, wrap(async (req, res, next) => {
+router.post('/:id/vote', requirePerm('vote'), wrap(async (req, res, next) => {
   const e = await getElection(req);
   if (!e) return next();
   const back = `/elections/${e.id}`;
