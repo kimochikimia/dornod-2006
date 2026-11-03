@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: isProd ? '7d' :
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 
 if (isProd && !process.env.SESSION_SECRET) {
-  console.error('SESSION_SECRET тохируулаагүй байна!');
+  console.error('SESSION_SECRET тохируулаагүй байна! Railway дээр Variables хэсэгт SESSION_SECRET нэмнэ үү.');
   process.exit(1);
 }
 

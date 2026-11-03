@@ -33,7 +33,36 @@ const DEFAULT_SCHOOLS = [
   '11-р сургууль', '12-р сургууль', 'Сумын сургууль', 'Бусад',
 ];
 
+function describeConfig() {
+  if (process.env.DATABASE_URL) return 'DATABASE_URL';
+  if (process.env.MYSQL_URL) return 'MYSQL_URL';
+  if (process.env.MYSQLHOST || process.env.DB_HOST) return 'MYSQLHOST/DB_HOST';
+  return null;
+}
+
+// MySQL сервер апп-аас хойно асах тохиолдолд хэдэн удаа дахин оролдоно.
+async function waitForDb(attempts = 10) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await pool.query('SELECT 1');
+      return;
+    } catch (err) {
+      console.warn(`[db] Холболт амжилтгүй (${i}/${attempts}): ${err.code || err.message}`);
+      if (i === attempts) throw err;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+}
+
 async function init() {
+  const source = describeConfig();
+  if (!source) {
+    console.error('[db] DATABASE_URL тохируулаагүй байна. Railway дээр Variables хэсэгт DATABASE_URL=${{MySQL.MYSQL_URL}} нэмнэ үү.');
+  } else {
+    console.log(`[db] Холболтын тохиргоо: ${source}`);
+  }
+  await waitForDb();
+
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   const statements = sql
     .replace(/^\s*--.*$/gm, '')
