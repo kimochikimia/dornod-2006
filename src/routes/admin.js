@@ -8,6 +8,7 @@ const sched = require('../electionSchedule');
 const { fromUbInput, parsePhoto, normalizeFacebook, parseDocFile } = require('../helpers');
 const h = require('../helpers');
 const photos = require('../photos');
+const { parseCity } = require('../locations');
 const { electionStats } = require('../electionStats');
 
 const router = express.Router();
@@ -152,6 +153,11 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
     flash(req, 'error', 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.');
     return res.redirect(`/admin/users/${id}`);
   }
+  const place = parseCity(req.body.city_choice, req.body.city_other, target.city);
+  if (place.error) {
+    flash(req, 'error', place.error);
+    return res.redirect(`/admin/users/${id}`);
+  }
   const facebook = normalizeFacebook(req.body.facebook);
   if (facebook === false) {
     flash(req, 'error', 'Facebook линк буруу байна (ж: facebook.com/нэр).');
@@ -169,7 +175,7 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
     [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
       Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null, clean(req.body.occupation, 150) || null,
       h.employmentKey(req.body.employment), clean(req.body.workplace, 150) || null,
-      clean(req.body.city, 100) || null, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
+      place.city, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
   flash(req, 'success', 'Мэдээлэл хадгалагдлаа.');
   res.redirect(`/admin/users/${id}`);

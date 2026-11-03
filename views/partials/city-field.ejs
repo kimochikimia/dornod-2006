@@ -1,0 +1,34 @@
+<%#
+  Одоо амьдарч буй газар: Улаанбаатар / Дорнод / Бусад (+ аймаг, сумын жагсаалт).
+  Хэрэглэх: include('city-field', { value: хадгалсан утга })
+%><%
+  var v = value || '';
+  var choice = !v ? '' : (LOC.MAIN.indexOf(v) !== -1 ? v : 'other');
+  var known = LOC.OTHER_VALUES.has(v);
+%>
+<div class="field city-field" data-city>
+  <label for="city_choice">Одоо амьдарч буй газар</label>
+  <select id="city_choice" name="city_choice" data-city-choice>
+    <option value="">— Сонгох —</option>
+    <option value="Улаанбаатар" <%= choice === 'Улаанбаатар' ? 'selected' : '' %>>Улаанбаатар</option>
+    <option value="Дорнод" <%= choice === 'Дорнод' ? 'selected' : '' %>>Дорнод</option>
+    <option value="other" <%= choice === 'other' ? 'selected' : '' %>>Бусад</option>
+  </select>
+  <div class="city-other" data-city-other <%= choice === 'other' ? '' : 'hidden' %>>
+    <input type="search" placeholder="🔍 Аймаг эсвэл сумаар хайх" data-filter-select="city_other" autocomplete="off">
+    <select id="city_other" name="city_other">
+      <option value="">— Аймаг, сум сонгох —</option>
+      <% if (choice === 'other' && !known) { %><option value="<%= v %>" selected><%= v %> (одоогийн)</option><% } %>
+      <% LOC.AIMAGS.forEach(function (a) { %>
+        <optgroup label="<%= a[0] %> аймаг">
+          <% a[1].forEach(function (s) { var label = LOC.sumLabel(a[0], s); %>
+            <option value="<%= label %>" <%= v === label ? 'selected' : '' %>><%= s %> сум — <%= a[0] %></option>
+          <% }) %>
+        </optgroup>
+      <% }) %>
+      <optgroup label="Гадаад">
+        <option value="<%= LOC.ABROAD %>" <%= v === LOC.ABROAD ? 'selected' : '' %>><%= LOC.ABROAD %></option>
+      </optgroup>
+    </select>
+  </div>
+</div>

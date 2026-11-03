@@ -50,10 +50,7 @@
           <label for="class_name">Анги</label>
           <input id="class_name" type="text" name="class_name" value="<%= form.class_name || '' %>" maxlength="20" placeholder="ж: 10А">
         </div>
-        <div class="field">
-          <label for="city">Одоо амьдарч буй газар</label>
-          <input id="city" type="text" name="city" value="<%= form.city || '' %>" maxlength="100" placeholder="ж: Улаанбаатар">
-        </div>
+        <%- include('../partials/city-field', { value: form.city }) %>
         <div class="field">
           <label for="facebook">Facebook линк</label>
           <input id="facebook" type="text" name="facebook" value="<%= form.facebook || '' %>" maxlength="300" placeholder="ж: facebook.com/таны.нэр" inputmode="url">

@@ -70,6 +70,14 @@
           o.hidden = !show;
           if (show && !firstVisible) firstVisible = o;
         });
+        // Бүх сонголт нь нуугдсан бүлгийн гарчгийг ч нууна
+        Array.prototype.forEach.call(sel.querySelectorAll('optgroup'), function (g) {
+          var label = (g.label || '').toLowerCase();
+          var groupMatch = q && label.indexOf(q) !== -1;
+          if (groupMatch) Array.prototype.forEach.call(g.children, function (o) { o.hidden = false; });
+          g.hidden = !Array.prototype.some.call(g.children, function (o) { return !o.hidden; });
+          if (groupMatch && !firstVisible) firstVisible = g.children[0];
+        });
         if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = '';
         if (q && firstVisible && !sel.value) firstVisible.selected = true;
       });
@@ -113,6 +121,21 @@
         reader.readAsDataURL(f);
       });
     }
+
+    // Амьдарч буй газар: "Бусад" сонгоход аймаг, сумын жагсаалт гарна
+    $$('[data-city]').forEach(function (box) {
+      var choice = $('[data-city-choice]', box);
+      var other = $('[data-city-other]', box);
+      var otherSel = $('select', other);
+      function update() {
+        var on = choice.value === 'other';
+        other.hidden = !on;
+        otherSel.required = on;
+        if (!on) otherSel.value = '';
+      }
+      choice.addEventListener('change', function () { update(); if (choice.value === 'other') $('input', other).focus(); });
+      otherSel.required = choice.value === 'other';
+    });
 
     initPhotoPickers();
     initCountdowns();

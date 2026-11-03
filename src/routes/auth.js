@@ -5,6 +5,7 @@ const { pool } = require('../db');
 const { flash, wrap } = require('../middleware');
 const { clean, parsePhoto, normalizeFacebook, employmentKey } = require('../helpers');
 const { savePhoto } = require('../photos');
+const { parseCity } = require('../locations');
 
 const router = express.Router();
 
@@ -52,7 +53,7 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
     occupation: clean(req.body.occupation, 150),
     employment: employmentKey(req.body.employment),
     workplace: clean(req.body.workplace, 150),
-    city: clean(req.body.city, 100),
+    city: null,
     facebook: clean(req.body.facebook, 300),
     photo_data: String(req.body.photo_data || ''),
   };
@@ -64,6 +65,9 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.push('И-мэйл хаяг буруу байна.');
   if (!form.school_id) errors.push('Төгссөн сургуулиа сонгоно уу.');
   if (!form.employment) errors.push('Ажил эрхлэлтийн байдлаа сонгоно уу.');
+  const place = parseCity(req.body.city_choice, req.body.city_other);
+  if (place.error) errors.push(place.error);
+  else form.city = place.city;
   const facebook = normalizeFacebook(form.facebook);
   if (facebook === false) errors.push('Facebook линк буруу байна (ж: facebook.com/таны.нэр).');
   const photo = parsePhoto(form.photo_data);

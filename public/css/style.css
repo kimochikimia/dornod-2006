@@ -583,3 +583,5 @@ dialog.member-dialog { width: min(520px, calc(100% - 2rem)); }
 code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 246, 0.15); font-size: 0.85em; }
 @media (max-width: 860px) { .doc-layout { grid-template-columns: 1fr; } .doc-nav { position: static; } .doc-main { padding: 1.25rem; } }
 .form-section-title { grid-column: 1 / -1; margin-top: 0.4rem; padding-top: 0.9rem; border-top: 1px solid var(--border); font-weight: 700; font-size: 0.95rem; color: #dfe3ff; }
+.city-other { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.city-other[hidden] { display: none; }

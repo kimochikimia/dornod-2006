@@ -42,7 +42,7 @@
         </div>
         <div class="field"><label>Ажлын газар</label><input type="text" name="workplace" value="<%= user.workplace || '' %>" maxlength="150"></div>
         <div class="field"><label>Мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
-        <div class="field"><label>Хот</label><input type="text" name="city" value="<%= user.city || '' %>" maxlength="100"></div>
+        <%- include('../partials/city-field', { value: user.city }) %>
         <div class="field"><label>Facebook линк</label><input type="text" name="facebook" value="<%= user.facebook || '' %>" maxlength="300" placeholder="facebook.com/нэр"></div>
         <div class="field"><label>Бүртгэлийн төлөв</label>
           <select name="status" <%= user.id === me.id || !can('approve_users') ? 'disabled' : '' %>>
