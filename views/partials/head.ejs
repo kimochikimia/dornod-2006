@@ -18,7 +18,8 @@
   <div class="container nav">
     <a class="brand" href="/"><span class="brand-mark">'06</span> Дорнод 2006</a>
     <button class="nav-toggle" type="button" aria-label="Цэс" data-nav-toggle>☰</button>
-    <nav class="nav-links" data-nav>
+    <div class="nav-menu" data-nav>
+    <nav class="nav-links">
       <a href="/" class="<%= path === '/' ? 'active' : '' %>">Нүүр</a>
       <a href="/news" class="<%= path.startsWith('/news') ? 'active' : '' %>">Мэдээ</a>
       <a href="/plan" class="<%= path.startsWith('/plan') ? 'active' : '' %>">Төлөвлөгөө</a>
@@ -29,17 +30,20 @@
       <% if (canManage) { %>
         <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><%= me.role === 'admin' ? 'Админ' : 'Удирдлага' %></a>
       <% } %>
+    </nav>
+    <div class="nav-actions">
       <% if (me) { %>
-        <a href="/me" class="<%= path === '/me' ? 'active' : '' %>"><%= me.name %></a>
+        <a href="/me" class="nav-user <%= path === '/me' ? 'active' : '' %>"><span class="avatar xs"><%= h.initials(me) %></span><%= me.name %></a>
         <form method="post" action="/logout" class="inline">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
           <button class="btn btn-sm btn-ghost" type="submit">Гарах</button>
         </form>
       <% } else { %>
-        <a href="/login" class="<%= path === '/login' ? 'active' : '' %>">Нэвтрэх</a>
+        <a href="/login" class="btn btn-sm btn-ghost">Нэвтрэх</a>
         <a href="/register" class="btn btn-sm btn-primary">Бүртгүүлэх</a>
       <% } %>
-    </nav>
+    </div>
+    </div>
   </div>
 </header>
 <main>

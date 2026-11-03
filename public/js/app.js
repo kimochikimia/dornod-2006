@@ -14,6 +14,16 @@
     var toggle = $('[data-nav-toggle]');
     if (toggle) toggle.addEventListener('click', function () { $('[data-nav]').classList.toggle('open'); });
 
+    // Нэвтрэх/бүртгүүлэх цонхны × товч: өмнөх хуудас руу буцна (эсвэл нүүр хуудас). Esc дарахад ч хаагдана.
+    var closeBtn = $('[data-modal-close]');
+    if (closeBtn) {
+      var ref = null;
+      try { ref = document.referrer ? new URL(document.referrer) : null; } catch (e) { ref = null; }
+      var canGoBack = ref && ref.origin === location.origin && !/^\/(login|register)/.test(ref.pathname);
+      if (canGoBack) closeBtn.href = ref.pathname + ref.search;
+      document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') location.href = closeBtn.href; });
+    }
+
     // data-confirm бүхий маягт илгээхээс өмнө баталгаажуулна
     $$('form[data-confirm]').forEach(function (f) {
       f.addEventListener('submit', function (ev) {
