@@ -98,11 +98,13 @@
     });
 
     // Баримт бичгийн хавсралт: файлыг base64 болгож маягтад хийнэ
-    var docFile = $('[data-doc-file]');
-    if (docFile) {
+    // (Нэг хуудсанд олон маягт байж болно — тус бүрийн доторх талбаруудыг ашиглана)
+    $$('[data-doc-file]').forEach(function (docFile) {
+      var scope = docFile.form || document;
+      var $s = function (sel) { return scope.querySelector(sel); };
       docFile.addEventListener('change', function () {
         var f = docFile.files && docFile.files[0];
-        var label = $('[data-doc-file-label]');
+        var label = $s('[data-doc-file-label]');
         if (!f) return;
         if (f.size > 10 * 1024 * 1024) { window.alert('Файл 10MB-аас ихгүй байх ёстой.'); docFile.value = ''; return; }
         if (!/\.(pdf|docx|doc)$/i.test(f.name)) { window.alert('Зөвхөн PDF эсвэл Word файл сонгоно уу.'); docFile.value = ''; return; }
@@ -114,13 +116,15 @@
           var ext = f.name.split('.').pop().toLowerCase();
           var mime = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword' }[ext];
           url = url.replace(/^data:[^;]*;/, 'data:' + mime + ';');
-          $('[data-doc-file-data]').value = url;
-          $('[data-doc-file-name]').value = f.name;
+          $s('[data-doc-file-data]').value = url;
+          $s('[data-doc-file-name]').value = f.name;
           label.textContent = '✓ ' + f.name + ' (' + Math.round(f.size / 1024) + ' KB) — хадгалахад хавсаргагдана';
+          var submit = $s('[data-doc-file-submit]');
+          if (submit) submit.disabled = false;
         };
         reader.readAsDataURL(f);
       });
-    }
+    });
 
     // Амьдарч буй газар: "Бусад" сонгоход аймаг, сумын жагсаалт гарна
     $$('[data-city]').forEach(function (box) {

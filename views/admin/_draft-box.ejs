@@ -1,0 +1,30 @@
+<%# Төсөл оруулах/солих/устгах хэсэг. include('_draft-box', { d, back: 'list' | 'form' }) %>
+<% if (d.draft_name) { %>
+  <div class="doc-file" style="margin:0">
+    <span class="doc-file-icon draft"><%= /\.pdf$/i.test(d.draft_name) ? 'PDF' : 'DOC' %></span>
+    <div style="flex:1;min-width:0">
+      <strong class="doc-file-name"><%= d.draft_name %></strong>
+      <div class="small muted"><%= h.fmtSize(d.draft_size) %> · <%= d.draft_at %></div>
+    </div>
+    <a class="btn btn-sm" href="/board/documents/<%= d.id %>/draft" target="_blank" rel="noopener">Нээх</a>
+    <form method="post" action="/admin/documents/<%= d.id %>/draft" class="inline" data-confirm="Төслийг устгах уу?">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="back" value="<%= back %>">
+      <button class="btn btn-sm btn-danger" name="action" value="delete">Устгах</button>
+    </form>
+  </div>
+<% } %>
+<form method="post" action="/admin/documents/<%= d.id %>/draft" class="draft-upload">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="back" value="<%= back %>">
+  <input type="hidden" name="file_data" data-doc-file-data>
+  <input type="hidden" name="file_name" data-doc-file-name>
+  <div class="row" style="gap:.6rem">
+    <label class="btn btn-sm" for="draft_file_<%= d.id %>_<%= back %>"><%= d.draft_name ? 'Шинэ төслөөр солих' : 'Төслийн файл сонгох' %></label>
+    <input id="draft_file_<%= d.id %>_<%= back %>" type="file" accept=".pdf,.docx,.doc,application/pdf" hidden data-doc-file>
+    <span class="small muted" data-doc-file-label>PDF эсвэл Word, 10MB хүртэл</span>
+  </div>
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn btn-primary" type="submit" data-doc-file-submit disabled>Төсөл оруулах</button>
+  </div>
+</form>

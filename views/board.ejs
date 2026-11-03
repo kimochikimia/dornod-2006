@@ -17,12 +17,13 @@
       </div>
       <div class="folders">
         <% documents.forEach(function (d, i) { var ok = d.status === 'approved'; %>
-          <a class="folder <%= ok ? 'approved' : 'draft' %>" href="/board/documents/<%= d.id %>" title="<%= d.purpose || '' %>">
+          <a class="folder <%= ok ? 'approved' : 'draft' %> <%= !ok && d.has_draft ? 'has-draft' : '' %>" href="/board/documents/<%= d.id %>" title="<%= d.purpose || '' %>">
             <span class="folder-tab"><%= i + 1 %></span>
             <span class="folder-body">
               <span class="folder-title"><%= d.title %></span>
               <span class="folder-meta">
                 <% if (ok) { %>✓ <%= d.approved_at || 'Батлагдсан' %><%= d.file_name ? ' · 📎' : '' %>
+                <% } else if (d.has_draft) { %>📄 Төсөл хэлэлцэж байна
                 <% } else { %>Батлагдаагүй<% } %>
               </span>
             </span>

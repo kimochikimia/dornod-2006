@@ -199,6 +199,12 @@ async function init() {
   await ensureColumn('users', 'employment', 'VARCHAR(20) NULL AFTER class_name');
   await ensureColumn('users', 'workplace', 'VARCHAR(150) NULL AFTER employment');
   await ensureBoardPosts();
+  // Баримт бичгийн төсөл (батлагдахаас өмнөх хэлэлцүүлгийн хувилбар)
+  await ensureColumn('board_documents', 'draft_name', 'VARCHAR(200) NULL');
+  await ensureColumn('board_documents', 'draft_mime', 'VARCHAR(100) NULL');
+  await ensureColumn('board_documents', 'draft_size', 'INT NULL');
+  await ensureColumn('board_documents', 'draft_data', 'LONGBLOB NULL');
+  await ensureColumn('board_documents', 'draft_at', 'DATETIME NULL');
   await seedDocuments();
   await syncSchools();
 

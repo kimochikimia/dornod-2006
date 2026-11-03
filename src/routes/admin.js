@@ -364,6 +364,7 @@ function documentFields(body) {
 async function loadDocForm(id) {
   const [[d]] = await pool.query(
     `SELECT id, sort_order, title, purpose, status, doc_number, decision, content, file_name, file_size,
+            draft_name, draft_size, DATE_FORMAT(draft_at, '%Y.%m.%d') AS draft_at,
             DATE_FORMAT(approved_at, '%Y-%m-%d') AS approved_at FROM board_documents WHERE id = ?`, [id]);
   return d || null;
 }
@@ -371,6 +372,7 @@ async function loadDocForm(id) {
 router.get('/documents', wrap(async (req, res) => {
   const [docs] = await pool.query(
     `SELECT id, sort_order, title, purpose, status, doc_number, file_name, file_size,
+            draft_name, draft_size, DATE_FORMAT(draft_at, '%Y.%m.%d') AS draft_at,
             DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, CHAR_LENGTH(COALESCE(content, '')) AS content_len
      FROM board_documents ORDER BY sort_order, id`
   );
@@ -419,6 +421,32 @@ router.post('/documents', wrap(async (req, res) => saveDocument(req, res, null))
 router.post('/documents/:id', wrap(async (req, res, next) => {
   if (!(await loadDocForm(req.params.id))) return next();
   return saveDocument(req, res, Number(req.params.id));
+}));
+
+// Баримт бичгийн төсөл оруулах / солих / устгах
+router.post('/documents/:id/draft', wrap(async (req, res, next) => {
+  const d = await loadDocForm(req.params.id);
+  if (!d) return next();
+  const back = req.body.back === 'form' ? `/admin/documents/${d.id}` : '/admin/documents';
+  if (req.body.action === 'delete') {
+    await pool.query(
+      'UPDATE board_documents SET draft_name = NULL, draft_mime = NULL, draft_size = NULL, draft_data = NULL, draft_at = NULL WHERE id = ?',
+      [d.id]
+    );
+    flash(req, 'success', `"${d.title}"-ийн төслийг устгалаа.`);
+    return res.redirect(back);
+  }
+  const file = parseDocFile(req.body.file_data, req.body.file_name);
+  if (!file) flash(req, 'error', 'Төслийн файлаа сонгоно уу.');
+  else if (file.error) flash(req, 'error', file.error);
+  else {
+    await pool.query(
+      'UPDATE board_documents SET draft_name = ?, draft_mime = ?, draft_size = ?, draft_data = ?, draft_at = NOW() WHERE id = ?',
+      [file.name, file.mime, file.buf.length, file.buf, d.id]
+    );
+    flash(req, 'success', `"${d.title}"-ийн төсөл оруулагдлаа. Баталгаажсан төгсөгчид татаж авах боломжтой.`);
+  }
+  res.redirect(back);
 }));
 
 router.post('/documents/:id/delete', wrap(async (req, res) => {

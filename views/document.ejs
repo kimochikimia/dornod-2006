@@ -33,8 +33,33 @@
         </div>
       <% } %>
 
+      <% if (!ok && d.draft_name) { %>
+        <div class="draft-card">
+          <div class="draft-card-head">
+            <span class="badge pending">📄 Хэлэлцүүлгийн төсөл</span>
+            <span class="small muted">Оруулсан: <%= d.draft_at %></span>
+          </div>
+          <p class="small" style="margin:.5rem 0 .75rem">Энэ баримт бичгийн төслийг зөвлөл хэлэлцэж байна. Танилцаж санал бодлоо зөвлөлийн гишүүдэд илэрхийлээрэй.</p>
+          <% if (canGetDraft) { %>
+            <div class="doc-file" style="margin:0">
+              <span class="doc-file-icon draft"><%= /\.pdf$/i.test(d.draft_name) ? 'PDF' : 'DOC' %></span>
+              <div style="flex:1;min-width:0">
+                <strong class="doc-file-name"><%= d.draft_name %></strong>
+                <div class="small muted"><%= h.fmtSize(d.draft_size) %></div>
+              </div>
+              <% if (/\.pdf$/i.test(d.draft_name)) { %><a class="btn btn-sm" href="/board/documents/<%= d.id %>/draft" target="_blank" rel="noopener">Нээх</a><% } %>
+              <a class="btn btn-sm btn-primary" href="/board/documents/<%= d.id %>/draft?download=1">Төслийг татах</a>
+            </div>
+          <% } else if (me) { %>
+            <p class="small muted" style="margin:0">🔒 Таны бүртгэл баталгаажсаны дараа төслийг татаж авах боломжтой.</p>
+          <% } else { %>
+            <p class="small" style="margin:0">🔒 Төслийг татаж авахын тулд <a href="/login?next=/board/documents/<%= d.id %>">нэвтэрнэ үү</a>.</p>
+          <% } %>
+        </div>
+      <% } %>
+
       <% if (!showDraft) { %>
-        <div class="empty" style="margin-top:1rem">Энэ баримт бичиг зөвлөлөөр хараахан батлагдаагүй байна. Батлагдсаны дараа энд нийтлэгдэнэ.</div>
+        <% if (!d.draft_name) { %><div class="empty" style="margin-top:1rem">Энэ баримт бичиг зөвлөлөөр хараахан батлагдаагүй байна. Батлагдсаны дараа энд нийтлэгдэнэ.</div><% } %>
       <% } else { %>
         <% if (!ok) { %><div class="flash warn small">Ноорог — зөвхөн удирдлагад харагдаж байна.</div><% } %>
         <% if (d.file_name) { %>

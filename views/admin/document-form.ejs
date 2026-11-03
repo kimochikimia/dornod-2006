@@ -60,5 +60,13 @@
       </div>
     </form>
   </div>
+
+  <% if (d.id) { %>
+    <div class="card" style="margin-top:1.25rem">
+      <h3>📄 Хэлэлцүүлгийн төсөл</h3>
+      <p class="small muted">Батлагдахаас өмнө төгсөгчдөд танилцуулах төслийн файл. Баталгаажсан төгсөгчид татаж авах боломжтой.</p>
+      <%- include('_draft-box', { d: d, back: 'form' }) %>
+    </div>
+  <% } %>
 </div>
 <%- include('../partials/foot') %>

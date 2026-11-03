@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { wrap, can } = require('../middleware');
+const { wrap, can, requireMember } = require('../middleware');
 const sched = require('../electionSchedule');
 const board = require('../board');
 
@@ -35,7 +35,8 @@ router.get('/', wrap(async (req, res) => {
   for (const e of active) e.deadline = sched.nextDeadline(e);
 
   const [documents] = await pool.query(
-    `SELECT id, sort_order, title, purpose, status, doc_number, DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, file_name
+    `SELECT id, sort_order, title, purpose, status, doc_number, DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, file_name,
+            draft_name IS NOT NULL AS has_draft
      FROM board_documents ORDER BY sort_order, id`
   );
 
@@ -47,7 +48,8 @@ router.get('/', wrap(async (req, res) => {
 async function getDocument(req, withFile = false) {
   const [[d]] = await pool.query(
     `SELECT id, sort_order, title, purpose, status, doc_number, decision, content, file_name, file_mime, file_size,
-            DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, updated_at${withFile ? ', file_data' : ''}
+            draft_name, draft_mime, draft_size, DATE_FORMAT(draft_at, '%Y.%m.%d') AS draft_at,
+            DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, updated_at${withFile === 'file' ? ', file_data' : withFile === 'draft' ? ', draft_data' : ''}
      FROM board_documents WHERE id = ?`,
     [req.params.id]
   );
@@ -59,18 +61,34 @@ router.get('/documents/:id', wrap(async (req, res, next) => {
   if (!d) return next();
   const canEdit = can(req.user, 'manage_board');
   const [siblings] = await pool.query('SELECT id, sort_order, title, status FROM board_documents ORDER BY sort_order, id');
-  res.render('document', { title: d.title, d, canEdit, siblings, showDraft: d.status === 'approved' || canEdit });
+  res.render('document', {
+    title: d.title, d, canEdit, siblings,
+    showDraft: d.status === 'approved' || canEdit,
+    canGetDraft: !!(req.user && req.user.status === 'approved'),
+  });
 }));
 
-router.get('/documents/:id/file', wrap(async (req, res, next) => {
-  const d = await getDocument(req, true);
-  if (!d || !d.file_data) return next();
-  if (d.status !== 'approved' && !can(req.user, 'manage_board')) return next();
-  res.set('Content-Type', d.file_mime);
-  res.set('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(d.file_name)}`);
+function sendDoc(req, res, buf, mime, name) {
+  res.set('Content-Type', mime);
+  res.set('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(name)}`);
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('Cache-Control', 'private, max-age=300');
-  res.send(d.file_data);
+  res.send(buf);
+}
+
+// Батлагдсан баримт: хэн ч үзэж, татаж авна
+router.get('/documents/:id/file', wrap(async (req, res, next) => {
+  const d = await getDocument(req, 'file');
+  if (!d || !d.file_data) return next();
+  if (d.status !== 'approved' && !can(req.user, 'manage_board')) return next();
+  sendDoc(req, res, d.file_data, d.file_mime, d.file_name);
+}));
+
+// Төсөл: зөвхөн нэвтэрсэн, баталгаажсан төгсөгчид
+router.get('/documents/:id/draft', requireMember, wrap(async (req, res, next) => {
+  const d = await getDocument(req, 'draft');
+  if (!d || !d.draft_data) return next();
+  sendDoc(req, res, d.draft_data, d.draft_mime, d.draft_name);
 }));
 
 module.exports = router;
