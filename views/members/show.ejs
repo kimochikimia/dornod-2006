@@ -20,7 +20,7 @@
       <dt>Бүртгүүлсэн</dt><dd><%= h.fmtDay(member.created_at) %></dd>
     </dl>
     <% if (member.bio) { %><hr class="sep"><div class="prose"><%- h.text(member.bio) %></div><% } %>
-    <% if (can('edit_users') && (member.role === 'member' || can('manage_roles') || member.id === me.id)) { %><hr class="sep"><a class="btn btn-sm" href="/admin/users/<%= member.id %>">Мэдээлэл засах</a><% } %>
+    <% if (can('edit_users') && canTouch(member)) { %><hr class="sep"><a class="btn btn-sm" href="/admin/users/<%= member.id %>">Мэдээлэл засах</a><% } %>
   </div>
 </div>
 <%- include('../partials/foot') %>

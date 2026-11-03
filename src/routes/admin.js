@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
-const { flash, wrap, requireManage, requirePerm, can, forbidden } = require('../middleware');
+const { flash, wrap, requireManage, requirePerm, can, canTouch, forbidden } = require('../middleware');
 const { clean, PHASES, PHASE_LABELS } = require('../helpers');
 const perms = require('../permissions');
 
@@ -17,12 +17,6 @@ router.use('/schools', requirePerm('manage_schools'));
 router.use('/roles', requirePerm('manage_roles'));
 router.use('/users', requirePerm('approve_users', 'edit_users'));
 
-// "Эрх тохируулах" эрхгүй хүн модератор, админы бүртгэлд хүрч болохгүй.
-function canTouch(actor, target) {
-  if (!target) return false;
-  if (target.id === actor.id) return true;
-  return target.role === 'member' || can(actor, 'manage_roles');
-}
 
 async function getTarget(req, res) {
   const [[user]] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
@@ -60,7 +54,7 @@ router.get('/roles', wrap(async (req, res) => {
   const roleCounts = Object.fromEntries(counts.map((r) => [r.role, r.n]));
   const [staff] = await pool.query(
     `SELECT u.id, u.surname, u.name, u.role, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
-     WHERE u.role <> 'member' ORDER BY FIELD(u.role,'admin','moderator'), u.name`
+     WHERE u.role <> 'member' ORDER BY FIELD(u.role,'admin','subadmin','moderator'), u.name`
   );
   res.render('admin/roles', {
     title: 'Эрх, төлөв — Админ', perms, current: perms.rolePerms(), roleCounts, staff,

@@ -8,7 +8,7 @@
 <div class="container">
   <%- include('_nav') %>
 
-  <div class="grid grid-3" style="margin-bottom:1.25rem">
+  <div class="grid grid-4" style="margin-bottom:1.25rem">
     <% roles.forEach(function (r) { %>
       <a class="card stat card-link" href="/admin/users?role=<%= r %>">
         <div class="num grad-text"><%= roleCounts[r] || 0 %></div>
@@ -63,7 +63,7 @@
   </div>
 
   <div class="card">
-    <h2>Модератор, админууд</h2>
+    <h2>Модератор, дэд админ, админууд</h2>
     <p class="muted small">Төлөв олгохдоо <a href="/admin/users">Төгсөгчид</a> хэсгийн "Төлөв" баганаас сонгоно.</p>
     <% if (!staff.length) { %>
       <p class="muted">Алга.</p>

@@ -61,13 +61,13 @@ async function ensureSchoolCategory() {
   if (!cols.length) await pool.query('ALTER TABLE schools ADD COLUMN category VARCHAR(80) NULL AFTER name');
 }
 
-// users.role-д 'moderator' утга нэмэх (хуучин өгөгдлийн санд).
+// users.role-д 'moderator', 'subadmin' утга нэмэх (хуучин өгөгдлийн санд).
 async function ensureModeratorRole() {
   const [[col]] = await pool.query(
     "SELECT COLUMN_TYPE AS t FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'"
   );
-  if (col && !String(col.t).includes('moderator')) {
-    await pool.query("ALTER TABLE users MODIFY role ENUM('member','moderator','admin') NOT NULL DEFAULT 'member'");
+  if (col && !String(col.t).includes('subadmin')) {
+    await pool.query("ALTER TABLE users MODIFY role ENUM('member','moderator','subadmin','admin') NOT NULL DEFAULT 'member'");
   }
 }
 

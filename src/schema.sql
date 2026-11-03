@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   occupation VARCHAR(150) NULL,
   city VARCHAR(100) NULL,
   bio TEXT NULL,
-  role ENUM('member','moderator','admin') NOT NULL DEFAULT 'member',
+  role ENUM('member','moderator','subadmin','admin') NOT NULL DEFAULT 'member',
   status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_users_school FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE SET NULL

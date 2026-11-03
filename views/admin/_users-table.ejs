@@ -3,7 +3,7 @@
     <thead><tr><th>Овог, нэр</th><th>Утас</th><th>Сургууль</th><th>Төлөв</th><th>Бүртгэл</th><th></th></tr></thead>
     <tbody>
       <% users.forEach(function (u) {
-           var touch = u.id === me.id || u.role === 'member' || can('manage_roles'); %>
+           var touch = canTouch(u); %>
         <tr>
           <td>
             <% if (can('edit_users') && touch) { %><a href="/admin/users/<%= u.id %>"><strong><%= u.surname %> <%= u.name %></strong></a>

@@ -1,7 +1,11 @@
 const { pool } = require('./db');
 
-const ROLES = ['member', 'moderator', 'admin'];
-const ROLE_LABELS = { member: 'Төгсөгч', moderator: 'Модератор', admin: 'Админ' };
+// Доороос дээш эрэмбэлсэн: хүн зөвхөн өөрөөсөө доод төлөвтэй хүний бүртгэлд хүрнэ.
+const ROLES = ['member', 'moderator', 'subadmin', 'admin'];
+const ROLE_LABELS = { member: 'Төгсөгч', moderator: 'Модератор', subadmin: 'Дэд админ', admin: 'Админ' };
+const ROLE_RANK = Object.fromEntries(ROLES.map((r, i) => [r, i]));
+// Төлөв бүрийн анхны эрх нэг удаа л тавигдсаныг тэмдэглэх (эрхийн жагсаалтад харагдахгүй)
+const SEEDED = '__seeded';
 
 // Тохируулж болох эрхүүд. group нь эрхийн хүснэгтэд бүлэглэж харуулахад.
 const PERMISSIONS = [
@@ -28,6 +32,7 @@ const BASE = ['view_members', 'view_contacts', 'nominate', 'vote'];
 const DEFAULTS = {
   member: BASE,
   moderator: [...BASE, 'manage_news', 'manage_plans', 'approve_users', 'manage_requests'],
+  subadmin: PERMISSION_KEYS.filter((k) => k !== 'manage_roles'),
   admin: PERMISSION_KEYS,
 };
 
@@ -42,12 +47,17 @@ async function loadPermissions() {
   return map;
 }
 
+// Шинэ төлөв нэмэгдэхэд (жишээ нь Дэд админ) зөвхөн тэр төлөвт анхны эрхийг нэг удаа тавина.
+// Админ эрхийг бүгдийг нь хассан ч дахин сэргээгдэхгүй.
 async function seedPermissions() {
-  const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM role_permissions');
-  if (n === 0) {
-    for (const role of ROLES) {
+  const [rows] = await pool.query('SELECT role, permission FROM role_permissions');
+  for (const role of ROLES) {
+    const mine = rows.filter((r) => r.role === role);
+    if (mine.some((r) => r.permission === SEEDED)) continue;
+    if (!mine.length) {
       for (const p of DEFAULTS[role]) await pool.query('INSERT INTO role_permissions (role, permission) VALUES (?, ?)', [role, p]);
     }
+    await pool.query('INSERT IGNORE INTO role_permissions (role, permission) VALUES (?, ?)', [role, SEEDED]);
   }
   await loadPermissions();
 }
@@ -72,6 +82,7 @@ async function savePermissions(input) {
       if (!Array.isArray(keys)) keys = keys ? [keys] : [];
       const set = new Set(keys.filter((k) => PERMISSION_KEYS.includes(k)));
       (LOCKED[role] || []).forEach((k) => set.add(k));
+      set.add(SEEDED);
       for (const p of set) await conn.query('INSERT INTO role_permissions (role, permission) VALUES (?, ?)', [role, p]);
     }
     await conn.commit();
@@ -85,6 +96,6 @@ async function savePermissions(input) {
 }
 
 module.exports = {
-  ROLES, ROLE_LABELS, PERMISSIONS, PERMISSION_KEYS, MANAGE_PERMS, LOCKED, DEFAULTS,
+  ROLES, ROLE_LABELS, ROLE_RANK, PERMISSIONS, PERMISSION_KEYS, MANAGE_PERMS, LOCKED, DEFAULTS,
   seedPermissions, loadPermissions, permsFor, rolePerms, savePermissions,
 };
