@@ -25,6 +25,22 @@
     <% if (e.description) { %><div class="prose muted"><%- h.text(e.description) %></div><% } %>
   </div>
 
+  <% if (deadline) { %>
+    <div class="countdown-hero card glow" data-countdown="<%= deadline.at %>" data-countdown-units data-reload="1">
+      <div class="countdown-title"><%= deadline.label %></div>
+      <div class="countdown-units">
+        <div class="cd-unit"><span data-u="d">0</span><small>өдөр</small></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-unit"><span data-u="h">00</span><small>цаг</small></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-unit"><span data-u="m">00</span><small>минут</small></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-unit"><span data-u="s">00</span><small>секунд</small></div>
+      </div>
+      <div class="countdown-at">📅 <%= deadline.atText %></div>
+    </div>
+  <% } %>
+
   <div class="stepper" style="margin-bottom:1.5rem">
     <% order.forEach(function (p, i) { %>
       <div class="step <%= i < cur ? 'done' : (i === cur ? 'current' : '') %>">
@@ -38,15 +54,6 @@
 
   <% if (e.phase === 'draft' && !times) { %>
     <div class="flash warn">Энэ сонгууль ноорог төлөвт байна — зөвхөн удирдлагад харагдана.</div>
-  <% } %>
-  <% if (deadline) { %>
-    <div class="countdown-card card" style="margin-bottom:1.5rem">
-      <div>
-        <div class="small muted"><%= deadline.label %></div>
-        <div class="countdown" data-countdown="<%= deadline.at %>" data-reload="1">—</div>
-      </div>
-      <div class="small faint"><%= deadline.atText %></div>
-    </div>
   <% } %>
 
   <%# ---------- Нэр дэвшигчийн хариу ---------- %>

@@ -57,7 +57,11 @@
       els.forEach(function (el) {
         var left = new Date(el.getAttribute('data-countdown')).getTime() - Date.now();
         if (left <= 0) {
-          el.textContent = 'Одоо';
+          if (el.hasAttribute('data-countdown-units')) {
+            $$('[data-u]', el).forEach(function (u) { u.textContent = u.getAttribute('data-u') === 'd' ? '0' : '00'; });
+          } else {
+            el.textContent = 'Одоо';
+          }
           if (el.hasAttribute('data-reload') && !el.dataset.reloading) {
             el.dataset.reloading = '1';
             setTimeout(function () { location.reload(); }, 2500);
@@ -68,6 +72,15 @@
         var d = Math.floor(s / 86400); s -= d * 86400;
         var hh = Math.floor(s / 3600); s -= hh * 3600;
         var mm = Math.floor(s / 60); s -= mm * 60;
+        if (el.hasAttribute('data-countdown-units')) {
+          // Том тоолуур: өдөр / цаг / минут / секунд тус тусдаа
+          var vals = { d: String(d), h: pad(hh), m: pad(mm), s: pad(s) };
+          Object.keys(vals).forEach(function (k) {
+            var u = el.querySelector('[data-u="' + k + '"]');
+            if (u && u.textContent !== vals[k]) u.textContent = vals[k];
+          });
+          return;
+        }
         el.textContent = (d ? d + ' өдөр ' : '') + pad(hh) + ':' + pad(mm) + ':' + pad(s);
       });
     }
