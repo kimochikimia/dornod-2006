@@ -37,15 +37,17 @@
         <div class="row" style="margin-bottom:.5rem">
           <span class="badge grad">Сонгууль</span>
           <% if (election.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
-          <% } else { %><span class="badge"><%= h.PHASE_LABELS[election.phase] %></span><% } %>
+          <% } else { %><span class="badge"><%= election.phase === 'draft' ? 'Эхлээгүй' : h.PHASE_LABELS[election.phase] %></span><% } %>
         </div>
         <h2 style="margin:0"><%= election.title %></h2>
         <p class="muted" style="margin:.4rem 0 0">
-          <% if (election.phase === 'nomination') { %>Өөрийгөө болон бусдыг нэр дэвшүүлэх боломжтой.
+          <% if (election.phase === 'draft') { %>Удахгүй эхэлнэ.
+          <% } else if (election.phase === 'nomination') { %>Өөрийгөө болон бусдыг нэр дэвшүүлэх боломжтой.
           <% } else if (election.phase === 'acceptance') { %>Нэр дэвшигчид зөвшөөрлөө өгч байна.
           <% } else if (election.phase === 'voting') { %>Саналаа өгч, явцыг шууд хараарай.
           <% } else { %>Сонгуулийн дүн, статистикийг харах.<% } %>
         </p>
+        <% if (deadline) { %><p class="small" style="margin:.4rem 0 0"><%= deadline.label %>: <strong data-countdown="<%= deadline.at %>">—</strong></p><% } %>
       </div>
       <span class="btn btn-primary">Дэлгэрэнгүй →</span>
     </div>

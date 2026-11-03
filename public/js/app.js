@@ -41,10 +41,52 @@
       });
     });
 
+    initCountdowns();
+    initScheduleForm();
     initBallot();
     initLive();
     initPlanForm();
   });
+
+  // ---------- Хугацааны тоолуур: data-countdown="ISO огноо" ----------
+  function initCountdowns() {
+    var els = $$('[data-countdown]');
+    if (!els.length) return;
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    function tick() {
+      els.forEach(function (el) {
+        var left = new Date(el.getAttribute('data-countdown')).getTime() - Date.now();
+        if (left <= 0) {
+          el.textContent = 'Одоо';
+          if (el.hasAttribute('data-reload') && !el.dataset.reloading) {
+            el.dataset.reloading = '1';
+            setTimeout(function () { location.reload(); }, 2500);
+          }
+          return;
+        }
+        var s = Math.floor(left / 1000);
+        var d = Math.floor(s / 86400); s -= d * 86400;
+        var hh = Math.floor(s / 3600); s -= hh * 3600;
+        var mm = Math.floor(s / 60); s -= mm * 60;
+        el.textContent = (d ? d + ' өдөр ' : '') + pad(hh) + ':' + pad(mm) + ':' + pad(s);
+      });
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  // ---------- Сонгуулийн маягт: автомат горим унтраалттай үед хуваарийг бүдэгрүүлнэ ----------
+  function initScheduleForm() {
+    var box = $('[data-auto-schedule]');
+    var fields = $('[data-schedule-fields]');
+    if (!box || !fields) return;
+    function update() {
+      fields.classList.toggle('off', !box.checked);
+      $$('input', fields).forEach(function (i) { i.required = box.checked; });
+    }
+    box.addEventListener('change', update);
+    update();
+  }
 
   // ---------- Төлөвлөгөөний маягт: чухал үед дуусах огноо хэрэггүй ----------
   function initPlanForm() {

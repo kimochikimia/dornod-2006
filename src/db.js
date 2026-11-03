@@ -61,6 +61,22 @@ async function ensureSchoolCategory() {
   if (!cols.length) await pool.query('ALTER TABLE schools ADD COLUMN category VARCHAR(80) NULL AFTER name');
 }
 
+async function ensureColumn(table, column, ddl) {
+  const [cols] = await pool.query(
+    'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+    [table, column]
+  );
+  if (!cols.length) await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
+// Сонгуулийн шат бүрийн хуваарь (UTC-ээр хадгална).
+async function ensureElectionSchedule() {
+  await ensureColumn('elections', 'auto_schedule', 'TINYINT(1) NOT NULL DEFAULT 0');
+  for (const c of ['nomination_start', 'nomination_end', 'acceptance_start', 'acceptance_end', 'voting_start', 'voting_end']) {
+    await ensureColumn('elections', c, 'DATETIME NULL');
+  }
+}
+
 // users.role-д 'moderator', 'subadmin' утга нэмэх (хуучин өгөгдлийн санд).
 async function ensureModeratorRole() {
   const [[col]] = await pool.query(
@@ -134,6 +150,7 @@ async function init() {
 
   await ensureSchoolCategory();
   await ensureModeratorRole();
+  await ensureElectionSchedule();
   await syncSchools();
 
   await seedAdmin();

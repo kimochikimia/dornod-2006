@@ -83,7 +83,12 @@ const PORT = process.env.PORT || 3000;
 
 init()
   .then(() => require('./src/permissions').seedPermissions())
-  .then(() => app.listen(PORT, () => console.log(`Сайт ажиллаж байна: http://localhost:${PORT}`)))
+  .then(() => {
+    app.listen(PORT, () => console.log(`Сайт ажиллаж байна: http://localhost:${PORT}`));
+    // Хуваарьтай сонгуулийн шатыг хэн ч сайтад ороогүй үед ч цагт нь шилжүүлнэ.
+    const { syncAll } = require('./src/electionSchedule');
+    setInterval(() => syncAll().catch((err) => console.error('[schedule]', err.message)), 30 * 1000).unref();
+  })
   .catch((err) => {
     console.error('Өгөгдлийн сантай холбогдож чадсангүй:', err.message);
     process.exit(1);

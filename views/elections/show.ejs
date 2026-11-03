@@ -15,7 +15,8 @@
     <a href="/elections" class="small">← Сонгуулиуд</a>
     <div class="row" style="margin-top:.75rem">
       <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
-      <% } else { %><span class="badge grad"><%= h.PHASE_LABELS[e.phase] %></span><% } %>
+      <% } else { %><span class="badge grad"><%= e.phase === 'draft' && times ? 'Эхлээгүй' : h.PHASE_LABELS[e.phase] %></span><% } %>
+      <% if (times) { %><span class="badge">⏱ Хуваарьтай</span><% } %>
       <span class="badge"><%= e.seats %> суудал</span>
       <span class="badge">Нэг хүн <%= e.max_choices %> хүртэл нэр дэвшигчид санал өгнө</span>
       <% if (can('manage_elections')) { %><a class="btn btn-sm" href="/admin/elections/<%= e.id %>">Админ: удирдах</a><% } %>
@@ -29,16 +30,27 @@
       <div class="step <%= i < cur ? 'done' : (i === cur ? 'current' : '') %>">
         <div><span class="n"><%= i < cur ? '✓' : i + 1 %></span><strong><%= h.PHASE_LABELS[p] %></strong></div>
         <div class="small" style="margin-top:.3rem"><%= stepText[p] %></div>
+        <% if (times && times[p]) { %><div class="step-time"><%= times[p].start %><br>→ <%= times[p].end %></div><% } %>
+        <% if (times && p === 'closed' && times.voting) { %><div class="step-time"><%= times.voting.end %>-нээс хойш</div><% } %>
       </div>
     <% }) %>
   </div>
 
-  <% if (e.phase === 'draft') { %>
-    <div class="flash warn">Энэ сонгууль ноорог төлөвт байна — зөвхөн админд харагдана.</div>
+  <% if (e.phase === 'draft' && !times) { %>
+    <div class="flash warn">Энэ сонгууль ноорог төлөвт байна — зөвхөн удирдлагад харагдана.</div>
+  <% } %>
+  <% if (deadline) { %>
+    <div class="countdown-card card" style="margin-bottom:1.5rem">
+      <div>
+        <div class="small muted"><%= deadline.label %></div>
+        <div class="countdown" data-countdown="<%= deadline.at %>" data-reload="1">—</div>
+      </div>
+      <div class="small faint"><%= deadline.atText %></div>
+    </div>
   <% } %>
 
   <%# ---------- Нэр дэвшигчийн хариу ---------- %>
-  <% if (myCandidacy && ['nomination', 'acceptance'].includes(e.phase)) { %>
+  <% if (myCandidacy && windows.respond) { %>
     <div class="card glow" style="margin-bottom:1.5rem">
       <div class="row" style="margin-bottom:.5rem">
         <span class="badge grad">Таныг нэр дэвшүүлсэн байна</span>
@@ -60,7 +72,7 @@
   <% } %>
 
   <%# ---------- 1. Нэр дэвшүүлэх ---------- %>
-  <% if (e.phase === 'nomination') { %>
+  <% if (windows.nominate) { %>
     <div class="card" style="margin-bottom:1.5rem">
       <h2>Нэр дэвшүүлэх</h2>
       <% if (isApproved && can('nominate')) { %>
@@ -93,6 +105,9 @@
     </div>
   <% } %>
 
+  <% if (e.phase === 'nomination' && !windows.nominate) { %>
+    <div class="flash info" style="margin-bottom:1.5rem">Нэр дэвшүүлэх хугацаа дууссан. Зөвшөөрөл авах шат удахгүй эхэлнэ.</div>
+  <% } %>
   <% if (e.phase === 'acceptance') { %>
     <div class="flash info" style="margin-bottom:1.5rem">Нэр дэвшүүлэх шат дууссан. Нэр дэвшигчид зөвшөөрлөө өгч байна. Зөвхөн зөвшөөрсөн нэр дэвшигчид саналын хуудсанд орно.</div>
   <% } %>
@@ -132,7 +147,7 @@
                   </ul>
                 </details>
               <% } %>
-              <% if (e.phase === 'nomination' && can('nominate') && !myNominations.has(c.id)) { %>
+              <% if (windows.nominate && can('nominate') && !myNominations.has(c.id)) { %>
                 <form method="post" action="/elections/<%= e.id %>/nominate" style="margin-top:.75rem">
                   <input type="hidden" name="_csrf" value="<%= csrf %>">
                   <input type="hidden" name="nominee_id" value="<%= c.user_id %>">
@@ -148,7 +163,7 @@
 
   <%# ---------- 3. Санал хураалт ---------- %>
   <% if (e.phase === 'voting') { %>
-    <% if (can('vote') && !hasVoted) { %>
+    <% if (can('vote') && !hasVoted && windows.vote) { %>
       <div class="card glow" style="margin-bottom:1.5rem">
         <h2>Саналын хуудас</h2>
         <p class="muted">Удирдах зөвлөлд <strong><%= e.max_choices %></strong> хүртэл нэр дэвшигч сонгоно уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>

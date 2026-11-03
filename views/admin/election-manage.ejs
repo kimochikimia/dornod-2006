@@ -3,7 +3,7 @@
   var all = ['draft'].concat(PHASES);
   var cur = all.indexOf(e.phase);
   var hint = {
-    draft: 'Ноорог — зөвхөн админд харагдана.',
+    draft: auto ? 'Хуваарийн дагуу нэр дэвшүүлэх шат эхлэхийг хүлээж байна (нийтэд "Эхлээгүй" гэж харагдана).' : 'Ноорог — зөвхөн удирдлагад харагдана.',
     nomination: 'Төгсөгчид өөрийгөө болон бусдыг нэр дэвшүүлж байна.',
     acceptance: 'Шинэ нэр дэвшүүлэлт хаагдсан. Нэр дэвшигчид зөвшөөрөх/татгалзах хариугаа өгнө.',
     voting: 'Санал хураалт явагдаж байна. Зөвхөн "Зөвшөөрсөн" нэр дэвшигчид саналын хуудсанд байна.',
@@ -21,6 +21,21 @@
     <p class="muted" style="margin-top:.5rem">Одоогийн шат: <span class="badge grad"><%= PHASE_LABELS[e.phase] %></span> — <%= hint[e.phase] %></p>
     <p class="small muted">Нэр дэвшигч: <%= candidates.length %> · Зөвшөөрсөн: <%= candidates.filter(function (c) { return c.status === 'accepted'; }).length %> · Санал өгсөн: <%= ballots %></p>
 
+    <% if (auto) { %>
+      <h3 style="margin-top:1rem">⏱ Хуваарийн дагуу автоматаар явж байна</h3>
+      <div class="schedule-view">
+        <% [['nomination', 'Нэр дэвшүүлэх'], ['acceptance', 'Зөвшөөрөл авах'], ['voting', 'Санал хураалт']].forEach(function (s) { %>
+          <div class="schedule-item <%= e.phase === s[0] ? 'current' : '' %>">
+            <strong><%= s[1] %></strong>
+            <span class="small muted"><%= times[s[0]].start %> → <%= times[s[0]].end %></span>
+          </div>
+        <% }) %>
+      </div>
+      <% if (deadline) { %>
+        <p class="small" style="margin-top:.75rem"><%= deadline.label %>: <strong data-countdown="<%= deadline.at %>"></strong> <span class="faint">(<%= deadline.atText %>)</span></p>
+      <% } %>
+      <p class="small faint" style="margin-top:.5rem">Гараар удирдах бол доорх тохиргооноос "Хуваарийн дагуу автоматаар явуулах"-ыг унтраана уу.</p>
+    <% } else { %>
     <h3 style="margin-top:1rem">Шат солих</h3>
     <div class="phase-controls">
       <% all.forEach(function (p, i) {
@@ -37,6 +52,7 @@
       <% }) %>
     </div>
     <p class="small faint" style="margin-top:.75rem">Дараалал: Ноорог → Нэр дэвшүүлэх → Зөвшөөрөл авах → Санал хураалт → Дүн гарсан. Санал өгөгдсөний дараа өмнөх шатууд руу буцах боломжгүй.</p>
+    <% } %>
   </div>
 
   <div class="card" style="margin-bottom:1.25rem">
@@ -75,9 +91,10 @@
 
   <div class="card" style="margin-bottom:1.25rem">
     <h2>Тохиргоо</h2>
+    <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
     <form method="post" action="/admin/elections/<%= e.id %>" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <%- include('_election-fields') %>
+      <%- include('_election-fields', { e: form }) %>
       <div><button class="btn btn-primary" type="submit">Хадгалах</button></div>
     </form>
   </div>

@@ -12,7 +12,7 @@
         <span class="badge <%= c.status %>"><%= h.STATUS_LABELS[c.status] %></span>
       </div>
       <h3>Таныг "<%= c.election_title %>"-д <%= c.nomination_count %> хүн нэр дэвшүүлсэн байна</h3>
-      <% if (['nomination', 'acceptance'].includes(c.phase)) { %>
+      <% if (c.canRespond) { %>
         <form method="post" action="/elections/<%= c.election_id %>/respond" class="form">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
           <input type="hidden" name="back" value="me">

@@ -4,6 +4,7 @@ const { pool } = require('../db');
 const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware');
 const { clean } = require('../helpers');
 const plan = require('../plan');
+const sched = require('../electionSchedule');
 
 const router = express.Router();
 
@@ -16,10 +17,12 @@ router.get('/', wrap(async (req, res) => {
        (SELECT COUNT(*) FROM users WHERE status='approved') AS members,
        (SELECT COUNT(DISTINCT school_id) FROM users WHERE status='approved' AND school_id IS NOT NULL) AS schools`
   );
+  await sched.syncAll();
   const [elections] = await pool.query(
-    "SELECT * FROM elections WHERE phase <> 'draft' ORDER BY FIELD(phase,'voting','acceptance','nomination','closed'), created_at DESC LIMIT 1"
+    "SELECT * FROM elections WHERE phase <> 'draft' OR auto_schedule = 1 ORDER BY FIELD(phase,'voting','acceptance','nomination','draft','closed'), created_at DESC LIMIT 1"
   );
-  res.render('index', { title: 'Нүүр', news, stats, election: elections[0] || null });
+  const election = elections[0] || null;
+  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null });
 }));
 
 router.get('/news', wrap(async (req, res) => {
@@ -95,13 +98,15 @@ router.get('/me', requireLogin, wrap(async (req, res) => {
   );
   // Надад ирсэн нэр дэвшүүлэлтүүд (хариу өгөх боломжтой шатанд байгаа)
   const [candidacies] = await pool.query(
-    `SELECT c.*, e.title AS election_title, e.phase,
+    `SELECT c.*, e.title AS election_title, e.phase, e.auto_schedule, e.nomination_start, e.nomination_end,
+            e.acceptance_start, e.acceptance_end, e.voting_start, e.voting_end,
             (SELECT COUNT(*) FROM nominations n WHERE n.candidate_id = c.id) AS nomination_count
      FROM candidates c JOIN elections e ON e.id = c.election_id
      WHERE c.user_id = ? AND e.phase IN ('nomination','acceptance','voting')
      ORDER BY e.created_at DESC`,
     [req.user.id]
   );
+  for (const c of candidacies) c.canRespond = sched.windowOpen(c, 'respond');
   res.render('me', { title: 'Миний хуудас', requests, candidacies });
 }));
 

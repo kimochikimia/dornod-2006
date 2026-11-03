@@ -3,6 +3,7 @@
   <%- include('_nav') %>
   <div class="card">
     <h2>Шинэ сонгууль</h2>
+    <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
     <form method="post" action="/admin/elections" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <%- include('_election-fields') %>

@@ -4,6 +4,8 @@ const { pool } = require('../db');
 const { flash, wrap, requireManage, requirePerm, can, canTouch, forbidden } = require('../middleware');
 const { clean, PHASES, PHASE_LABELS } = require('../helpers');
 const perms = require('../permissions');
+const sched = require('../electionSchedule');
+const { fromUbInput } = require('../helpers');
 
 const router = express.Router();
 router.use(requireManage);
@@ -370,16 +372,42 @@ router.post('/requests/:id', wrap(async (req, res) => {
 function electionFields(body) {
   const seats = Math.min(Math.max(Number(body.seats) || 1, 1), 50);
   const maxChoices = Math.min(Math.max(Number(body.max_choices) || seats, 1), 50);
-  return {
+  const f = {
     title: clean(body.title, 200),
     description: clean(body.description, 10000) || null,
     seats,
     max_choices: maxChoices,
     show_live_results: body.show_live_results ? 1 : 0,
+    auto_schedule: body.auto_schedule ? 1 : 0,
   };
+  // Хуваарь: маягтаас Улаанбаатарын цагаар ирнэ, UTC Date болгож хадгална.
+  for (const s of sched.STEPS) {
+    f[s.start] = fromUbInput(body[s.start]);
+    f[s.end] = fromUbInput(body[s.end]);
+  }
+  const errors = [];
+  if (!f.title) errors.push('Сонгуулийн нэрийг бичнэ үү.');
+  errors.push(...sched.validateSchedule(f));
+  return { f, errors };
+}
+
+async function renderManage(req, res, e, extra = {}) {
+  const [candidates] = await pool.query(
+    `SELECT c.*, u.surname, u.name, u.phone, s.name AS school_name,
+       (SELECT COUNT(*) FROM nominations n WHERE n.candidate_id = c.id) AS nomination_count
+     FROM candidates c JOIN users u ON u.id = c.user_id LEFT JOIN schools s ON s.id = u.school_id
+     WHERE c.election_id = ? ORDER BY FIELD(c.status,'accepted','pending','declined'), c.votes DESC, u.name`,
+    [e.id]
+  );
+  const [[{ ballots }]] = await pool.query('SELECT COUNT(*) AS ballots FROM ballots WHERE election_id = ?', [e.id]);
+  res.status(extra.errors && extra.errors.length ? 400 : 200).render('admin/election-manage', {
+    title: e.title, e, form: extra.form || e, errors: extra.errors || [], candidates, ballots, PHASES, PHASE_LABELS,
+    auto: sched.hasSchedule(e), deadline: sched.nextDeadline(e), times: sched.stepTimes(e),
+  });
 }
 
 router.get('/elections', wrap(async (req, res) => {
+  await sched.syncAll();
   const [elections] = await pool.query(
     `SELECT e.*,
       (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) AS candidate_count,
@@ -392,50 +420,49 @@ router.get('/elections', wrap(async (req, res) => {
 router.get('/elections/new', (req, res) => {
   res.render('admin/election-form', {
     title: 'Шинэ сонгууль',
+    errors: [],
     e: {
       title: 'Төгсөгчдийн удирдах зөвлөлийн сонгууль',
       description: '',
       seats: 7,
       max_choices: 7,
       show_live_results: 1,
+      auto_schedule: 0,
     },
   });
 });
 
 router.post('/elections', wrap(async (req, res) => {
-  const f = electionFields(req.body);
-  if (!f.title) {
-    flash(req, 'error', 'Сонгуулийн нэрийг бичнэ үү.');
-    return res.redirect('/admin/elections/new');
+  const { f, errors } = electionFields(req.body);
+  if (errors.length) {
+    return res.status(400).render('admin/election-form', { title: 'Шинэ сонгууль', e: f, errors });
   }
   const [r] = await pool.query('INSERT INTO elections SET ?', [f]);
-  flash(req, 'success', 'Сонгууль үүслээ. Бэлэн болмогц "Нэр дэвшүүлэх" шатыг эхлүүлнэ үү.');
+  flash(req, 'success', f.auto_schedule
+    ? 'Сонгууль үүслээ. Хуваарийн дагуу шатууд автоматаар солигдоно.'
+    : 'Сонгууль үүслээ. Бэлэн болмогц "Нэр дэвшүүлэх" шатыг эхлүүлнэ үү.');
   res.redirect(`/admin/elections/${r.insertId}`);
 }));
 
 router.get('/elections/:id', wrap(async (req, res, next) => {
-  const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
+  let [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
   if (!e) return next();
-  const [candidates] = await pool.query(
-    `SELECT c.*, u.surname, u.name, u.phone, s.name AS school_name,
-       (SELECT COUNT(*) FROM nominations n WHERE n.candidate_id = c.id) AS nomination_count
-     FROM candidates c JOIN users u ON u.id = c.user_id LEFT JOIN schools s ON s.id = u.school_id
-     WHERE c.election_id = ? ORDER BY FIELD(c.status,'accepted','pending','declined'), c.votes DESC, u.name`,
-    [e.id]
-  );
-  const [[{ ballots }]] = await pool.query('SELECT COUNT(*) AS ballots FROM ballots WHERE election_id = ?', [e.id]);
-  res.render('admin/election-manage', { title: e.title, e, candidates, ballots, PHASES, PHASE_LABELS });
+  e = await sched.syncElection(e);
+  await renderManage(req, res, e);
 }));
 
-router.post('/elections/:id', wrap(async (req, res) => {
-  const f = electionFields(req.body);
-  if (!f.title) {
-    flash(req, 'error', 'Сонгуулийн нэрийг бичнэ үү.');
-  } else {
-    await pool.query('UPDATE elections SET ? WHERE id = ?', [f, req.params.id]);
-    flash(req, 'success', 'Сонгуулийн тохиргоо хадгалагдлаа.');
-  }
-  res.redirect(`/admin/elections/${req.params.id}`);
+router.post('/elections/:id', wrap(async (req, res, next) => {
+  const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
+  if (!e) return next();
+  const { f, errors } = electionFields(req.body);
+  if (errors.length) return renderManage(req, res, e, { form: { ...e, ...f }, errors });
+  await pool.query('UPDATE elections SET ? WHERE id = ?', [f, e.id]);
+  const [[fresh]] = await pool.query('SELECT * FROM elections WHERE id = ?', [e.id]);
+  const synced = await sched.syncElection(fresh);
+  flash(req, 'success', synced.phase !== e.phase
+    ? `Тохиргоо хадгалагдлаа. Хуваарийн дагуу шат "${PHASE_LABELS[synced.phase]}" боллоо.`
+    : 'Сонгуулийн тохиргоо хадгалагдлаа.');
+  res.redirect(`/admin/elections/${e.id}`);
 }));
 
 router.post('/elections/:id/phase', wrap(async (req, res, next) => {
@@ -446,6 +473,10 @@ router.post('/elections/:id/phase', wrap(async (req, res, next) => {
   const [[{ ballots }]] = await pool.query('SELECT COUNT(*) AS ballots FROM ballots WHERE election_id = ?', [e.id]);
 
   if (!target || target === e.phase) return res.redirect(back);
+  if (sched.hasSchedule(e)) {
+    flash(req, 'warn', 'Сонгууль хуваарийн дагуу автоматаар явж байна. Гараар удирдах бол тохиргооноос автомат горимыг унтраана уу.');
+    return res.redirect(back);
+  }
   if (ballots > 0 && !['voting', 'closed'].includes(target)) {
     flash(req, 'error', 'Санал өгөгдсөн тул өмнөх шат руу буцах боломжгүй.');
     return res.redirect(back);

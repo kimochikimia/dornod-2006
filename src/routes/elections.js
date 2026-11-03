@@ -3,23 +3,28 @@ const { pool } = require('../db');
 const { flash, wrap, requireMember, requirePerm, can } = require('../middleware');
 const { clean } = require('../helpers');
 const { electionStats } = require('../electionStats');
+const sched = require('../electionSchedule');
 
 const router = express.Router();
 
+// Хуваарьтай сонгуулийн шатыг шинэчилж буцаана. Ноорог нь зөвхөн удирдлагад,
+// харин хуваарьтай (эхлээгүй) сонгууль нийтэд харагдана.
 async function getElection(req) {
-  const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
+  let [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
   if (!e) return null;
-  if (e.phase === 'draft' && !can(req.user, 'manage_elections')) return null;
+  e = await sched.syncElection(e);
+  if (e.phase === 'draft' && !sched.hasSchedule(e) && !can(req.user, 'manage_elections')) return null;
   return e;
 }
 
 router.get('/', wrap(async (req, res) => {
+  await sched.syncAll();
   const isAdmin = can(req.user, 'manage_elections');
   const [elections] = await pool.query(
     `SELECT e.*,
        (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id AND c.status='accepted') AS accepted_count,
        (SELECT COUNT(*) FROM ballots b WHERE b.election_id = e.id) AS ballot_count
-     FROM elections e ${isAdmin ? '' : "WHERE e.phase <> 'draft'"}
+     FROM elections e ${isAdmin ? '' : "WHERE e.phase <> 'draft' OR e.auto_schedule = 1"}
      ORDER BY e.created_at DESC`
   );
   res.render('elections/list', { title: 'Сонгууль', elections });
@@ -57,7 +62,7 @@ router.get('/:id', wrap(async (req, res, next) => {
     const [[b]] = await pool.query('SELECT id FROM ballots WHERE election_id = ? AND voter_id = ?', [e.id, req.user.id]);
     hasVoted = !!b;
     myNominations = new Set(nominations.filter((n) => n.nominator_id === req.user.id).map((n) => n.candidate_id));
-    if (e.phase === 'nomination') {
+    if (sched.windowOpen(e, 'nominate')) {
       [members] = await pool.query(
         `SELECT u.id, u.surname, u.name, s.name AS school_name FROM users u
          LEFT JOIN schools s ON s.id = u.school_id
@@ -83,6 +88,9 @@ router.get('/:id', wrap(async (req, res, next) => {
     counts,
     nominationTotal: nominations.length,
     stats,
+    windows: { nominate: sched.windowOpen(e, 'nominate'), respond: sched.windowOpen(e, 'respond'), vote: sched.windowOpen(e, 'vote') },
+    deadline: sched.nextDeadline(e),
+    times: sched.stepTimes(e),
   });
 }));
 
@@ -99,8 +107,8 @@ router.post('/:id/nominate', requirePerm('nominate'), wrap(async (req, res, next
   const e = await getElection(req);
   if (!e) return next();
   const back = `/elections/${e.id}`;
-  if (e.phase !== 'nomination') {
-    flash(req, 'error', 'Нэр дэвшүүлэх хугацаа дууссан байна.');
+  if (!sched.windowOpen(e, 'nominate')) {
+    flash(req, 'error', 'Одоогоор нэр дэвшүүлэх хугацаа биш байна.');
     return res.redirect(back);
   }
   const nomineeId = Number(req.body.nominee_id);
@@ -147,8 +155,8 @@ router.post('/:id/respond', requireMember, wrap(async (req, res, next) => {
   const e = await getElection(req);
   if (!e) return next();
   const back = req.body.back === 'me' ? '/me' : `/elections/${e.id}`;
-  if (!['nomination', 'acceptance'].includes(e.phase)) {
-    flash(req, 'error', 'Хариу өгөх хугацаа дууссан байна.');
+  if (!sched.windowOpen(e, 'respond')) {
+    flash(req, 'error', 'Одоогоор нэр дэвшихээ зөвшөөрөх хугацаа биш байна.');
     return res.redirect(back);
   }
   const action = req.body.action === 'accept' ? 'accepted' : req.body.action === 'decline' ? 'declined' : null;
@@ -169,8 +177,8 @@ router.post('/:id/vote', requirePerm('vote'), wrap(async (req, res, next) => {
   const e = await getElection(req);
   if (!e) return next();
   const back = `/elections/${e.id}`;
-  if (e.phase !== 'voting') {
-    flash(req, 'error', 'Санал хураалт явагдаагүй байна.');
+  if (!sched.windowOpen(e, 'vote')) {
+    flash(req, 'error', 'Одоогоор санал өгөх хугацаа биш байна.');
     return res.redirect(back);
   }
   let choices = req.body.choices;

@@ -8,6 +8,7 @@ const dayFmt = new Intl.DateTimeFormat('mn-MN', { timeZone: TZ, year: 'numeric',
 function parts(d) {
   const o = {};
   for (const p of dateFmt.formatToParts(d)) o[p.type] = p.value;
+  if (o.hour === '24') o.hour = '00'; // зарим ICU шөнө дундыг 24 гэж өгдөг
   return o;
 }
 
@@ -23,6 +24,20 @@ function fmtDay(d) {
   const o = {};
   for (const p of dayFmt.formatToParts(new Date(d))) o[p.type] = p.value;
   return `${o.year}.${o.month}.${o.day}`;
+}
+
+// <input type="datetime-local"> утга (Улаанбаатарын цагаар): "2026-11-03T14:05"
+function ubInput(d) {
+  if (!d) return '';
+  const p = parts(new Date(d));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+// datetime-local утгыг (Улаанбаатарын цаг, UTC+8) Date болгоно. Буруу бол null.
+function fromUbInput(s) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(s || ''))) return null;
+  const d = new Date(`${s}:00+08:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 // Цагийн бүлэглэлд ашиглах түлхүүр: "11.03 14:00"
@@ -82,6 +97,6 @@ function clean(s, max = 255) {
 }
 
 module.exports = {
-  TZ, fmtDate, fmtDay, hourKey, escapeHtml, text, fullName, initials,
+  TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
   PHASES, PHASE_LABELS, STATUS_LABELS, clean,
 };

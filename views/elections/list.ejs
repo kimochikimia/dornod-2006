@@ -12,7 +12,8 @@
         <a class="card card-link <%= ['voting','nomination','acceptance'].includes(e.phase) ? 'glow' : '' %>" href="/elections/<%= e.id %>">
           <div class="row" style="margin-bottom:.5rem">
             <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
-            <% } else { %><span class="badge <%= e.phase === 'closed' ? 'success' : '' %>"><%= h.PHASE_LABELS[e.phase] %></span><% } %>
+            <% } else { %><span class="badge <%= e.phase === 'closed' ? 'success' : '' %>"><%= e.phase === 'draft' && e.auto_schedule ? 'Эхлээгүй' : h.PHASE_LABELS[e.phase] %></span><% } %>
+            <% if (e.auto_schedule && e.nomination_start) { %><span class="badge">⏱ <%= h.fmtDate(e.nomination_start) %> — <%= h.fmtDate(e.voting_end) %></span><% } %>
           </div>
           <h3><%= e.title %></h3>
           <p class="muted small" style="margin:0">
