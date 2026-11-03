@@ -163,10 +163,12 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
   const status = !self && can(req.user, 'approve_users') && ['pending', 'approved', 'rejected'].includes(req.body.status)
     ? req.body.status : target.status;
   await pool.query(
-    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, city=?, facebook=?, bio=?, role=?, status=?
+    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, employment=?, workplace=?,
+       city=?, facebook=?, bio=?, role=?, status=?
      WHERE id = ?`,
     [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
       Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null, clean(req.body.occupation, 150) || null,
+      h.employmentKey(req.body.employment), clean(req.body.workplace, 150) || null,
       clean(req.body.city, 100) || null, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
   flash(req, 'success', 'Мэдээлэл хадгалагдлаа.');

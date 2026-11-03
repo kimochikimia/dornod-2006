@@ -11,7 +11,9 @@
       </div>
     </div>
     <dl class="dl">
-      <dt>Ажил, мэргэжил</dt><dd><%= member.occupation || '—' %></dd>
+      <dt>Ажил эрхлэлт</dt><dd><%= member.employment ? h.EMPLOYMENT_LABELS[member.employment] : '—' %></dd>
+      <dt>Ажлын газар</dt><dd><%= member.workplace || '—' %></dd>
+      <dt>Мэргэжил</dt><dd><%= member.occupation || '—' %></dd>
       <dt>Амьдарч буй газар</dt><dd><%= member.city || '—' %></dd>
       <% if (can('view_contacts')) { %>
         <dt>Утас</dt><dd><a href="tel:<%= member.phone %>"><%= member.phone %></a></dd>

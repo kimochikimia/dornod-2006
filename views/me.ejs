@@ -18,7 +18,9 @@
         <dt>И-мэйл</dt><dd><%= me.email || '—' %></dd>
         <dt>Facebook</dt><dd><% if (me.facebook) { %><a class="fb-link" href="<%= me.facebook %>" target="_blank" rel="noopener noreferrer"><span class="fb-icon">f</span> Facebook хуудас</a><% } else { %>—<% } %></dd>
         <dt>Сургууль</dt><dd><%= me.school_name || '—' %><%= me.class_name ? ' · ' + me.class_name : '' %></dd>
-        <dt>Ажил</dt><dd><%= me.occupation || '—' %></dd>
+        <dt>Ажил эрхлэлт</dt><dd><%= me.employment ? h.EMPLOYMENT_LABELS[me.employment] : '—' %></dd>
+        <dt>Ажлын газар</dt><dd><%= me.workplace || '—' %></dd>
+        <dt>Мэргэжил</dt><dd><%= me.occupation || '—' %></dd>
         <dt>Хот</dt><dd><%= me.city || '—' %></dd>
       </dl>
       <p class="small faint" style="margin-top:1rem">Мэдээллийн өөрчлөлтийг админ хийнэ. Доорх маягтаар хүсэлт илгээнэ үү.</p>

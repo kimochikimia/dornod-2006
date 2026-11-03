@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
 const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware');
-const { clean } = require('../helpers');
+const { clean, employmentKey } = require('../helpers');
 const plan = require('../plan');
 const sched = require('../electionSchedule');
 
@@ -65,29 +65,36 @@ router.get('/photos/:id', requireLogin, wrap(async (req, res, next) => {
 router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
   const q = clean(req.query.q, 80);
   const school = Number(req.query.school) || null;
+  const employment = employmentKey(req.query.employment);
   const where = ["u.status = 'approved'"];
   const params = [];
   if (q) {
-    where.push('(u.name LIKE ? OR u.surname LIKE ? OR u.occupation LIKE ? OR u.city LIKE ?)');
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
+    where.push('(u.name LIKE ? OR u.surname LIKE ? OR u.occupation LIKE ? OR u.workplace LIKE ? OR u.city LIKE ?)');
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (school) {
     where.push('u.school_id = ?');
     params.push(school);
   }
+  if (employment) {
+    where.push('u.employment = ?');
+    params.push(employment);
+  }
   const [members] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.class_name, u.occupation, u.city, u.role, u.photo_v, s.name AS school_name
+    `SELECT u.id, u.surname, u.name, u.class_name, u.occupation, u.employment, u.workplace, u.city, u.role, u.photo_v,
+            s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE ${where.join(' AND ')} ORDER BY s.sort_order, u.name`,
     params
   );
   const [schools] = await pool.query('SELECT * FROM schools ORDER BY sort_order, name');
-  res.render('members/list', { title: 'Төгсөгчид', members, schools, q, school });
+  res.render('members/list', { title: 'Төгсөгчид', members, schools, q, school, employment });
 }));
 
 router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.city, u.bio, u.role, u.created_at,
+    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.employment, u.workplace,
+            u.city, u.bio, u.role, u.created_at,
             s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE u.id = ? AND u.status = 'approved'`,

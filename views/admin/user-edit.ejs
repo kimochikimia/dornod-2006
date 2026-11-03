@@ -34,7 +34,14 @@
           </select>
         </div>
         <div class="field"><label>Анги</label><input type="text" name="class_name" value="<%= user.class_name || '' %>" maxlength="20"></div>
-        <div class="field"><label>Ажил, мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
+        <div class="field"><label>Ажил эрхлэлтийн байдал</label>
+          <select name="employment">
+            <option value="">—</option>
+            <% h.EMPLOYMENT.forEach(function (o) { %><option value="<%= o[0] %>" <%= user.employment === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %>
+          </select>
+        </div>
+        <div class="field"><label>Ажлын газар</label><input type="text" name="workplace" value="<%= user.workplace || '' %>" maxlength="150"></div>
+        <div class="field"><label>Мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
         <div class="field"><label>Хот</label><input type="text" name="city" value="<%= user.city || '' %>" maxlength="100"></div>
         <div class="field"><label>Facebook линк</label><input type="text" name="facebook" value="<%= user.facebook || '' %>" maxlength="300" placeholder="facebook.com/нэр"></div>
         <div class="field"><label>Бүртгэлийн төлөв</label>

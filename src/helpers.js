@@ -186,6 +186,21 @@ function fmtSize(n) {
   return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 }
 
+// Ажил эрхлэлтийн байдал
+const EMPLOYMENT = [
+  ['public', 'Төрийн байгууллагад ажилладаг'],
+  ['private', 'Хувийн хэвшилд ажилладаг'],
+  ['business', 'Хувиараа бизнес эрхэлдэг'],
+  ['abroad', 'Гадаадад ажиллаж байгаа'],
+  ['student', 'Суралцаж байгаа'],
+  ['seeking', 'Ажил хайж байгаа'],
+  ['leave', 'Хүүхэд асрах чөлөөтэй'],
+  ['retired', 'Тэтгэвэрт гарсан'],
+  ['other', 'Бусад'],
+];
+const EMPLOYMENT_LABELS = Object.fromEntries(EMPLOYMENT);
+const employmentKey = (v) => (EMPLOYMENT_LABELS[v] ? v : null);
+
 function clean(s, max = 255) {
   return String(s ?? '').trim().slice(0, max);
 }
@@ -193,4 +208,5 @@ function clean(s, max = 255) {
 module.exports = {
   TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
   PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, renderDoc, parseDocFile, fmtSize,
+  EMPLOYMENT, EMPLOYMENT_LABELS, employmentKey,
 };

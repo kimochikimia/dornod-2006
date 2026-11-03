@@ -51,10 +51,6 @@
           <input id="class_name" type="text" name="class_name" value="<%= form.class_name || '' %>" maxlength="20" placeholder="ж: 10А">
         </div>
         <div class="field">
-          <label for="occupation">Ажил, мэргэжил</label>
-          <input id="occupation" type="text" name="occupation" value="<%= form.occupation || '' %>" maxlength="150">
-        </div>
-        <div class="field">
           <label for="city">Одоо амьдарч буй газар</label>
           <input id="city" type="text" name="city" value="<%= form.city || '' %>" maxlength="100" placeholder="ж: Улаанбаатар">
         </div>
@@ -62,6 +58,25 @@
           <label for="facebook">Facebook линк</label>
           <input id="facebook" type="text" name="facebook" value="<%= form.facebook || '' %>" maxlength="300" placeholder="ж: facebook.com/таны.нэр" inputmode="url">
         </div>
+
+        <div class="form-section-title">💼 Ажил хөдөлмөр</div>
+        <div class="field">
+          <label for="employment">Ажил эрхлэлтийн байдал <span class="req">*</span></label>
+          <select id="employment" name="employment" required>
+            <option value="">— Сонгох —</option>
+            <% h.EMPLOYMENT.forEach(function (o) { %><option value="<%= o[0] %>" <%= form.employment === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label for="occupation">Мэргэжил</label>
+          <input id="occupation" type="text" name="occupation" value="<%= form.occupation || '' %>" maxlength="150" placeholder="ж: Эмч, инженер, багш">
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="workplace">Ажлын газар (байгууллага)</label>
+          <input id="workplace" type="text" name="workplace" value="<%= form.workplace || '' %>" maxlength="150" placeholder="ж: Дорнод аймгийн Нэгдсэн эмнэлэг">
+        </div>
+
+        <div class="form-section-title">🔒 Нууц үг</div>
         <div class="field">
           <label for="password">Нууц үг <span class="req">*</span></label>
           <input id="password" type="password" name="password" minlength="8" autocomplete="new-password" required>
@@ -72,7 +87,7 @@
           <input id="password2" type="password" name="password2" minlength="8" autocomplete="new-password" required>
         </div>
       </div>
-      <p class="small faint">Бүртгүүлснээр таны нэр, зураг, сургууль, анги, ажил, хот бусад баталгаажсан төгсөгчдөд харагдана. Утас, и-мэйл, Facebook линк зөвхөн эрх бүхий гишүүдэд харагдана. Бүртгэлийн дараах мэдээллийн өөрчлөлтийг админ хийнэ.</p>
+      <p class="small faint">Бүртгүүлснээр таны нэр, зураг, сургууль, анги, ажил эрхлэлт, хот бусад баталгаажсан төгсөгчдөд харагдана. Утас, и-мэйл, Facebook линк зөвхөн эрх бүхий гишүүдэд харагдана. Бүртгэлийн дараах мэдээллийн өөрчлөлтийг админ хийнэ.</p>
       <button class="btn btn-primary btn-lg" type="submit">Бүртгүүлэх</button>
     </form>
     <hr class="sep">
