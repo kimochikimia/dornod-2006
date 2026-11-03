@@ -1,25 +1,33 @@
 <%- include('../partials/head') %>
+<%
+  var cats = [];
+  schools.forEach(function (s) { if (s.category && cats.indexOf(s.category) === -1) cats.push(s.category); });
+%>
 <div class="container">
   <%- include('_nav') %>
+  <datalist id="school-cats"><% cats.forEach(function (c) { %><option value="<%= c %>"><% }) %></datalist>
   <div class="card" style="margin-bottom:1.25rem">
     <h3>Сургууль нэмэх</h3>
     <form method="post" action="/admin/schools" class="row">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <input type="text" name="name" placeholder="Сургуулийн нэр" maxlength="120" required style="flex:3;min-width:200px">
+      <input type="text" name="category" list="school-cats" placeholder="Бүлэг (ж: Сумдын сургууль)" maxlength="80" style="flex:2;min-width:180px">
       <input type="number" name="sort_order" placeholder="Эрэмбэ" style="flex:1;min-width:90px">
       <button class="btn btn-primary" type="submit">Нэмэх</button>
     </form>
+    <p class="small faint" style="margin:.75rem 0 0">Бүлэг нь бүртгэлийн сонголтод гарчиг болж харагдана. Бүлэггүй сургууль жагсаалтад тусдаа гарна. Эрэмбэ бага нь дээр байрлана.</p>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Нэр / эрэмбэ</th><th>Төгсөгч</th><th></th></tr></thead>
+      <thead><tr><th>Нэр / бүлэг / эрэмбэ</th><th>Төгсөгч</th><th></th></tr></thead>
       <tbody>
         <% schools.forEach(function (s) { %>
           <tr>
             <td>
               <form method="post" action="/admin/schools/<%= s.id %>" class="row" style="flex-wrap:nowrap">
                 <input type="hidden" name="_csrf" value="<%= csrf %>">
-                <input type="text" name="name" value="<%= s.name %>" maxlength="120" required>
+                <input type="text" name="name" value="<%= s.name %>" maxlength="120" required style="flex:3;min-width:220px">
+                <input type="text" name="category" value="<%= s.category || '' %>" list="school-cats" maxlength="80" placeholder="Бүлэггүй" style="flex:2;min-width:160px">
                 <input type="number" name="sort_order" value="<%= s.sort_order %>" style="width:90px">
                 <button class="btn btn-sm" type="submit">Хадгалах</button>
               </form>

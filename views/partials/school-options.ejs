@@ -1,0 +1,17 @@
+<%#
+  Сургуулиудыг бүлгээр (optgroup) харуулна.
+  Хэрэглэх: include('school-options', { schools: schools, selected: id })
+%><%
+  var sel = Number(selected) || null;
+  var open = null;
+  schools.forEach(function (s) {
+    var cat = s.category || null;
+    if (cat !== open) {
+      if (open) { %></optgroup><% }
+      if (cat) { %><optgroup label="<%= cat %>"><% }
+      open = cat;
+    } %>
+  <option value="<%= s.id %>" <%= sel === s.id ? 'selected' : '' %>><%= s.name %></option><%
+  });
+  if (open) { %></optgroup><% }
+%>

@@ -242,7 +242,7 @@ router.post('/schools', wrap(async (req, res) => {
   const name = clean(req.body.name, 120);
   if (name) {
     try {
-      await pool.query('INSERT INTO schools (name, sort_order) VALUES (?, ?)', [name, Number(req.body.sort_order) || 0]);
+      await pool.query('INSERT INTO schools (name, category, sort_order) VALUES (?, ?, ?)', [name, clean(req.body.category, 80) || null, Number(req.body.sort_order) || 0]);
       flash(req, 'success', 'Сургууль нэмэгдлээ.');
     } catch (err) {
       if (err.code !== 'ER_DUP_ENTRY') throw err;
@@ -256,7 +256,7 @@ router.post('/schools/:id', wrap(async (req, res) => {
   const name = clean(req.body.name, 120);
   if (name) {
     try {
-      await pool.query('UPDATE schools SET name=?, sort_order=? WHERE id=?', [name, Number(req.body.sort_order) || 0, req.params.id]);
+      await pool.query('UPDATE schools SET name=?, category=?, sort_order=? WHERE id=?', [name, clean(req.body.category, 80) || null, Number(req.body.sort_order) || 0, req.params.id]);
       flash(req, 'success', 'Хадгалагдлаа.');
     } catch (err) {
       if (err.code !== 'ER_DUP_ENTRY') throw err;

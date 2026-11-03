@@ -29,10 +29,8 @@
         <div class="field">
           <label for="school_id">Төгссөн сургууль <span class="req">*</span></label>
           <select id="school_id" name="school_id" required>
-            <option value="">— Сонгох —</option>
-            <% schools.forEach(function (s) { %>
-              <option value="<%= s.id %>" <%= Number(form.school_id) === s.id ? 'selected' : '' %>><%= s.name %></option>
-            <% }) %>
+            <option value="">— Сургууль сонгох —</option>
+            <%- include('../partials/school-options', { schools: schools, selected: form.school_id }) %>
           </select>
         </div>
         <div class="field">

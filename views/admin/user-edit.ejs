@@ -17,7 +17,7 @@
         <div class="field"><label>Сургууль</label>
           <select name="school_id">
             <option value="">—</option>
-            <% schools.forEach(function (s) { %><option value="<%= s.id %>" <%= user.school_id === s.id ? 'selected' : '' %>><%= s.name %></option><% }) %>
+            <%- include('../partials/school-options', { schools: schools, selected: user.school_id }) %>
           </select>
         </div>
         <div class="field"><label>Анги</label><input type="text" name="class_name" value="<%= user.class_name || '' %>" maxlength="20"></div>

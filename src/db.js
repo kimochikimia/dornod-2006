@@ -26,12 +26,63 @@ const pool = mysql.createPool(buildConfig());
 // Огноог UTC-ээр хадгалж, харуулахдаа Улаанбаатарын цагаар хөрвүүлнэ.
 pool.on('connection', (conn) => conn.query("SET time_zone = '+00:00'"));
 
-// Админ самбараас засварлах боломжтой анхны жагсаалт.
+// Админ самбараас засварлах боломжтой анхны жагсаалт: [бүлэг, нэрс]. Бүлэггүй (null) нь жагсаалтын төгсгөлд.
+const CENTER = 'Хэрлэн сум (аймгийн төв)';
+const SUMS = 'Сумдын сургууль';
+const OTHER = 'Бусад (жагсаалтад байхгүй)';
 const DEFAULT_SCHOOLS = [
-  '1-р сургууль', '2-р сургууль', '3-р сургууль', '4-р сургууль', '5-р сургууль',
-  '6-р сургууль', '7-р сургууль', '8-р сургууль', '9-р сургууль', '10-р сургууль',
-  '11-р сургууль', '12-р сургууль', 'Сумын сургууль', 'Бусад',
+  [CENTER, [
+    '1-р сургууль', '2-р сургууль', '5-р сургууль', '8-р сургууль', '11-р сургууль', '12-р сургууль',
+    'Хан-Уул цогцолбор сургууль', 'Шинэ хөгжил цогцолбор сургууль',
+    'Дорнод их сургуулийн харьяа Дорнод ахлах сургууль',
+  ]],
+  [SUMS, [
+    'Баян-Уул сумын ЕБС', 'Баяндун сумын ЕБС', 'Баянтүмэн сумын ЕБС', 'Булган сумын ЕБС',
+    'Гурванзагал сумын ЕБС', 'Дашбалбар сумын ЕБС', 'Матад сумын ЕБС', 'Сэргэлэн сумын ЕБС',
+    'Халхгол сумын ЕБС', 'Халхгол сумын Ялалт багийн ЕБС', 'Хөлөнбуйр сумын ЕБС',
+    'Цагаан-Овоо сумын ЕБС', 'Чойбалсан сумын ЕБС', 'Чулуунхороо сумын ЕБС',
+  ]],
+  [null, [OTHER]],
 ];
+
+function flatDefaults() {
+  const out = [];
+  for (const [category, names] of DEFAULT_SCHOOLS) {
+    for (const name of names) out.push({ name, category, sort_order: (out.length + 1) * 10 });
+  }
+  return out;
+}
+
+// schools.category багана нэмэх (хуучин өгөгдлийн санд).
+async function ensureSchoolCategory() {
+  const [cols] = await pool.query(
+    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schools' AND COLUMN_NAME = 'category'"
+  );
+  if (!cols.length) await pool.query('ALTER TABLE schools ADD COLUMN category VARCHAR(80) NULL AFTER name');
+}
+
+// Анхны жагсаалт эсвэл хуучин (бүлэггүй) жагсаалтыг шинэ бүлэгтэй жагсаалт руу нэг удаа шилжүүлнэ.
+// Төгсөгч бүртгэлтэй хуучин сургуулийг устгахгүй — админ дараа нь шилжүүлнэ.
+async function syncSchools() {
+  const [[{ grouped }]] = await pool.query('SELECT COUNT(*) AS grouped FROM schools WHERE category IS NOT NULL');
+  if (grouped > 0) return;
+  const defaults = flatDefaults();
+  await pool.query("UPDATE schools SET name = ? WHERE name = 'Бусад'", [OTHER]).catch(() => {});
+  for (const s of defaults) {
+    await pool.query(
+      `INSERT INTO schools (name, category, sort_order) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE category = VALUES(category), sort_order = VALUES(sort_order)`,
+      [s.name, s.category, s.sort_order]
+    );
+  }
+  const names = defaults.map((s) => s.name);
+  const [removed] = await pool.query(
+    `DELETE FROM schools WHERE name NOT IN (?) AND id NOT IN (SELECT school_id FROM (SELECT DISTINCT school_id FROM users WHERE school_id IS NOT NULL) u)`,
+    [names]
+  );
+  await pool.query('UPDATE schools SET sort_order = 9000 WHERE name NOT IN (?)', [names]);
+  console.log(`[seed] Сургуулийн жагсаалт шинэчлэгдлээ (${defaults.length} сургууль, ${removed.affectedRows} хуучныг хассан).`);
+}
 
 function describeConfig() {
   if (process.env.DATABASE_URL) return 'DATABASE_URL';
@@ -71,12 +122,8 @@ async function init() {
     .filter(Boolean);
   for (const stmt of statements) await pool.query(stmt);
 
-  const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM schools');
-  if (n === 0) {
-    for (let i = 0; i < DEFAULT_SCHOOLS.length; i++) {
-      await pool.query('INSERT INTO schools (name, sort_order) VALUES (?, ?)', [DEFAULT_SCHOOLS[i], i + 1]);
-    }
-  }
+  await ensureSchoolCategory();
+  await syncSchools();
 
   await seedAdmin();
 }

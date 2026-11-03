@@ -8,9 +8,7 @@
     <input type="search" name="q" value="<%= q %>" placeholder="Нэр, ажил, хотоор хайх" style="flex:2;min-width:200px">
     <select name="school" style="flex:1;min-width:160px">
       <option value="">Бүх сургууль</option>
-      <% schools.forEach(function (s) { %>
-        <option value="<%= s.id %>" <%= school === s.id ? 'selected' : '' %>><%= s.name %></option>
-      <% }) %>
+      <%- include('../partials/school-options', { schools: schools, selected: school }) %>
     </select>
     <button class="btn btn-primary" type="submit">Хайх</button>
     <% if (q || school) { %><a class="btn btn-ghost" href="/members">Цэвэрлэх</a><% } %>
