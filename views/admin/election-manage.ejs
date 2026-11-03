@@ -24,17 +24,30 @@
     <% if (auto) { %>
       <h3 style="margin-top:1rem">⏱ Хуваарийн дагуу автоматаар явж байна</h3>
       <div class="schedule-view">
-        <% [['nomination', 'Нэр дэвшүүлэх'], ['acceptance', 'Зөвшөөрөл авах'], ['voting', 'Санал хураалт']].forEach(function (s) { %>
-          <div class="schedule-item <%= e.phase === s[0] ? 'current' : '' %>">
+        <% var nextPhase = { draft: 'nomination', nomination: 'acceptance', acceptance: 'voting' }[e.phase];
+           [['nomination', 'Нэр дэвшүүлэх'], ['acceptance', 'Зөвшөөрөл авах'], ['voting', 'Санал хураалт']].forEach(function (s) { %>
+          <div class="schedule-item <%= e.phase === s[0] ? 'current' : '' %> <%= nextPhase === s[0] ? 'next' : '' %>">
             <strong><%= s[1] %></strong>
             <span class="small muted"><%= times[s[0]].start %> → <%= times[s[0]].end %></span>
+            <% if (nextPhase === s[0]) { %>
+              <form method="post" action="/admin/elections/<%= e.id %>/advance" data-confirm="&quot;<%= s[1] %>&quot; шатыг хугацаанаас нь өмнө яг одоо эхлүүлэх үү? Өмнөх шат одоо дуусна.">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <button class="btn btn-sm btn-primary" type="submit">▶ Одоо эхлүүлэх</button>
+              </form>
+            <% } %>
+            <% if (s[0] === 'voting' && e.phase === 'voting') { %>
+              <form method="post" action="/admin/elections/<%= e.id %>/advance" data-confirm="Санал хураалтыг хугацаанаас нь өмнө одоо дуусгаж, дүнг нийтлэх үү? Буцаах боломжгүй.">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <button class="btn btn-sm btn-danger" type="submit">⏹ Санал хураалтыг одоо дуусгах</button>
+              </form>
+            <% } %>
           </div>
         <% }) %>
       </div>
       <% if (deadline) { %>
         <p class="small" style="margin-top:.75rem"><%= deadline.label %>: <strong data-countdown="<%= deadline.at %>"></strong> <span class="faint">(<%= deadline.atText %>)</span></p>
       <% } %>
-      <p class="small faint" style="margin-top:.5rem">Гараар удирдах бол доорх тохиргооноос "Хуваарийн дагуу автоматаар явуулах"-ыг унтраана уу.</p>
+      <p class="small faint" style="margin-top:.5rem">"Одоо эхлүүлэх" товчоор дараагийн шатыг хугацаанаас нь өмнө эхлүүлж болно. Бүрэн гараар удирдах бол доорх тохиргооноос "Хуваарийн дагуу автоматаар явуулах"-ыг унтраана уу.</p>
     <% } else { %>
     <h3 style="margin-top:1rem">Шат солих</h3>
     <div class="phase-controls">

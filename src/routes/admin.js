@@ -501,6 +501,51 @@ router.post('/elections/:id/phase', wrap(async (req, res, next) => {
   res.redirect(back);
 }));
 
+// Хуваарьтай сонгуулийг хугацаанаас нь өмнө дараагийн шат руу шилжүүлэх:
+// дараагийн шатны эхлэхийг "одоо", өмнөх шатны дуусахыг "одоо" болгоно (дуусах хугацаанууд хэвээр).
+router.post('/elections/:id/advance', wrap(async (req, res, next) => {
+  let [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
+  if (!e) return next();
+  const back = `/admin/elections/${e.id}`;
+  e = await sched.syncElection(e);
+  if (!sched.hasSchedule(e)) return res.redirect(back);
+  const target = { draft: 'nomination', nomination: 'acceptance', acceptance: 'voting', voting: 'closed' }[e.phase];
+  if (!target) return res.redirect(back);
+
+  if (target === 'voting') {
+    const [[{ n }]] = await pool.query("SELECT COUNT(*) AS n FROM candidates WHERE election_id = ? AND status = 'accepted'", [e.id]);
+    if (n === 0) {
+      flash(req, 'error', 'Зөвшөөрсөн нэр дэвшигч байхгүй тул санал хураалт эхлүүлэх боломжгүй.');
+      return res.redirect(back);
+    }
+  }
+  // MySQL DATETIME миллисекундийг дээш тоймлодог тул бүхэл секунд хүртэл тайрна.
+  const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+  const earlier = (d) => (d && new Date(d) < now ? new Date(d) : now);
+  const upd = {};
+  if (target === 'nomination') {
+    upd.nomination_start = now;
+  } else if (target === 'acceptance') {
+    upd.nomination_end = earlier(e.nomination_end);
+    upd.acceptance_start = now;
+  } else if (target === 'voting') {
+    upd.nomination_end = earlier(e.nomination_end);
+    upd.acceptance_end = earlier(e.acceptance_end);
+    upd.voting_start = now;
+  } else {
+    upd.voting_end = now;
+  }
+  // Шинэ шатны дуусах хугацаа өнгөрсөн байвал (ер нь болохгүй) 1 цаг сунгана.
+  const endKey = { nomination: 'nomination_end', acceptance: 'acceptance_end', voting: 'voting_end' }[target];
+  if (endKey && new Date(e[endKey]) <= now) upd[endKey] = new Date(now.getTime() + 3600e3);
+
+  await pool.query('UPDATE elections SET ? WHERE id = ?', [upd, e.id]);
+  const [[fresh]] = await pool.query('SELECT * FROM elections WHERE id = ?', [e.id]);
+  const synced = await sched.syncElection(fresh);
+  flash(req, 'success', `"${PHASE_LABELS[synced.phase]}" шат одоо эхэллээ. Хуваарь шинэчлэгдсэн.`);
+  res.redirect(back);
+}));
+
 router.post('/elections/:id/candidates/:cid', wrap(async (req, res) => {
   const back = `/admin/elections/${req.params.id}`;
   const [[e]] = await pool.query('SELECT phase FROM elections WHERE id = ?', [req.params.id]);

@@ -430,3 +430,5 @@ dialog.dialog::backdrop { background: rgba(4, 6, 16, 0.72); backdrop-filter: blu
 .nominee-list { padding: 0.35rem; height: auto; color-scheme: dark; scrollbar-color: rgba(139, 92, 246, 0.6) transparent; }
 .nominee-list option { padding: 0.5rem 0.6rem; border-radius: 6px; }
 .nominee-list option:checked { background: linear-gradient(90deg, rgba(79, 124, 255, 0.55), rgba(139, 92, 246, 0.55)); color: #fff; }
+.schedule-item form { margin-top: 0.5rem; }
+.schedule-item.next { border-style: dashed; border-color: var(--border-strong); }
