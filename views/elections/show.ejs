@@ -80,36 +80,38 @@
 
   <%# ---------- 1. Нэр дэвшүүлэх ---------- %>
   <% if (windows.nominate) { %>
-    <div class="card" style="margin-bottom:1.5rem">
-      <h2>Нэр дэвшүүлэх</h2>
+    <div class="nominate-bar">
       <% if (isApproved && can('nominate')) { %>
-        <p class="muted">Удирдах зөвлөлд тохиромжтой гэж үзсэн төгсөгчөө (эсвэл өөрийгөө) сонгоно уу. Нэр дэвшигч зөвшөөрсний дараа саналын хуудсанд орно. Өөрийгөө дэвшүүлбэл автоматаар зөвшөөрсөнд тооцогдоно.</p>
-        <form method="post" action="/elections/<%= e.id %>/nominate" class="form">
-          <input type="hidden" name="_csrf" value="<%= csrf %>">
-          <div class="form-grid">
-            <div class="field">
-              <label for="nominee">Нэр дэвшүүлэх төгсөгч</label>
-              <select id="nominee" name="nominee_id" required>
-                <option value="">— Сонгох —</option>
-                <option value="<%= me.id %>">⭐ Өөрийгөө (<%= me.surname %> <%= me.name %>)</option>
-                <% members.forEach(function (m) { if (m.id !== me.id) { %>
-                  <option value="<%= m.id %>"><%= m.name %> <%= m.surname %><%= m.school_name ? ' — ' + m.school_name : '' %></option>
-                <% } }) %>
-              </select>
-            </div>
-            <div class="field">
-              <label for="reason">Яагаад? (заавал биш)</label>
-              <input id="reason" type="text" name="reason" maxlength="1000" placeholder="Товч үндэслэл">
-            </div>
-          </div>
-          <div><button class="btn btn-primary" type="submit">Нэр дэвшүүлэх</button></div>
-        </form>
+        <button class="btn btn-primary btn-lg" type="button" data-open-dialog="nominate-dialog">＋ Нэр дэвшүүлэх</button>
       <% } else if (me) { %>
-        <p class="muted"><%= isApproved ? 'Танд нэр дэвшүүлэх эрх олгогдоогүй байна.' : 'Таны бүртгэл баталгаажсаны дараа нэр дэвшүүлэх боломжтой.' %></p>
+        <button class="btn btn-primary btn-lg" type="button" disabled>＋ Нэр дэвшүүлэх</button>
+        <span class="small muted"><%= isApproved ? 'Танд нэр дэвшүүлэх эрх олгогдоогүй байна.' : 'Таны бүртгэл баталгаажсаны дараа нэр дэвшүүлэх боломжтой.' %></span>
       <% } else { %>
-        <p class="muted"><a href="/login?next=/elections/<%= e.id %>">Нэвтэрч</a> нэр дэвшүүлнэ үү.</p>
+        <a class="btn btn-primary btn-lg" href="/login?next=/elections/<%= e.id %>">＋ Нэр дэвшүүлэх</a>
       <% } %>
     </div>
+
+    <% if (isApproved && can('nominate')) { %>
+      <dialog id="nominate-dialog" class="dialog">
+        <form method="post" action="/elections/<%= e.id %>/nominate" class="dialog-body">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button type="button" class="modal-close" data-close-dialog aria-label="Хаах" title="Хаах (Esc)">&times;</button>
+          <h3>Нэр дэвшүүлэх</h3>
+          <p class="small muted">Удирдах зөвлөлд тохиромжтой төгсөгчөө эсвэл өөрийгөө сонгоно уу.</p>
+          <input type="search" placeholder="🔍 Нэрээр хайх" data-filter-select="nominee" autocomplete="off">
+          <select id="nominee" name="nominee_id" size="8" class="nominee-list" required>
+            <option value="<%= me.id %>">⭐ Өөрийгөө (<%= me.surname %> <%= me.name %>)</option>
+            <% members.forEach(function (m) { if (m.id !== me.id) { %>
+              <option value="<%= m.id %>"><%= m.name %> <%= m.surname %><%= m.school_name ? ' — ' + m.school_name : '' %></option>
+            <% } }) %>
+          </select>
+          <div class="row" style="justify-content:flex-end">
+            <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+            <button type="submit" class="btn btn-primary">Нэр дэвшүүлэх</button>
+          </div>
+        </form>
+      </dialog>
+    <% } %>
   <% } %>
 
   <% if (e.phase === 'nomination' && !windows.nominate) { %>

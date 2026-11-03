@@ -414,3 +414,19 @@ input[type=datetime-local], input[type=date] { color-scheme: dark; }
   .cd-unit { min-width: 0; flex: 1; padding: 0.7rem 0.3rem 0.55rem; border-radius: 12px; }
   .cd-sep { display: none; }
 }
+
+/* ---------- Нэр дэвшүүлэх товч ба жижиг цонх ---------- */
+.nominate-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+dialog.dialog {
+  width: min(480px, calc(100% - 2rem)); padding: 0; border: none; border-radius: var(--radius); color: var(--text);
+  background: linear-gradient(var(--panel-solid), var(--panel-solid)) padding-box, var(--grad) border-box; border: 1px solid transparent;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.9), 0 0 60px -20px rgba(139, 92, 246, 0.6);
+}
+dialog.dialog[open] { animation: modalIn 0.2s ease; }
+dialog.dialog::backdrop { background: rgba(4, 6, 16, 0.72); backdrop-filter: blur(4px); }
+.dialog-body { position: relative; display: grid; gap: 0.85rem; padding: 1.5rem; }
+.dialog-body h3 { margin: 0; padding-right: 2.5rem; font-size: 1.3rem; }
+.dialog-body p { margin: 0; }
+.nominee-list { padding: 0.35rem; height: auto; color-scheme: dark; scrollbar-color: rgba(139, 92, 246, 0.6) transparent; }
+.nominee-list option { padding: 0.5rem 0.6rem; border-radius: 6px; }
+.nominee-list option:checked { background: linear-gradient(90deg, rgba(79, 124, 255, 0.55), rgba(139, 92, 246, 0.55)); color: #fff; }

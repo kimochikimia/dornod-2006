@@ -41,6 +41,38 @@
       });
     });
 
+    // Жижиг цонх (dialog): нээх, хаах, гадна талд дарахад хаах. Esc-ээр хөтөч өөрөө хаана.
+    $$('[data-open-dialog]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dlg = document.getElementById(btn.getAttribute('data-open-dialog'));
+        if (!dlg) return;
+        dlg.showModal();
+        var first = $('input[type=search], select', dlg);
+        if (first) first.focus();
+      });
+    });
+    $$('dialog').forEach(function (dlg) {
+      $$('[data-close-dialog]', dlg).forEach(function (b) { b.addEventListener('click', function () { dlg.close(); }); });
+      dlg.addEventListener('click', function (ev) { if (ev.target === dlg) dlg.close(); });
+    });
+
+    // Сонголтын жагсаалтыг хайлтаар шүүх
+    $$('[data-filter-select]').forEach(function (input) {
+      var sel = document.getElementById(input.getAttribute('data-filter-select'));
+      if (!sel) return;
+      input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        var firstVisible = null;
+        Array.prototype.forEach.call(sel.options, function (o) {
+          var show = !q || o.text.toLowerCase().indexOf(q) !== -1;
+          o.hidden = !show;
+          if (show && !firstVisible) firstVisible = o;
+        });
+        if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = '';
+        if (q && firstVisible && !sel.value) firstVisible.selected = true;
+      });
+    });
+
     initCountdowns();
     initScheduleForm();
     initBallot();
