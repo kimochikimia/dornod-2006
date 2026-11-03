@@ -99,6 +99,27 @@ async function ensureBoardPosts() {
   }
 }
 
+// Зөвлөлийн 10 бодлогын баримт бичгийг (батлагдаагүй төлөвтэй) анх нэг удаа бүртгэнэ.
+const DEFAULT_DOCUMENTS = [
+  ['Дорнод 2006 төгсөгчдийн зөвлөлийн дүрэм', 'Зорилго, бүтэц, эрх, үүрэг, үйл ажиллагааны үндсэн зарчим'],
+  ['Зөвлөлийн гишүүдийг сонгох журам', 'Нэр санал болгох, зөвшөөрөл авах, санал хураах, сонгуулийн үр дүнг баталгаажуулах'],
+  ['Зөвлөлийн үйл ажиллагааны журам', 'Хурал зохион байгуулах, шийдвэр гаргах, үүрэг хуваарилах'],
+  ['Санхүү, хандивын журам', 'Хандив, орлого, зарлага, зарцуулалт, тайлагнал'],
+  ['Ёс зүй, ашиг сонирхлын зөрчлийн журам', 'Гишүүдийн ёс зүй, шударга байдал, хариуцлага'],
+  ['Төгсөгчдийн бүртгэл, мэдээлэл хамгаалах журам', 'Бүртгэл, хувийн мэдээлэл, санал өгөх эрхийн баталгаажуулалт'],
+  ['Зөвлөл байгуулах хурлын тэмдэглэл, шийдвэр', 'Байгуулагдсан үйл явц, сонгуулийн үр дүнг албажуулах'],
+  ['Жилийн үйл ажиллагааны төлөвлөгөө', 'Хийх ажил, хугацаа, хариуцагч, төсөв'],
+  ['Жилийн үйл ажиллагаа, санхүүгийн тайлан', 'Нийт төгсөгчдөд тайлагнах'],
+  ['Албан хэрэг, хурлын тэмдэглэл хөтлөх загвар', 'Шийдвэр, хурлын ирц, архив, үүрэг даалгаврын бүртгэл'],
+];
+async function seedDocuments() {
+  const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM board_documents');
+  if (n > 0) return;
+  for (let i = 0; i < DEFAULT_DOCUMENTS.length; i++) {
+    await pool.query('INSERT INTO board_documents (sort_order, title, purpose) VALUES (?, ?, ?)', [i + 1, ...DEFAULT_DOCUMENTS[i]]);
+  }
+}
+
 // users.role-д 'moderator', 'subadmin' утга нэмэх (хуучин өгөгдлийн санд).
 async function ensureModeratorRole() {
   const [[col]] = await pool.query(
@@ -176,6 +197,7 @@ async function init() {
   await ensureColumn('users', 'facebook', 'VARCHAR(255) NULL AFTER city');
   await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
   await ensureBoardPosts();
+  await seedDocuments();
   await syncSchools();
 
   await seedAdmin();

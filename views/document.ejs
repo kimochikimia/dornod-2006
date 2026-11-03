@@ -1,0 +1,67 @@
+<%- include('partials/head') %>
+<% var idx = siblings.findIndex(function (s) { return s.id === d.id; }); var ok = d.status === 'approved'; %>
+<div class="container">
+  <div class="page-head">
+    <a href="/board" class="small">← Удирдах зөвлөл</a>
+  </div>
+  <div class="doc-layout">
+    <aside class="doc-nav card">
+      <div class="small muted" style="margin-bottom:.5rem">📁 Баримт бичгүүд</div>
+      <% siblings.forEach(function (s, i) { %>
+        <a href="/board/documents/<%= s.id %>" class="<%= s.id === d.id ? 'active' : '' %> <%= s.status === 'approved' ? '' : 'draft' %>">
+          <span class="doc-num"><%= i + 1 %></span><span><%= s.title %></span>
+        </a>
+      <% }) %>
+    </aside>
+
+    <article class="card doc-main">
+      <div class="row between" style="align-items:flex-start">
+        <div class="row" style="gap:.5rem">
+          <span class="badge">Баримт №<%= idx + 1 %></span>
+          <% if (ok) { %><span class="badge success">✓ Батлагдсан</span><% } else { %><span class="badge pending">Батлагдаагүй</span><% } %>
+        </div>
+        <% if (canEdit) { %><a class="btn btn-sm" href="/admin/documents/<%= d.id %>">✎ Засах</a><% } %>
+      </div>
+      <h1 class="doc-title"><%= d.title %></h1>
+      <% if (d.purpose) { %><p class="muted" style="margin-top:-.25rem"><%= d.purpose %></p><% } %>
+
+      <% if (ok && (d.doc_number || d.approved_at || d.decision)) { %>
+        <div class="doc-meta">
+          <% if (d.doc_number) { %><div><span>Дугаар</span><strong><%= d.doc_number %></strong></div><% } %>
+          <% if (d.approved_at) { %><div><span>Батлагдсан огноо</span><strong><%= d.approved_at %></strong></div><% } %>
+          <% if (d.decision) { %><div><span>Баталсан шийдвэр</span><strong><%= d.decision %></strong></div><% } %>
+        </div>
+      <% } %>
+
+      <% if (!showDraft) { %>
+        <div class="empty" style="margin-top:1rem">Энэ баримт бичиг зөвлөлөөр хараахан батлагдаагүй байна. Батлагдсаны дараа энд нийтлэгдэнэ.</div>
+      <% } else { %>
+        <% if (!ok) { %><div class="flash warn small">Ноорог — зөвхөн удирдлагад харагдаж байна.</div><% } %>
+        <% if (d.file_name) { %>
+          <div class="doc-file">
+            <span class="doc-file-icon"><%= /\.pdf$/i.test(d.file_name) ? 'PDF' : 'DOC' %></span>
+            <div style="flex:1;min-width:0">
+              <strong class="doc-file-name"><%= d.file_name %></strong>
+              <div class="small muted"><%= h.fmtSize(d.file_size) %></div>
+            </div>
+            <a class="btn btn-sm" href="/board/documents/<%= d.id %>/file" target="_blank" rel="noopener">Нээх</a>
+            <a class="btn btn-sm btn-primary" href="/board/documents/<%= d.id %>/file?download=1">Татах</a>
+          </div>
+        <% } %>
+        <% if (d.content) { %>
+          <div class="prose doc-content"><%- h.renderDoc(d.content) %></div>
+        <% } else if (d.file_name && /\.pdf$/i.test(d.file_name)) { %>
+          <iframe class="doc-pdf" src="/board/documents/<%= d.id %>/file" title="<%= d.title %>"></iframe>
+        <% } else if (!d.file_name) { %>
+          <div class="empty" style="margin-top:1rem">Агуулга оруулаагүй байна.</div>
+        <% } %>
+      <% } %>
+
+      <div class="doc-pager">
+        <% if (idx > 0) { %><a class="btn btn-sm btn-ghost" href="/board/documents/<%= siblings[idx - 1].id %>">← <%= siblings[idx - 1].title %></a><% } else { %><span></span><% } %>
+        <% if (idx < siblings.length - 1) { %><a class="btn btn-sm btn-ghost" href="/board/documents/<%= siblings[idx + 1].id %>"><%= siblings[idx + 1].title %> →</a><% } %>
+      </div>
+    </article>
+  </div>
+</div>
+<%- include('partials/foot') %>

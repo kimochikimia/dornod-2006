@@ -7,6 +7,7 @@
   <% if (can('approve_users') || can('edit_users')) { %><a href="/admin/users" class="<%= path.startsWith('/admin/users') ? 'active' : '' %>">Төгсөгчид</a><% } %>
   <% if (can('manage_roles')) { %><a href="/admin/roles" class="<%= path.startsWith('/admin/roles') ? 'active' : '' %>">Эрх, төлөв</a><% } %>
   <% if (can('manage_elections')) { %><a href="/admin/elections" class="<%= path.startsWith('/admin/elections') ? 'active' : '' %>">Сонгууль</a><% } %>
+  <% if (can('manage_board')) { %><a href="/admin/documents" class="<%= path.startsWith('/admin/documents') ? 'active' : '' %>">Баримт бичиг</a><% } %>
   <% if (can('manage_board')) { %><a href="/admin/board" class="<%= path.startsWith('/admin/board') ? 'active' : '' %>">Удирдах зөвлөл</a><% } %>
   <% if (can('manage_plans')) { %><a href="/admin/plans" class="<%= path.startsWith('/admin/plans') ? 'active' : '' %>">Төлөвлөгөө</a><% } %>
   <% if (can('manage_news')) { %><a href="/admin/news" class="<%= path.startsWith('/admin/news') ? 'active' : '' %>">Мэдээ</a><% } %>

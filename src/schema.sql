@@ -144,3 +144,21 @@ CREATE TABLE IF NOT EXISTS board_members (
   CONSTRAINT fk_board_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_board_election FOREIGN KEY (election_id) REFERENCES elections(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Зөвлөлийн бодлогын баримт бичиг (дүрэм, журам, төлөвлөгөө, тайлан)
+CREATE TABLE IF NOT EXISTS board_documents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sort_order INT NOT NULL DEFAULT 100,
+  title VARCHAR(200) NOT NULL,
+  purpose VARCHAR(500) NULL,
+  status ENUM('draft','approved') NOT NULL DEFAULT 'draft',
+  doc_number VARCHAR(50) NULL,
+  approved_at DATE NULL,
+  decision VARCHAR(200) NULL,
+  content MEDIUMTEXT NULL,
+  file_name VARCHAR(200) NULL,
+  file_mime VARCHAR(100) NULL,
+  file_size INT NULL,
+  file_data LONGBLOB NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

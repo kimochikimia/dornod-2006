@@ -34,13 +34,48 @@ router.get('/', wrap(async (req, res) => {
   const others = elections.filter((e) => !active.includes(e));
   for (const e of active) e.deadline = sched.nextDeadline(e);
 
+  const [documents] = await pool.query(
+    `SELECT id, sort_order, title, purpose, status, doc_number, DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, file_name
+     FROM board_documents ORDER BY sort_order, id`
+  );
+
   // Бүтцийн схемд: албан тушаал бүрт томилогдсон хүмүүс
   const holders = Object.fromEntries(board.POSTS.map((p) => [p.key, members.filter((m) => m.post === p.key)]));
   const lastClosed = elections.find((e) => e.phase === 'closed');
   res.render('board', {
-    title: 'Удирдах зөвлөл', members, active, others, POSTS: board.POSTS, holders,
+    title: 'Удирдах зөвлөл', members, active, others, POSTS: board.POSTS, holders, documents,
     seats: lastClosed ? lastClosed.seats : null,
   });
+}));
+
+// Баримт бичиг унших
+async function getDocument(req, withFile = false) {
+  const [[d]] = await pool.query(
+    `SELECT id, sort_order, title, purpose, status, doc_number, decision, content, file_name, file_mime, file_size,
+            DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, updated_at${withFile ? ', file_data' : ''}
+     FROM board_documents WHERE id = ?`,
+    [req.params.id]
+  );
+  return d || null;
+}
+
+router.get('/documents/:id', wrap(async (req, res, next) => {
+  const d = await getDocument(req);
+  if (!d) return next();
+  const canEdit = can(req.user, 'manage_board');
+  const [siblings] = await pool.query('SELECT id, sort_order, title, status FROM board_documents ORDER BY sort_order, id');
+  res.render('document', { title: d.title, d, canEdit, siblings, showDraft: d.status === 'approved' || canEdit });
+}));
+
+router.get('/documents/:id/file', wrap(async (req, res, next) => {
+  const d = await getDocument(req, true);
+  if (!d || !d.file_data) return next();
+  if (d.status !== 'approved' && !can(req.user, 'manage_board')) return next();
+  res.set('Content-Type', d.file_mime);
+  res.set('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(d.file_name)}`);
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Cache-Control', 'private, max-age=300');
+  res.send(d.file_data);
 }));
 
 module.exports = router;

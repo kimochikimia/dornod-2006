@@ -5,7 +5,7 @@ const { flash, wrap, requireManage, requirePerm, can, canTouch, forbidden } = re
 const { clean, PHASES, PHASE_LABELS } = require('../helpers');
 const perms = require('../permissions');
 const sched = require('../electionSchedule');
-const { fromUbInput, parsePhoto, normalizeFacebook } = require('../helpers');
+const { fromUbInput, parsePhoto, normalizeFacebook, parseDocFile } = require('../helpers');
 const h = require('../helpers');
 const photos = require('../photos');
 const { electionStats } = require('../electionStats');
@@ -17,6 +17,7 @@ router.use(requireManage);
 router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
 router.use('/board', requirePerm('manage_board'));
+router.use('/documents', requirePerm('manage_board'));
 router.use('/requests', requirePerm('manage_requests'));
 router.use('/elections', requirePerm('manage_elections'));
 router.use('/schools', requirePerm('manage_schools'));
@@ -334,6 +335,88 @@ router.post('/plans/:id/delete', wrap(async (req, res) => {
   await pool.query('DELETE FROM plan_items WHERE id = ?', [req.params.id]);
   flash(req, 'success', 'Устгагдлаа.');
   res.redirect('/admin/plans');
+}));
+
+// ---------- Зөвлөлийн баримт бичиг ----------
+function documentFields(body) {
+  const status = body.status === 'approved' ? 'approved' : 'draft';
+  const approved = /^\d{4}-\d{2}-\d{2}$/.test(body.approved_at || '') ? body.approved_at : null;
+  return {
+    title: clean(body.title, 200),
+    purpose: clean(body.purpose, 500) || null,
+    sort_order: Number(body.sort_order) || 100,
+    status,
+    doc_number: clean(body.doc_number, 50) || null,
+    approved_at: status === 'approved' ? approved : null,
+    decision: clean(body.decision, 200) || null,
+    content: String(body.content || '').replace(/\r\n?/g, '\n').slice(0, 500000) || null,
+  };
+}
+
+async function loadDocForm(id) {
+  const [[d]] = await pool.query(
+    `SELECT id, sort_order, title, purpose, status, doc_number, decision, content, file_name, file_size,
+            DATE_FORMAT(approved_at, '%Y-%m-%d') AS approved_at FROM board_documents WHERE id = ?`, [id]);
+  return d || null;
+}
+
+router.get('/documents', wrap(async (req, res) => {
+  const [docs] = await pool.query(
+    `SELECT id, sort_order, title, purpose, status, doc_number, file_name, file_size,
+            DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, CHAR_LENGTH(COALESCE(content, '')) AS content_len
+     FROM board_documents ORDER BY sort_order, id`
+  );
+  res.render('admin/documents', { title: 'Баримт бичиг — Удирдлага', docs });
+}));
+
+router.get('/documents/new', wrap(async (req, res) => {
+  const [[{ next }]] = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM board_documents');
+  res.render('admin/document-form', { title: 'Шинэ баримт бичиг', d: { sort_order: next, status: 'draft' }, errors: [] });
+}));
+
+router.get('/documents/:id', wrap(async (req, res, next) => {
+  const d = await loadDocForm(req.params.id);
+  if (!d) return next();
+  res.render('admin/document-form', { title: d.title, d, errors: [] });
+}));
+
+async function saveDocument(req, res, id) {
+  const f = documentFields(req.body);
+  const errors = [];
+  if (!f.title) errors.push('Баримт бичгийн нэрийг бичнэ үү.');
+  if (f.status === 'approved' && !f.approved_at) errors.push('Батлагдсан огноог оруулна уу.');
+  if (f.status === 'approved' && !f.content && !req.body.file_data && !(id && (await loadDocForm(id)).file_name)) {
+    errors.push('Батлагдсан баримт бичигт агуулга бичих эсвэл файл хавсаргана уу.');
+  }
+  const file = parseDocFile(req.body.file_data, req.body.file_name);
+  if (file && file.error) errors.push(file.error);
+  if (errors.length) {
+    const existing = id ? await loadDocForm(id) : {};
+    return res.status(400).render('admin/document-form', { title: f.title || 'Баримт бичиг', d: { ...existing, ...f, id }, errors });
+  }
+  let docId = id;
+  if (id) await pool.query('UPDATE board_documents SET ? WHERE id = ?', [f, id]);
+  else [{ insertId: docId }] = await pool.query('INSERT INTO board_documents SET ?', [f]);
+  if (file) {
+    await pool.query('UPDATE board_documents SET file_name = ?, file_mime = ?, file_size = ?, file_data = ? WHERE id = ?',
+      [file.name, file.mime, file.buf.length, file.buf, docId]);
+  } else if (req.body.remove_file) {
+    await pool.query('UPDATE board_documents SET file_name = NULL, file_mime = NULL, file_size = NULL, file_data = NULL WHERE id = ?', [docId]);
+  }
+  flash(req, 'success', f.status === 'approved' ? `"${f.title}" батлагдсан баримт бичгээр нийтлэгдлээ.` : `"${f.title}" хадгалагдлаа.`);
+  res.redirect('/admin/documents');
+}
+
+router.post('/documents', wrap(async (req, res) => saveDocument(req, res, null)));
+router.post('/documents/:id', wrap(async (req, res, next) => {
+  if (!(await loadDocForm(req.params.id))) return next();
+  return saveDocument(req, res, Number(req.params.id));
+}));
+
+router.post('/documents/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM board_documents WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Баримт бичиг устгагдлаа.');
+  res.redirect('/admin/documents');
 }));
 
 // ---------- Удирдах зөвлөл ----------

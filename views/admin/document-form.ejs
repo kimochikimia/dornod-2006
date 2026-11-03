@@ -1,0 +1,64 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card">
+    <div class="row between">
+      <h2 style="margin:0"><%= d.id ? 'Баримт бичиг засах' : 'Шинэ баримт бичиг' %></h2>
+      <% if (d.id) { %><a class="btn btn-sm" href="/board/documents/<%= d.id %>" target="_blank" rel="noopener">Нийтийн хуудсаар харах →</a><% } %>
+    </div>
+    <% if (errors.length) { %><div class="flash error" style="margin-top:1rem"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
+    <form method="post" action="/admin/documents<%= d.id ? '/' + d.id : '' %>" class="form" style="margin-top:1rem" data-doc-form>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field" style="grid-column:1/-1"><label>Баримт бичгийн нэр</label><input type="text" name="title" value="<%= d.title || '' %>" maxlength="200" required></div>
+        <div class="field" style="grid-column:1/-1"><label>Зориулалт</label><input type="text" name="purpose" value="<%= d.purpose || '' %>" maxlength="500"></div>
+        <div class="field"><label>Эрэмбэ (№)</label><input type="number" name="sort_order" value="<%= d.sort_order || 100 %>"></div>
+        <div class="field">
+          <label>Төлөв</label>
+          <select name="status">
+            <option value="draft" <%= d.status !== 'approved' ? 'selected' : '' %>>Батлагдаагүй (ноорог)</option>
+            <option value="approved" <%= d.status === 'approved' ? 'selected' : '' %>>✓ Батлагдсан — нийтэд харуулах</option>
+          </select>
+        </div>
+        <div class="field"><label>Баримтын дугаар</label><input type="text" name="doc_number" value="<%= d.doc_number || '' %>" maxlength="50" placeholder="ж: Д-01"></div>
+        <div class="field"><label>Батлагдсан огноо</label><input type="date" name="approved_at" value="<%= d.approved_at || '' %>"></div>
+        <div class="field" style="grid-column:1/-1"><label>Баталсан шийдвэр</label><input type="text" name="decision" value="<%= d.decision || '' %>" maxlength="200" placeholder="ж: Зөвлөлийн 1-р хурлын тогтоол №02"></div>
+      </div>
+
+      <div class="field">
+        <label>Агуулга</label>
+        <textarea name="content" rows="18" class="doc-editor" placeholder="# Нэгдүгээр бүлэг. Ерөнхий зүйл&#10;&#10;1.1. Энэхүү дүрмийн зорилго нь ...&#10;&#10;## Зөвлөлийн бүрэн эрх&#10;- Хурал зарлах&#10;- Шийдвэр гаргах"><%= d.content || '' %></textarea>
+        <div class="hint">
+          Бичих заавар: <code># Гарчиг</code>, <code>## Дэд гарчиг</code>, <code>- жагсаалт</code>, <code>1. дугаарласан</code>, хоосон мөр = шинэ догол мөр.
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Хавсралт файл (PDF, Word — 10MB хүртэл)</label>
+        <div class="row" style="gap:.6rem">
+          <% if (d.file_name) { %>
+            <span class="doc-file-chip">📎 <%= d.file_name %> · <%= h.fmtSize(d.file_size) %></span>
+            <label class="check small"><input type="checkbox" name="remove_file" value="1"> Файлыг устгах</label>
+          <% } %>
+          <label class="btn btn-sm" for="doc_file"><%= d.file_name ? 'Файл солих' : 'Файл сонгох' %></label>
+          <input id="doc_file" type="file" accept=".pdf,.docx,.doc,application/pdf" hidden data-doc-file>
+          <span class="small muted" data-doc-file-label></span>
+        </div>
+        <input type="hidden" name="file_data" data-doc-file-data>
+        <input type="hidden" name="file_name" data-doc-file-name>
+      </div>
+
+      <div class="row between">
+        <div class="row">
+          <button class="btn btn-primary" type="submit">Хадгалах</button>
+          <a class="btn btn-ghost" href="/admin/documents">Буцах</a>
+        </div>
+        <% if (d.id) { %>
+          <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/documents/<%= d.id %>/delete" formnovalidate
+                  data-confirm="Энэ баримт бичгийг бүрмөсөн устгах уу?">Устгах</button>
+        <% } %>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include('../partials/foot') %>

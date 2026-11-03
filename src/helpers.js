@@ -123,11 +123,74 @@ function normalizeFacebook(input) {
   return `https://www.facebook.com${u.pathname}${u.search}`.slice(0, 255);
 }
 
+// Баримт бичгийн энгийн тэмдэглэгээг аюулгүй HTML болгоно:
+// "# " гарчиг, "## " дэд гарчиг, "- "/"• " жагсаалт, "1. " дугаарласан жагсаалт, хоосон мөр = догол мөр.
+function renderDoc(src) {
+  const lines = String(src || '').replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let para = [];
+  let list = null; // { tag, items }
+  const flushPara = () => { if (para.length) { out.push(`<p>${para.map(escapeHtml).join('<br>')}</p>`); para = []; } };
+  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</${list.tag}>`); list = null; } };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    let m;
+    if (!line.trim()) { flushPara(); flushList(); continue; }
+    if ((m = line.match(/^\s*(#{1,3})\s+(.*)$/))) {
+      flushPara(); flushList();
+      const lvl = Math.min(m[1].length + 1, 4);
+      out.push(`<h${lvl}>${escapeHtml(m[2])}</h${lvl}>`);
+    } else if ((m = line.match(/^\s*[-•*]\s+(.*)$/))) {
+      flushPara();
+      if (!list || list.tag !== 'ul') { flushList(); list = { tag: 'ul', items: [] }; }
+      list.items.push(m[1]);
+    } else if ((m = line.match(/^\s*\d+[.)]\s+(.*)$/))) {
+      flushPara();
+      if (!list || list.tag !== 'ol') { flushList(); list = { tag: 'ol', items: [] }; }
+      list.items.push(m[1]);
+    } else {
+      flushList();
+      para.push(line.trim());
+    }
+  }
+  flushPara(); flushList();
+  return out.join('\n');
+}
+
+// Баримт бичгийн хавсралт (PDF, Word): data URL → { mime, buf, name } | null | { error }
+const MAX_DOC_BYTES = 10 * 1024 * 1024;
+const DOC_TYPES = {
+  'application/pdf': 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/msword': 'doc',
+};
+function parseDocFile(dataUrl, name) {
+  const s = String(dataUrl || '');
+  if (!s) return null;
+  const m = s.match(/^data:([a-z0-9.+\/-]+);base64,([A-Za-z0-9+/=]+)$/i);
+  if (!m || !DOC_TYPES[m[1].toLowerCase()]) return { error: 'Зөвхөн PDF эсвэл Word (.docx, .doc) файл хавсаргана.' };
+  const buf = Buffer.from(m[2], 'base64');
+  if (!buf.length || buf.length > MAX_DOC_BYTES) return { error: 'Файлын хэмжээ 10MB-аас ихгүй байх ёстой.' };
+  const ext = DOC_TYPES[m[1].toLowerCase()];
+  const magicOk = ext === 'pdf' ? buf.slice(0, 5).toString('latin1') === '%PDF-'
+    : ext === 'docx' ? buf[0] === 0x50 && buf[1] === 0x4b
+      : buf.slice(0, 4).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]));
+  if (!magicOk) return { error: 'Файл гэмтэлтэй эсвэл төрөл нь таарахгүй байна.' };
+  let fname = String(name || '').replace(/[\\/:*?"<>|\r\n]+/g, '_').trim().slice(0, 150) || `document.${ext}`;
+  if (!fname.toLowerCase().endsWith(`.${ext}`)) fname += `.${ext}`;
+  return { mime: m[1].toLowerCase(), buf, name: fname };
+}
+
+function fmtSize(n) {
+  if (!n) return '';
+  return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+}
+
 function clean(s, max = 255) {
   return String(s ?? '').trim().slice(0, max);
 }
 
 module.exports = {
   TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
-  PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook,
+  PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, renderDoc, parseDocFile, fmtSize,
 };

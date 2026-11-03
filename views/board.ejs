@@ -8,6 +8,30 @@
     <% if (can('manage_board')) { %><a class="btn" href="/admin/board">✎ Зөвлөл засах</a><% } %>
   </div>
 
+  <%# ---------- Зөвлөлийн баримт бичиг (хамгийн дээр, 10 хавтас) ---------- %>
+  <% if (documents.length) { var approvedCount = documents.filter(function (d) { return d.status === 'approved'; }).length; %>
+    <section class="docs-section">
+      <div class="row between" style="margin-bottom:.9rem">
+        <h2 style="margin:0">📁 Зөвлөлийн баримт бичиг</h2>
+        <span class="small muted"><%= approvedCount %> / <%= documents.length %> батлагдсан</span>
+      </div>
+      <div class="folders">
+        <% documents.forEach(function (d, i) { var ok = d.status === 'approved'; %>
+          <a class="folder <%= ok ? 'approved' : 'draft' %>" href="/board/documents/<%= d.id %>" title="<%= d.purpose || '' %>">
+            <span class="folder-tab"><%= i + 1 %></span>
+            <span class="folder-body">
+              <span class="folder-title"><%= d.title %></span>
+              <span class="folder-meta">
+                <% if (ok) { %>✓ <%= d.approved_at || 'Батлагдсан' %><%= d.file_name ? ' · 📎' : '' %>
+                <% } else { %>Батлагдаагүй<% } %>
+              </span>
+            </span>
+          </a>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
+
   <%# ---------- Явагдаж буй / удахгүй эхлэх сонгууль ---------- %>
   <% active.forEach(function (e) { %>
     <a class="card glow card-link election-banner" href="/elections/<%= e.id %>">

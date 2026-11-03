@@ -89,6 +89,31 @@
       $$('[data-appoint-field]', form).forEach(function (f) { f.style.display = post.value !== 'unassigned' ? '' : 'none'; });
     });
 
+    // Баримт бичгийн хавсралт: файлыг base64 болгож маягтад хийнэ
+    var docFile = $('[data-doc-file]');
+    if (docFile) {
+      docFile.addEventListener('change', function () {
+        var f = docFile.files && docFile.files[0];
+        var label = $('[data-doc-file-label]');
+        if (!f) return;
+        if (f.size > 10 * 1024 * 1024) { window.alert('Файл 10MB-аас ихгүй байх ёстой.'); docFile.value = ''; return; }
+        if (!/\.(pdf|docx|doc)$/i.test(f.name)) { window.alert('Зөвхөн PDF эсвэл Word файл сонгоно уу.'); docFile.value = ''; return; }
+        var reader = new FileReader();
+        label.textContent = 'Уншиж байна...';
+        reader.onload = function () {
+          var url = String(reader.result);
+          // Зарим хөтөч Word файлын төрлийг хоосон өгдөг тул өргөтгөлөөр нь тогтооно
+          var ext = f.name.split('.').pop().toLowerCase();
+          var mime = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword' }[ext];
+          url = url.replace(/^data:[^;]*;/, 'data:' + mime + ';');
+          $('[data-doc-file-data]').value = url;
+          $('[data-doc-file-name]').value = f.name;
+          label.textContent = '✓ ' + f.name + ' (' + Math.round(f.size / 1024) + ' KB) — хадгалахад хавсаргагдана';
+        };
+        reader.readAsDataURL(f);
+      });
+    }
+
     initPhotoPickers();
     initCountdowns();
     initScheduleForm();
