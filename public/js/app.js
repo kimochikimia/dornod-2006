@@ -27,7 +27,9 @@
     // data-confirm бүхий маягт илгээхээс өмнө баталгаажуулна
     $$('form[data-confirm]').forEach(function (f) {
       f.addEventListener('submit', function (ev) {
-        if (!window.confirm(f.getAttribute('data-confirm'))) ev.preventDefault();
+        // Товч өөрийн асуулттай бол (жишээ нь нэр дэвшигч бүрийн "Санал өгөх") түүнийг ашиглана.
+        var msg = (ev.submitter && ev.submitter.getAttribute('data-confirm')) || f.getAttribute('data-confirm');
+        if (!window.confirm(msg)) ev.preventDefault();
       });
     });
 

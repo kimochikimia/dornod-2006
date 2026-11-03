@@ -459,3 +459,17 @@ img.avatar { object-fit: cover; display: block; padding: 0; background: var(--pa
   background: rgba(139, 92, 246, 0.08); color: #dfe3ff; font-size: 0.9rem; white-space: pre-line;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
+
+/* ---------- Саналын хуудас: мөр бүрийн баруун талын товч ---------- */
+.ballot-option .ballot-vote { flex-shrink: 0; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+.pick-btn { flex-shrink: 0; pointer-events: none; min-width: 120px; }
+.pick-btn .pick-on { display: none; }
+.ballot-option.checked .pick-btn { background: var(--grad); border-color: transparent; }
+.ballot-option.checked .pick-btn .pick-on { display: inline; }
+.ballot-option.checked .pick-btn .pick-off { display: none; }
+.ballot-option:has(input:focus-visible) { outline: 2px solid var(--violet); outline-offset: 2px; }
+@media (max-width: 560px) {
+  .ballot-option { flex-wrap: wrap; }
+  .ballot-option .ballot-vote, .pick-btn { width: 100%; }
+}

@@ -158,25 +158,46 @@
     <% if (can('vote') && !hasVoted && windows.vote) { %>
       <div class="card glow" style="margin-bottom:1.5rem">
         <h2>Саналын хуудас</h2>
-        <p class="muted">Удирдах зөвлөлд <strong><%= e.max_choices %></strong> хүртэл нэр дэвшигч сонгоно уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
-        <form method="post" action="/elections/<%= e.id %>/vote" class="stack" data-ballot data-max="<%= e.max_choices %>" data-confirm="Саналаа баталгаажуулах уу? Өгсний дараа өөрчлөх боломжгүй.">
-          <input type="hidden" name="_csrf" value="<%= csrf %>">
-          <% accepted.forEach(function (c) { %>
-            <label class="ballot-option">
-              <input type="checkbox" name="choices" value="<%= c.id %>">
-              <%- avatar(c, c.user_id) %>
-              <div class="body" style="flex:1;min-width:0">
-                <strong><%= c.surname %> <%= c.name %></strong>
-                <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>
-                <% if (c.statement) { %><div class="small" style="margin-top:.35rem;white-space:pre-line"><%= c.statement %></div><% } %>
+        <% var single = e.max_choices === 1 || accepted.length === 1; %>
+        <% if (single) { %>
+          <p class="muted">Удирдах зөвлөлд сонгох нэр дэвшигчийнхээ хажууд байгаа <strong>"Санал өгөх"</strong> товчийг дарна уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
+          <form method="post" action="/elections/<%= e.id %>/vote" class="stack" data-confirm="Саналаа баталгаажуулах уу? Өгсний дараа өөрчлөх боломжгүй.">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <% accepted.forEach(function (c) { %>
+              <div class="ballot-option">
+                <%- avatar(c, c.user_id) %>
+                <div class="body" style="flex:1;min-width:0">
+                  <strong><%= c.surname %> <%= c.name %></strong>
+                  <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>
+                  <% if (c.statement) { %><div class="small" style="margin-top:.35rem;white-space:pre-line"><%= c.statement %></div><% } %>
+                </div>
+                <button class="btn btn-primary ballot-vote" type="submit" name="choices" value="<%= c.id %>"
+                        data-confirm="<%= c.surname %> <%= c.name %>-д санал өгөх үү? Өгсний дараа өөрчлөх боломжгүй.">🗳️ Санал өгөх</button>
               </div>
-            </label>
-          <% }) %>
-          <div class="ballot-bar">
-            <span>Сонгосон: <strong data-ballot-count>0</strong> / <%= e.max_choices %></span>
-            <button class="btn btn-primary btn-lg" type="submit" data-ballot-submit disabled>Санал өгөх</button>
-          </div>
-        </form>
+            <% }) %>
+          </form>
+        <% } else { %>
+          <p class="muted">Удирдах зөвлөлд <strong><%= e.max_choices %></strong> хүртэл нэр дэвшигчийг "Сонгох" товчоор сонгоод, доорх "Санал өгөх" товчийг дарна уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
+          <form method="post" action="/elections/<%= e.id %>/vote" class="stack" data-ballot data-max="<%= e.max_choices %>" data-confirm="Саналаа баталгаажуулах уу? Өгсний дараа өөрчлөх боломжгүй.">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <% accepted.forEach(function (c) { %>
+              <label class="ballot-option">
+                <input type="checkbox" name="choices" value="<%= c.id %>" class="visually-hidden">
+                <%- avatar(c, c.user_id) %>
+                <div class="body" style="flex:1;min-width:0">
+                  <strong><%= c.surname %> <%= c.name %></strong>
+                  <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>
+                  <% if (c.statement) { %><div class="small" style="margin-top:.35rem;white-space:pre-line"><%= c.statement %></div><% } %>
+                </div>
+                <span class="btn pick-btn" aria-hidden="true"><span class="pick-off">Сонгох</span><span class="pick-on">✓ Сонгосон</span></span>
+              </label>
+            <% }) %>
+            <div class="ballot-bar">
+              <span>Сонгосон: <strong data-ballot-count>0</strong> / <%= e.max_choices %></span>
+              <button class="btn btn-primary btn-lg" type="submit" data-ballot-submit disabled>🗳️ Санал өгөх</button>
+            </div>
+          </form>
+        <% } %>
       </div>
     <% } else if (hasVoted) { %>
       <div class="flash success" style="margin-bottom:1.5rem">✓ Та саналаа өгсөн байна. Баярлалаа! Доор сонгуулийн явцыг шууд харж болно.</div>
