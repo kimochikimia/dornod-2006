@@ -39,13 +39,8 @@ router.get('/', wrap(async (req, res) => {
      FROM board_documents ORDER BY sort_order, id`
   );
 
-  // Бүтцийн схемд: албан тушаал бүрт томилогдсон хүмүүс
-  const holders = Object.fromEntries(board.POSTS.map((p) => [p.key, members.filter((m) => m.post === p.key)]));
-  const lastClosed = elections.find((e) => e.phase === 'closed');
   res.render('board', {
-    title: 'Удирдах зөвлөл', members, active, others, POSTS: board.POSTS, holders, documents,
-    seats: lastClosed ? lastClosed.seats : null,
-  });
+    title: 'Удирдах зөвлөл', members, active, others, documents });
 }));
 
 // Баримт бичиг унших
