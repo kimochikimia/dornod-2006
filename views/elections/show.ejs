@@ -58,24 +58,7 @@
 
   <%# ---------- Нэр дэвшигчийн хариу ---------- %>
   <% if (myCandidacy && windows.respond) { %>
-    <div class="card glow" style="margin-bottom:1.5rem">
-      <div class="row" style="margin-bottom:.5rem">
-        <span class="badge grad">Таныг нэр дэвшүүлсэн байна</span>
-        <span class="badge <%= myCandidacy.status %>"><%= h.STATUS_LABELS[myCandidacy.status] %></span>
-      </div>
-      <h3><%= myCandidacy.nomination_count %> төгсөгч таныг удирдах зөвлөлд нэр дэвшүүлжээ. Нэр дэвших үү?</h3>
-      <form method="post" action="/elections/<%= e.id %>/respond" class="form">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <div class="field">
-          <label for="statement">Мөрийн хөтөлбөр / сонгогчдод хандах үг</label>
-          <textarea id="statement" name="statement" maxlength="3000" placeholder="Удирдах зөвлөлд сонгогдвол юу хийх вэ?"><%= myCandidacy.statement || '' %></textarea>
-        </div>
-        <div class="row">
-          <button class="btn btn-success" name="action" value="accept">✓ Зөвшөөрөх<%= myCandidacy.status === 'accepted' ? ' (хадгалах)' : '' %></button>
-          <button class="btn btn-danger" name="action" value="decline">✕ Татгалзах</button>
-        </div>
-      </form>
-    </div>
+    <%- include('../partials/candidacy', { c: Object.assign({}, myCandidacy, { canRespond: true }), back: '' }) %>
   <% } %>
 
   <%# ---------- 1. Нэр дэвшүүлэх ---------- %>

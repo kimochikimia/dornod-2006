@@ -161,11 +161,17 @@ router.post('/:id/respond', requireMember, wrap(async (req, res, next) => {
   }
   const action = req.body.action === 'accept' ? 'accepted' : req.body.action === 'decline' ? 'declined' : null;
   if (!action) return res.redirect(back);
-  const statement = clean(req.body.statement, 3000);
-  const [r] = await pool.query(
-    'UPDATE candidates SET status = ?, statement = ?, responded_at = NOW() WHERE election_id = ? AND user_id = ?',
-    [action, statement || null, e.id, req.user.id]
-  );
+  // Маягтад мөрийн хөтөлбөрийн талбар байвал л шинэчилнэ (жишээ нь "Татгалзах" товч нь хуучныг устгахгүй).
+  const hasStatement = Object.prototype.hasOwnProperty.call(req.body, 'statement');
+  const [r] = hasStatement
+    ? await pool.query(
+      'UPDATE candidates SET status = ?, statement = ?, responded_at = NOW() WHERE election_id = ? AND user_id = ?',
+      [action, clean(req.body.statement, 3000) || null, e.id, req.user.id]
+    )
+    : await pool.query(
+      'UPDATE candidates SET status = ?, responded_at = NOW() WHERE election_id = ? AND user_id = ?',
+      [action, e.id, req.user.id]
+    );
   if (r.affectedRows === 0) flash(req, 'error', 'Таныг энэ сонгуульд нэр дэвшүүлээгүй байна.');
   else if (action === 'accepted') flash(req, 'success', 'Та нэр дэвшихийг зөвшөөрлөө. Таны нэр саналын хуудсанд орно.');
   else flash(req, 'info', 'Та нэр дэвшихээс татгалзлаа.');

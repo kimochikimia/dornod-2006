@@ -6,30 +6,7 @@
   </div>
 
   <% candidacies.forEach(function (c) { %>
-    <div class="card glow" style="margin-bottom:1.25rem">
-      <div class="row" style="margin-bottom:.5rem">
-        <span class="badge grad">🗳️ Нэр дэвшүүлэлт</span>
-        <span class="badge <%= c.status %>"><%= h.STATUS_LABELS[c.status] %></span>
-      </div>
-      <h3>Таныг "<%= c.election_title %>"-д <%= c.nomination_count %> хүн нэр дэвшүүлсэн байна</h3>
-      <% if (c.canRespond) { %>
-        <form method="post" action="/elections/<%= c.election_id %>/respond" class="form">
-          <input type="hidden" name="_csrf" value="<%= csrf %>">
-          <input type="hidden" name="back" value="me">
-          <div class="field">
-            <label for="st<%= c.id %>">Мөрийн хөтөлбөр / товч танилцуулга</label>
-            <textarea id="st<%= c.id %>" name="statement" maxlength="3000" placeholder="Сонгогчдод хандах үгээ бичнэ үү"><%= c.statement || '' %></textarea>
-          </div>
-          <div class="row">
-            <button class="btn btn-success" name="action" value="accept">✓ Нэр дэвшихийг зөвшөөрөх</button>
-            <button class="btn btn-danger" name="action" value="decline">✕ Татгалзах</button>
-            <a class="btn btn-ghost" href="/elections/<%= c.election_id %>">Сонгуулийн хуудас</a>
-          </div>
-        </form>
-      <% } else { %>
-        <p class="muted">Санал хураалт эхэлсэн тул хариуг өөрчлөх боломжгүй. <a href="/elections/<%= c.election_id %>">Явцыг харах →</a></p>
-      <% } %>
-    </div>
+    <%- include('partials/candidacy', { c: c, back: 'me' }) %>
   <% }) %>
 
   <div class="grid grid-2">

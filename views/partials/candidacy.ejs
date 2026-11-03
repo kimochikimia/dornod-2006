@@ -1,0 +1,92 @@
+<%#
+  Нэр дэвшигчийн хариу (сонгуулийн хуудас болон "Миний хуудас").
+  Хэрэглэх: include('candidacy', { c: candidacy, back: 'me' | '' })
+  c: { id, election_id, status, statement, nomination_count, canRespond, election_title? }
+%><%
+  var action = '/elections/' + c.election_id + '/respond';
+  var dlg = 'stmt-' + c.id;
+%>
+<% if (c.status === 'pending') { %>
+  <div class="card glow" style="margin-bottom:1.25rem">
+    <div class="row" style="margin-bottom:.5rem">
+      <span class="badge grad">🗳️ Таныг нэр дэвшүүлсэн байна</span>
+      <span class="badge pending"><%= h.STATUS_LABELS.pending %></span>
+    </div>
+    <h3><% if (c.election_title) { %>"<%= c.election_title %>": <% } %><%= c.nomination_count %> төгсөгч таныг удирдах зөвлөлд нэр дэвшүүлжээ. Нэр дэвших үү?</h3>
+    <% if (c.canRespond) { %>
+      <form method="post" action="<%= action %>" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <% if (back === 'me') { %><input type="hidden" name="back" value="me"><% } %>
+        <div class="field">
+          <label for="st<%= c.id %>">Мөрийн хөтөлбөр / сонгогчдод хандах үг</label>
+          <textarea id="st<%= c.id %>" name="statement" maxlength="3000" placeholder="Удирдах зөвлөлд сонгогдвол юу хийх вэ?"><%= c.statement || '' %></textarea>
+        </div>
+        <div class="row">
+          <button class="btn btn-success" name="action" value="accept">✓ Зөвшөөрөх</button>
+          <button class="btn btn-danger" name="action" value="decline">✕ Татгалзах</button>
+          <% if (back === 'me') { %><a class="btn btn-ghost" href="/elections/<%= c.election_id %>">Сонгуулийн хуудас</a><% } %>
+        </div>
+      </form>
+    <% } else { %>
+      <p class="muted" style="margin:0">Хариу өгөх хугацаа дууссан. <a href="/elections/<%= c.election_id %>">Сонгуулийн хуудас →</a></p>
+    <% } %>
+  </div>
+<% } else { var ok = c.status === 'accepted'; %>
+  <div class="card candidacy-done <%= c.status %>" style="margin-bottom:1.25rem">
+    <div class="row between">
+      <div class="row" style="gap:.8rem;flex-wrap:nowrap;min-width:0">
+        <span class="cand-icon"><%= ok ? '✓' : '✕' %></span>
+        <div style="min-width:0">
+          <strong><%= ok ? 'Та нэр дэвшихийг зөвшөөрсөн' : 'Та нэр дэвшихээс татгалзсан' %></strong>
+          <div class="small muted">
+            <% if (c.election_title) { %><a href="/elections/<%= c.election_id %>"><%= c.election_title %></a> · <% } %><%= c.nomination_count %> төгсөгч нэр дэвшүүлсэн
+          </div>
+        </div>
+      </div>
+      <% if (c.canRespond) { %>
+        <div class="row" style="gap:.4rem">
+          <% if (ok) { %>
+            <button class="btn btn-sm" type="button" data-open-dialog="<%= dlg %>">✎ Мөрийн хөтөлбөр засах</button>
+            <form method="post" action="<%= action %>" class="inline" data-confirm="Нэр дэвшихээс татгалзах уу?">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <% if (back === 'me') { %><input type="hidden" name="back" value="me"><% } %>
+              <button class="btn btn-sm btn-ghost" name="action" value="decline">Татгалзах</button>
+            </form>
+          <% } else { %>
+            <form method="post" action="<%= action %>" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <% if (back === 'me') { %><input type="hidden" name="back" value="me"><% } %>
+              <button class="btn btn-sm btn-success" name="action" value="accept">✓ Дахин зөвшөөрөх</button>
+            </form>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+    <% if (ok) { %>
+      <% if (c.statement) { %>
+        <div class="statement-preview"><%= c.statement %></div>
+      <% } else if (c.canRespond) { %>
+        <p class="small muted" style="margin:.75rem 0 0">💡 Мөрийн хөтөлбөрөө бичвэл сонгогчдод саналын хуудсан дээр харагдана.</p>
+      <% } %>
+    <% } %>
+    <% if (!c.canRespond && back === 'me') { %>
+      <p class="small faint" style="margin:.6rem 0 0">Хариуг өөрчлөх хугацаа дууссан.</p>
+    <% } %>
+  </div>
+
+  <% if (ok && c.canRespond) { %>
+    <dialog id="<%= dlg %>" class="dialog">
+      <form method="post" action="<%= action %>" class="dialog-body">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <% if (back === 'me') { %><input type="hidden" name="back" value="me"><% } %>
+        <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+        <h3>Мөрийн хөтөлбөр</h3>
+        <textarea name="statement" maxlength="3000" rows="7" placeholder="Удирдах зөвлөлд сонгогдвол юу хийх вэ?"><%= c.statement || '' %></textarea>
+        <div class="row" style="justify-content:flex-end">
+          <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+          <button class="btn btn-primary" name="action" value="accept">Хадгалах</button>
+        </div>
+      </form>
+    </dialog>
+  <% } %>
+<% } %>
