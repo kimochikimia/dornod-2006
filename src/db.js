@@ -77,6 +77,28 @@ async function ensureElectionSchedule() {
   }
 }
 
+// Зөвлөлийн албан тушаал (post), томилгооны огноо, хурлын шийдвэр. Хуучин чөлөөт текстийг ангилалд буулгана.
+async function ensureBoardPosts() {
+  const [cols] = await pool.query(
+    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'board_members' AND COLUMN_NAME = 'post'"
+  );
+  if (cols.length) return;
+  await pool.query("ALTER TABLE board_members ADD COLUMN post VARCHAR(20) NOT NULL DEFAULT 'unassigned' AFTER user_id");
+  await ensureColumn('board_members', 'appointed_at', 'DATE NULL');
+  await ensureColumn('board_members', 'decision', 'VARCHAR(200) NULL');
+  const { guessPost } = require('./board');
+  const [rows] = await pool.query('SELECT id, position FROM board_members');
+  const taken = new Set();
+  for (const r of rows) {
+    let post = guessPost(r.position);
+    if (['chair', 'secretary', 'finance'].includes(post)) {
+      if (taken.has(post)) post = 'member';
+      taken.add(post);
+    }
+    await pool.query('UPDATE board_members SET post = ? WHERE id = ?', [post, r.id]);
+  }
+}
+
 // users.role-д 'moderator', 'subadmin' утга нэмэх (хуучин өгөгдлийн санд).
 async function ensureModeratorRole() {
   const [[col]] = await pool.query(
@@ -153,6 +175,7 @@ async function init() {
   await ensureElectionSchedule();
   await ensureColumn('users', 'facebook', 'VARCHAR(255) NULL AFTER city');
   await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
+  await ensureBoardPosts();
   await syncSchools();
 
   await seedAdmin();

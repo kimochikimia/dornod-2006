@@ -24,6 +24,36 @@
     </a>
   <% }) %>
 
+  <%# ---------- Бүтэц ---------- %>
+  <% var councilCount = members.length || seats; var unassigned = holders.unassigned.length; %>
+  <section class="org card">
+    <div class="org-node org-root">
+      <strong>Нийт төгсөгчдийн нэгдэл</strong>
+      <span>Дорнод аймгийн 2006 оны төгсөгчид</span>
+    </div>
+    <div class="org-arrow">↓</div>
+    <div class="org-node org-council">
+      <strong>Төгсөгчдийн зөвлөл<%= councilCount ? ' — ' + councilCount + ' гишүүн' : '' %></strong>
+      <span>Нийтийн сонгуулиар сонгогдоно</span>
+    </div>
+    <div class="org-arrow">↓</div>
+    <div class="org-posts">
+      <% POSTS.filter(function (p) { return p.key !== 'unassigned'; }).forEach(function (p) {
+           var hs = holders[p.key]; %>
+        <div class="org-post <%= hs.length ? 'filled' : '' %>">
+          <strong><%= p.key === 'member' ? 'Бусад зөвлөлийн гишүүд' : p.label %></strong>
+          <span class="muted"><%= p.desc %></span>
+          <div class="org-holders">
+            <% if (hs.length) { %>
+              <% hs.forEach(function (m) { %><span class="org-holder"><%- avatar(m, m.user_id, 'xs') %><%= m.surname.charAt(0) %>. <%= m.name %></span><% }) %>
+            <% } else { %><span class="faint small">Томилогдоогүй</span><% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    <p class="org-note">Дарга болон үүрэг хариуцах гишүүдийг сонгогдсон зөвлөлийн анхны хурлаар тодруулна.<% if (unassigned) { %> Одоогоор <strong><%= unassigned %></strong> гишүүн томилгоо хүлээж байна.<% } %></p>
+  </section>
+
   <%# ---------- Зөвлөлийн гишүүд ---------- %>
   <h2 style="margin-top:1.5rem">Зөвлөлийн гишүүд</h2>
   <% if (!members.length) { %>
@@ -31,15 +61,19 @@
   <% } else { %>
     <div class="board-grid">
       <% members.forEach(function (m, i) { %>
-        <article class="card board-card <%= i === 0 ? 'lead' : '' %>">
+        <article class="card board-card <%= m.post === 'chair' ? 'lead' : '' %>">
           <div class="board-top">
             <%- avatar(m, m.user_id, 'xl') %>
             <div style="min-width:0">
-              <span class="badge grad"><%= m.position %></span>
+              <% if (m.post === 'unassigned') { %><span class="badge pending">Томилгоо хүлээгдэж буй</span>
+              <% } else { %><span class="badge <%= m.post === 'member' ? '' : 'grad' %>"><%= m.position %></span><% } %>
               <h3 style="margin:.45rem 0 .15rem"><%= m.surname %> <%= m.name %></h3>
               <div class="small muted"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
               <% if (m.occupation || m.city) { %><div class="small muted"><%= [m.occupation, m.city].filter(Boolean).join(' · ') %></div><% } %>
               <% if (m.term) { %><div class="small faint" style="margin-top:.2rem">📅 Бүрэн эрх: <%= m.term %></div><% } %>
+              <% if (m.post !== 'unassigned' && (m.appointed_at || m.decision)) { %>
+                <div class="small faint">📝 Томилсон: <%= [m.appointed_at, m.decision].filter(Boolean).join(' · ') %></div>
+              <% } %>
             </div>
           </div>
           <% if (m.responsibilities) { %>

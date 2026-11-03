@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../db');
 const { wrap, can } = require('../middleware');
 const sched = require('../electionSchedule');
+const board = require('../board');
 
 const router = express.Router();
 
@@ -11,12 +12,13 @@ router.get('/', wrap(async (req, res) => {
   const showContacts = can(req.user, 'view_contacts');
 
   const [members] = await pool.query(
-    `SELECT b.id, b.user_id, b.position, b.responsibilities, b.term, b.sort_order,
+    `SELECT b.id, b.user_id, b.post, b.position, b.responsibilities, b.term, b.decision,
+            DATE_FORMAT(b.appointed_at, '%Y.%m.%d') AS appointed_at,
             u.surname, u.name, u.class_name, u.occupation, u.city, u.photo_v, u.phone, u.email, u.facebook,
             s.name AS school_name
      FROM board_members b JOIN users u ON u.id = b.user_id
      LEFT JOIN schools s ON s.id = u.school_id
-     ORDER BY b.sort_order, b.id`
+     ORDER BY ${board.POST_ORDER_SQL}, u.name`
   );
   if (!showContacts) for (const m of members) { m.phone = null; m.email = null; m.facebook = null; }
 
@@ -32,7 +34,13 @@ router.get('/', wrap(async (req, res) => {
   const others = elections.filter((e) => !active.includes(e));
   for (const e of active) e.deadline = sched.nextDeadline(e);
 
-  res.render('board', { title: 'Удирдах зөвлөл', members, active, others });
+  // Бүтцийн схемд: албан тушаал бүрт томилогдсон хүмүүс
+  const holders = Object.fromEntries(board.POSTS.map((p) => [p.key, members.filter((m) => m.post === p.key)]));
+  const lastClosed = elections.find((e) => e.phase === 'closed');
+  res.render('board', {
+    title: 'Удирдах зөвлөл', members, active, others, POSTS: board.POSTS, holders,
+    seats: lastClosed ? lastClosed.seats : null,
+  });
 }));
 
 module.exports = router;

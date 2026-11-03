@@ -75,6 +75,20 @@
       });
     });
 
+    // Зөвлөлийн томилгоо: "Томилогдоогүй" үед огноо/шийдвэрийг нууна, албан тушаал сонгоход өнөөдрийн огноог бөглөнө
+    $$('form[data-appoint]').forEach(function (form) {
+      var post = $('[data-post]', form);
+      if (!post) return;
+      function update() {
+        var on = post.value !== 'unassigned';
+        $$('[data-appoint-field]', form).forEach(function (f) { f.style.display = on ? '' : 'none'; });
+        var d = $('input[data-default-date]', form);
+        if (on && d && !d.value) d.value = d.getAttribute('data-default-date');
+      }
+      post.addEventListener('change', update);
+      $$('[data-appoint-field]', form).forEach(function (f) { f.style.display = post.value !== 'unassigned' ? '' : 'none'; });
+    });
+
     initPhotoPickers();
     initCountdowns();
     initScheduleForm();

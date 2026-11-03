@@ -6,6 +6,7 @@ const { clean, PHASES, PHASE_LABELS } = require('../helpers');
 const perms = require('../permissions');
 const sched = require('../electionSchedule');
 const { fromUbInput, parsePhoto, normalizeFacebook } = require('../helpers');
+const h = require('../helpers');
 const photos = require('../photos');
 const { electionStats } = require('../electionStats');
 
@@ -336,20 +337,41 @@ router.post('/plans/:id/delete', wrap(async (req, res) => {
 }));
 
 // ---------- Удирдах зөвлөл ----------
+const board = require('../board');
+
 function boardFields(body) {
+  const post = board.POST_KEYS.includes(body.post) ? body.post : 'unassigned';
+  const appointed = /^\d{4}-\d{2}-\d{2}$/.test(body.appointed_at || '') ? body.appointed_at : null;
   return {
-    position: clean(body.position, 100) || 'Гишүүн',
+    post,
+    position: board.POST_BY_KEY[post].label,
+    appointed_at: post === 'unassigned' ? null : appointed,
+    decision: post === 'unassigned' ? null : clean(body.decision, 200) || null,
     responsibilities: clean(body.responsibilities, 3000) || null,
     term: clean(body.term, 50) || null,
-    sort_order: Number.isFinite(Number(body.sort_order)) && body.sort_order !== '' ? Number(body.sort_order) : 100,
   };
+}
+
+// Дарга, нарийн бичиг, санхүүч тус бүр ганц хүн: шинээр томилоход өмнөх хүн "Зөвлөлийн гишүүн" болно.
+async function vacateSinglePost(post, exceptId) {
+  const p = board.POST_BY_KEY[post];
+  if (!p || !p.single) return [];
+  const [prev] = await pool.query(
+    `SELECT b.id, u.surname, u.name FROM board_members b JOIN users u ON u.id = b.user_id WHERE b.post = ? AND b.id <> ?`,
+    [post, exceptId || 0]
+  );
+  if (prev.length) {
+    await pool.query("UPDATE board_members SET post = 'member', position = ? WHERE id IN (?)",
+      [board.POST_BY_KEY.member.label, prev.map((r) => r.id)]);
+  }
+  return prev;
 }
 
 router.get('/board', wrap(async (req, res) => {
   const [members] = await pool.query(
-    `SELECT b.*, u.surname, u.name, u.photo_v, s.name AS school_name
+    `SELECT b.*, DATE_FORMAT(b.appointed_at, '%Y-%m-%d') AS appointed_at, u.surname, u.name, u.photo_v, s.name AS school_name
      FROM board_members b JOIN users u ON u.id = b.user_id LEFT JOIN schools s ON s.id = u.school_id
-     ORDER BY b.sort_order, b.id`
+     ORDER BY ${board.POST_ORDER_SQL}, u.name`
   );
   const [candidates] = await pool.query(
     `SELECT u.id, u.surname, u.name, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
@@ -357,7 +379,9 @@ router.get('/board', wrap(async (req, res) => {
      ORDER BY u.name, u.surname`
   );
   const [closed] = await pool.query("SELECT id, title, voting_ended_at FROM elections WHERE phase = 'closed' ORDER BY voting_ended_at DESC");
-  res.render('admin/board', { title: 'Удирдах зөвлөл — Удирдлага', members, candidates, closed });
+  res.render('admin/board', {
+    title: 'Удирдах зөвлөл — Удирдлага', members, candidates, closed, POSTS: board.POSTS, today: h.ubInput(new Date()).slice(0, 10),
+  });
 }));
 
 router.post('/board', wrap(async (req, res) => {
@@ -367,9 +391,11 @@ router.post('/board', wrap(async (req, res) => {
     flash(req, 'error', 'Баталгаажсан төгсөгч сонгоно уу.');
     return res.redirect('/admin/board');
   }
+  const f = boardFields(req.body);
   try {
-    await pool.query('INSERT INTO board_members SET ?', [{ user_id: u.id, ...boardFields(req.body) }]);
-    flash(req, 'success', `${u.surname} ${u.name} зөвлөлд нэмэгдлээ.`);
+    const [r] = await pool.query('INSERT INTO board_members SET ?', [{ user_id: u.id, ...f }]);
+    const prev = await vacateSinglePost(f.post, r.insertId);
+    flash(req, 'success', `${u.surname} ${u.name} зөвлөлд нэмэгдлээ.` + (prev.length ? ` ${prev.map((p) => `${p.surname} ${p.name}`).join(', ')} "Зөвлөлийн гишүүн" боллоо.` : ''));
   } catch (err) {
     if (err.code !== 'ER_DUP_ENTRY') throw err;
     flash(req, 'warn', 'Энэ төгсөгч зөвлөлд аль хэдийн байна.');
@@ -377,7 +403,7 @@ router.post('/board', wrap(async (req, res) => {
   res.redirect('/admin/board');
 }));
 
-// Дууссан сонгуулийн сонгогдсон гишүүдийг зөвлөлд нэмэх
+// Дууссан сонгуулийн сонгогдсон гишүүдийг зөвлөлд нэмэх (албан тушаалгүйгээр — хурлаар томилно)
 router.post('/board/import', wrap(async (req, res) => {
   const [[e]] = await pool.query("SELECT * FROM elections WHERE id = ? AND phase = 'closed'", [req.body.election_id]);
   if (!e) {
@@ -386,24 +412,27 @@ router.post('/board/import', wrap(async (req, res) => {
   }
   const stats = await electionStats(e);
   const winners = (stats.candidates || []).filter((c) => c.winner);
-  const [[{ maxSort }]] = await pool.query('SELECT COALESCE(MAX(sort_order), 0) AS maxSort FROM board_members');
   let added = 0;
-  for (const [i, w] of winners.entries()) {
+  for (const w of winners) {
     const [[cand]] = await pool.query('SELECT user_id FROM candidates WHERE id = ?', [w.id]);
     const [r] = await pool.query(
-      "INSERT IGNORE INTO board_members (user_id, position, sort_order, election_id) VALUES (?, 'Гишүүн', ?, ?)",
-      [cand.user_id, maxSort + (i + 1) * 10, e.id]
+      "INSERT IGNORE INTO board_members (user_id, post, position, election_id) VALUES (?, 'unassigned', ?, ?)",
+      [cand.user_id, board.POST_BY_KEY.unassigned.label, e.id]
     );
     added += r.affectedRows;
   }
-  flash(req, 'success', `"${e.title}"-оос ${winners.length} сонгогдсон гишүүн байна: ${added} нь шинээр нэмэгдлээ. Албан тушаал, хариуцсан ажлыг нь тохируулна уу.`);
+  flash(req, 'success', `"${e.title}"-оос ${winners.length} сонгогдсон гишүүн байна: ${added} нь шинээр нэмэгдлээ. Зөвлөлийн хурлын шийдвэрээр албан тушаалд томилно уу.`);
   res.redirect('/admin/board');
 }));
 
-router.post('/board/:bid', wrap(async (req, res) => {
-  await pool.query('UPDATE board_members SET ? WHERE id = ?', [boardFields(req.body), req.params.bid]);
-  flash(req, 'success', 'Хадгалагдлаа.');
-  res.redirect(`/admin/board#m${req.params.bid}`);
+router.post('/board/:bid', wrap(async (req, res, next) => {
+  const [[m]] = await pool.query('SELECT id FROM board_members WHERE id = ?', [req.params.bid]);
+  if (!m) return next();
+  const f = boardFields(req.body);
+  await pool.query('UPDATE board_members SET ? WHERE id = ?', [f, m.id]);
+  const prev = await vacateSinglePost(f.post, m.id);
+  flash(req, 'success', 'Томилгоо хадгалагдлаа.' + (prev.length ? ` ${prev.map((p) => `${p.surname} ${p.name}`).join(', ')} "Зөвлөлийн гишүүн" боллоо.` : ''));
+  res.redirect(`/admin/board#m${m.id}`);
 }));
 
 router.post('/board/:bid/delete', wrap(async (req, res) => {

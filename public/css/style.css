@@ -489,3 +489,21 @@ img.avatar { object-fit: cover; display: block; padding: 0; background: var(--pa
 @media (max-width: 420px) { .board-grid { grid-template-columns: 1fr; } .avatar.xl { width: 80px; height: 80px; } }
 .board-edit { display: grid; gap: 0.9rem; }
 .board-edit-head { display: flex; align-items: center; gap: 1rem; }
+
+/* ---------- Зөвлөлийн бүтцийн схем ---------- */
+.org { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; margin: 1.25rem 0 0.5rem; }
+.org-node { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.15rem; padding: 0.4rem 1rem; }
+.org-node span { font-size: 0.85rem; color: var(--muted); }
+.org-council { width: 100%; max-width: 640px; padding: 0.9rem 1rem; border-radius: var(--radius-sm); border: 1px solid transparent;
+  background: linear-gradient(var(--panel-solid), var(--panel-solid)) padding-box, var(--grad) border-box; }
+.org-arrow { color: var(--faint); font-size: 1rem; line-height: 1; }
+.org-posts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; width: 100%; }
+.org-post { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.8rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: rgba(8, 10, 26, 0.45); }
+.org-post.filled { border-color: var(--border-strong); }
+.org-post > span { font-size: 0.85rem; }
+.org-holders { display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem; margin-top: 0.45rem; }
+.org-holder { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; }
+.org-holder .avatar.xs { width: 24px; height: 24px; border-radius: 7px; font-size: 0.62rem; }
+.org-note { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted); text-align: center; }
+@media (max-width: 600px) { .org-posts { grid-template-columns: 1fr; } }
+.board-edit.waiting { border-color: rgba(251, 191, 36, 0.4); }

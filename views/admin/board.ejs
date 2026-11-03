@@ -1,17 +1,27 @@
 <%- include('../partials/head') %>
-<datalist id="positions">
-  <option value="Тэргүүн"><option value="Дарга"><option value="Дэд дарга"><option value="Нарийн бичгийн дарга">
-  <option value="Санхүү хариуцсан гишүүн"><option value="Арга хэмжээ хариуцсан гишүүн"><option value="Гишүүн">
-</datalist>
+<%
+  var postOptions = function (selected) {
+    return POSTS.map(function (p) {
+      return '<option value="' + p.key + '"' + (p.key === selected ? ' selected' : '') + '>' + h.escapeHtml(p.label + (p.key === 'unassigned' ? '' : ' — ' + p.desc)) + '</option>';
+    }).join('');
+  };
+  var waiting = members.filter(function (m) { return m.post === 'unassigned'; }).length;
+%>
 <div class="container">
   <%- include('_nav') %>
 
   <div class="row between" style="margin-bottom:1rem">
-    <h2 style="margin:0">Удирдах зөвлөлийн гишүүд</h2>
+    <h2 style="margin:0">Удирдах зөвлөл ба томилгоо</h2>
     <div class="row" style="gap:.5rem">
       <a class="btn" href="/board">Нийтийн хуудас →</a>
       <button class="btn btn-primary" type="button" data-open-dialog="add-member">＋ Гишүүн нэмэх</button>
     </div>
+  </div>
+
+  <div class="flash info small" style="margin-bottom:1.25rem">
+    Сонгууль дууссаны дараа сонгогдсон гишүүдийг зөвлөлд нэмнэ (тэд <strong>"Томилогдоогүй"</strong> төлөвтэй орно).
+    Зөвлөлийн анхны хурлын шийдвэрээр гишүүн бүрийг доор албан тушаалд томилж, огноо болон хурлын шийдвэрийг бичнэ.
+    Дарга, нарийн бичгийн дарга, санхүү хариуцсан гишүүн тус бүр нэг хүн — өөр хүнийг томилбол өмнөх нь "Зөвлөлийн гишүүн" болно.
   </div>
 
   <% if (closed.length) { %>
@@ -28,11 +38,13 @@
 
   <% if (!members.length) { %>
     <div class="empty">Зөвлөлд гишүүн нэмээгүй байна. "Гишүүн нэмэх" эсвэл сонгуулийн дүнгээс нэмнэ үү.</div>
+  <% } else if (waiting) { %>
+    <p class="small" style="color:var(--warn)">⏳ <%= waiting %> гишүүн албан тушаалд томилогдоогүй байна.</p>
   <% } %>
 
   <div class="stack">
     <% members.forEach(function (m) { %>
-      <form method="post" action="/admin/board/<%= m.id %>" class="card board-edit" id="m<%= m.id %>">
+      <form method="post" action="/admin/board/<%= m.id %>" class="card board-edit <%= m.post === 'unassigned' ? 'waiting' : '' %>" id="m<%= m.id %>" data-appoint>
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <div class="board-edit-head">
           <%- avatar(m, m.user_id) %>
@@ -40,18 +52,33 @@
             <strong><%= m.surname %> <%= m.name %></strong>
             <div class="small muted"><%= m.school_name || '—' %></div>
           </div>
-          <div class="field" style="width:90px"><label class="small">Эрэмбэ</label><input type="number" name="sort_order" value="<%= m.sort_order %>"></div>
+          <% if (m.post === 'unassigned') { %><span class="badge pending">Томилгоо хүлээгдэж буй</span>
+          <% } else { %><span class="badge grad"><%= m.position %></span><% } %>
         </div>
         <div class="form-grid">
-          <div class="field"><label>Албан тушаал</label><input type="text" name="position" value="<%= m.position %>" list="positions" maxlength="100" required></div>
-          <div class="field"><label>Бүрэн эрхийн хугацаа</label><input type="text" name="term" value="<%= m.term || '' %>" maxlength="50" placeholder="ж: 2026–2028"></div>
+          <div class="field">
+            <label>Албан тушаал</label>
+            <select name="post" data-post><%- postOptions(m.post) %></select>
+          </div>
+          <div class="field" data-appoint-field>
+            <label>Томилсон огноо</label>
+            <input type="date" name="appointed_at" value="<%= m.appointed_at || '' %>" data-default-date="<%= today %>">
+          </div>
+          <div class="field" data-appoint-field>
+            <label>Хурлын шийдвэр</label>
+            <input type="text" name="decision" value="<%= m.decision || '' %>" maxlength="200" placeholder="ж: Зөвлөлийн 1-р хурлын тогтоол №01">
+          </div>
+          <div class="field">
+            <label>Бүрэн эрхийн хугацаа</label>
+            <input type="text" name="term" value="<%= m.term || '' %>" maxlength="50" placeholder="ж: 2026–2028">
+          </div>
         </div>
         <div class="field">
           <label>Хариуцсан ажил <span class="faint small">(мөр бүр нэг ажил)</span></label>
-          <textarea name="responsibilities" rows="3" maxlength="3000" placeholder="Жишээ нь:&#10;Төгсөгчдийн уулзалт зохион байгуулах&#10;Хандивын санг хариуцах"><%= m.responsibilities || '' %></textarea>
+          <textarea name="responsibilities" rows="3" maxlength="3000" placeholder="Жишээ нь:&#10;Төгсөгчдийн уулзалт зохион байгуулах&#10;8-р сургуулийн төгсөгчдийг төлөөлөх"><%= m.responsibilities || '' %></textarea>
         </div>
         <div class="row between">
-          <button class="btn btn-primary btn-sm" type="submit">Хадгалах</button>
+          <button class="btn btn-primary btn-sm" type="submit">Томилгоог хадгалах</button>
           <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/board/<%= m.id %>/delete" formnovalidate
                   data-confirm="<%= m.surname %> <%= m.name %>-г зөвлөлөөс хасах уу?">Зөвлөлөөс хасах</button>
         </div>
@@ -60,7 +87,7 @@
   </div>
 
   <dialog id="add-member" class="dialog">
-    <form method="post" action="/admin/board" class="dialog-body">
+    <form method="post" action="/admin/board" class="dialog-body" data-appoint>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
       <h3>Зөвлөлд гишүүн нэмэх</h3>
@@ -68,12 +95,11 @@
       <select id="board-user" name="user_id" size="6" class="nominee-list" required>
         <% candidates.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %> <%= u.surname %><%= u.school_name ? ' — ' + u.school_name : '' %></option><% }) %>
       </select>
-      <div class="form-grid">
-        <div class="field"><label>Албан тушаал</label><input type="text" name="position" list="positions" maxlength="100" placeholder="Гишүүн"></div>
-        <div class="field"><label>Бүрэн эрх</label><input type="text" name="term" maxlength="50" placeholder="2026–2028"></div>
+      <div class="field"><label>Албан тушаал</label><select name="post" data-post><%- postOptions('unassigned') %></select></div>
+      <div class="form-grid" data-appoint-field>
+        <div class="field"><label>Томилсон огноо</label><input type="date" name="appointed_at" data-default-date="<%= today %>"></div>
+        <div class="field"><label>Хурлын шийдвэр</label><input type="text" name="decision" maxlength="200" placeholder="Тогтоол №"></div>
       </div>
-      <div class="field"><label>Хариуцсан ажил</label><textarea name="responsibilities" rows="3" maxlength="3000" placeholder="Мөр бүр нэг ажил"></textarea></div>
-      <input type="hidden" name="sort_order" value="100">
       <div class="row" style="justify-content:flex-end">
         <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
         <button class="btn btn-primary" type="submit">Нэмэх</button>
