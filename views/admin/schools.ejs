@@ -1,0 +1,40 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card" style="margin-bottom:1.25rem">
+    <h3>Сургууль нэмэх</h3>
+    <form method="post" action="/admin/schools" class="row">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="text" name="name" placeholder="Сургуулийн нэр" maxlength="120" required style="flex:3;min-width:200px">
+      <input type="number" name="sort_order" placeholder="Эрэмбэ" style="flex:1;min-width:90px">
+      <button class="btn btn-primary" type="submit">Нэмэх</button>
+    </form>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Нэр / эрэмбэ</th><th>Төгсөгч</th><th></th></tr></thead>
+      <tbody>
+        <% schools.forEach(function (s) { %>
+          <tr>
+            <td>
+              <form method="post" action="/admin/schools/<%= s.id %>" class="row" style="flex-wrap:nowrap">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <input type="text" name="name" value="<%= s.name %>" maxlength="120" required>
+                <input type="number" name="sort_order" value="<%= s.sort_order %>" style="width:90px">
+                <button class="btn btn-sm" type="submit">Хадгалах</button>
+              </form>
+            </td>
+            <td><%= s.user_count %></td>
+            <td>
+              <form method="post" action="/admin/schools/<%= s.id %>/delete" class="inline" data-confirm="<%= s.name %>-г устгах уу? Энэ сургуулийн төгсөгчдийн сургууль хоосон болно.">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <button class="btn btn-sm btn-danger">Устгах</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/foot') %>

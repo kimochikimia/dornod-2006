@@ -1,0 +1,17 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <form method="get" action="/admin/users" class="card row" style="margin-bottom:1.25rem">
+    <input type="search" name="q" value="<%= q %>" placeholder="Нэр, утсаар хайх" style="flex:2;min-width:200px">
+    <select name="status" style="flex:1;min-width:160px">
+      <option value="">Бүх төлөв</option>
+      <option value="pending" <%= status === 'pending' ? 'selected' : '' %>>Хүлээгдэж буй</option>
+      <option value="approved" <%= status === 'approved' ? 'selected' : '' %>>Баталгаажсан</option>
+      <option value="rejected" <%= status === 'rejected' ? 'selected' : '' %>>Татгалзсан</option>
+    </select>
+    <button class="btn btn-primary" type="submit">Шүүх</button>
+  </form>
+  <p class="muted small"><%= users.length %> хэрэглэгч</p>
+  <% if (users.length) { %><%- include('_users-table', { users: users }) %><% } else { %><div class="empty">Илэрц алга.</div><% } %>
+</div>
+<%- include('../partials/foot') %>

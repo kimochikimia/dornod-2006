@@ -1,0 +1,225 @@
+<%- include('../partials/head') %>
+<%
+  var order = ['nomination', 'acceptance', 'voting', 'closed'];
+  var cur = order.indexOf(e.phase);
+  var stepText = {
+    nomination: 'Өөрийгөө эсвэл бусдыг нэр дэвшүүлнэ',
+    acceptance: 'Нэр дэвшигч зөвшөөрлөө өгнө',
+    voting: 'Нууц санал хураалт',
+    closed: 'Үр дүн, статистик'
+  };
+  var accepted = candidates.filter(function (c) { return c.status === 'accepted'; });
+%>
+<div class="container">
+  <div class="page-head">
+    <a href="/elections" class="small">← Сонгуулиуд</a>
+    <div class="row" style="margin-top:.75rem">
+      <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
+      <% } else { %><span class="badge grad"><%= h.PHASE_LABELS[e.phase] %></span><% } %>
+      <span class="badge"><%= e.seats %> суудал</span>
+      <span class="badge">Нэг хүн <%= e.max_choices %> хүртэл нэр дэвшигчид санал өгнө</span>
+      <% if (isAdmin) { %><a class="btn btn-sm" href="/admin/elections/<%= e.id %>">Админ: удирдах</a><% } %>
+    </div>
+    <h1 style="margin-top:.75rem"><%= e.title %></h1>
+    <% if (e.description) { %><div class="prose muted"><%- h.text(e.description) %></div><% } %>
+  </div>
+
+  <div class="stepper" style="margin-bottom:1.5rem">
+    <% order.forEach(function (p, i) { %>
+      <div class="step <%= i < cur ? 'done' : (i === cur ? 'current' : '') %>">
+        <div><span class="n"><%= i < cur ? '✓' : i + 1 %></span><strong><%= h.PHASE_LABELS[p] %></strong></div>
+        <div class="small" style="margin-top:.3rem"><%= stepText[p] %></div>
+      </div>
+    <% }) %>
+  </div>
+
+  <% if (e.phase === 'draft') { %>
+    <div class="flash warn">Энэ сонгууль ноорог төлөвт байна — зөвхөн админд харагдана.</div>
+  <% } %>
+
+  <%# ---------- Нэр дэвшигчийн хариу ---------- %>
+  <% if (myCandidacy && ['nomination', 'acceptance'].includes(e.phase)) { %>
+    <div class="card glow" style="margin-bottom:1.5rem">
+      <div class="row" style="margin-bottom:.5rem">
+        <span class="badge grad">Таныг нэр дэвшүүлсэн байна</span>
+        <span class="badge <%= myCandidacy.status %>"><%= h.STATUS_LABELS[myCandidacy.status] %></span>
+      </div>
+      <h3><%= myCandidacy.nomination_count %> төгсөгч таныг удирдах зөвлөлд нэр дэвшүүлжээ. Нэр дэвших үү?</h3>
+      <form method="post" action="/elections/<%= e.id %>/respond" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field">
+          <label for="statement">Мөрийн хөтөлбөр / сонгогчдод хандах үг</label>
+          <textarea id="statement" name="statement" maxlength="3000" placeholder="Удирдах зөвлөлд сонгогдвол юу хийх вэ?"><%= myCandidacy.statement || '' %></textarea>
+        </div>
+        <div class="row">
+          <button class="btn btn-success" name="action" value="accept">✓ Зөвшөөрөх<%= myCandidacy.status === 'accepted' ? ' (хадгалах)' : '' %></button>
+          <button class="btn btn-danger" name="action" value="decline">✕ Татгалзах</button>
+        </div>
+      </form>
+    </div>
+  <% } %>
+
+  <%# ---------- 1. Нэр дэвшүүлэх ---------- %>
+  <% if (e.phase === 'nomination') { %>
+    <div class="card" style="margin-bottom:1.5rem">
+      <h2>Нэр дэвшүүлэх</h2>
+      <% if (isMember) { %>
+        <p class="muted">Удирдах зөвлөлд тохиромжтой гэж үзсэн төгсөгчөө (эсвэл өөрийгөө) сонгоно уу. Нэр дэвшигч зөвшөөрсний дараа саналын хуудсанд орно. Өөрийгөө дэвшүүлбэл автоматаар зөвшөөрсөнд тооцогдоно.</p>
+        <form method="post" action="/elections/<%= e.id %>/nominate" class="form">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <div class="form-grid">
+            <div class="field">
+              <label for="nominee">Нэр дэвшүүлэх төгсөгч</label>
+              <select id="nominee" name="nominee_id" required>
+                <option value="">— Сонгох —</option>
+                <option value="<%= me.id %>">⭐ Өөрийгөө (<%= me.surname %> <%= me.name %>)</option>
+                <% members.forEach(function (m) { if (m.id !== me.id) { %>
+                  <option value="<%= m.id %>"><%= m.name %> <%= m.surname %><%= m.school_name ? ' — ' + m.school_name : '' %></option>
+                <% } }) %>
+              </select>
+            </div>
+            <div class="field">
+              <label for="reason">Яагаад? (заавал биш)</label>
+              <input id="reason" type="text" name="reason" maxlength="1000" placeholder="Товч үндэслэл">
+            </div>
+          </div>
+          <div><button class="btn btn-primary" type="submit">Нэр дэвшүүлэх</button></div>
+        </form>
+      <% } else if (me) { %>
+        <p class="muted">Таны бүртгэл баталгаажсаны дараа нэр дэвшүүлэх боломжтой.</p>
+      <% } else { %>
+        <p class="muted"><a href="/login?next=/elections/<%= e.id %>">Нэвтэрч</a> нэр дэвшүүлнэ үү.</p>
+      <% } %>
+    </div>
+  <% } %>
+
+  <% if (e.phase === 'acceptance') { %>
+    <div class="flash info" style="margin-bottom:1.5rem">Нэр дэвшүүлэх шат дууссан. Нэр дэвшигчид зөвшөөрлөө өгч байна. Зөвхөн зөвшөөрсөн нэр дэвшигчид саналын хуудсанд орно.</div>
+  <% } %>
+
+  <%# ---------- 1-2. Нэр дэвшигчдийн жагсаалт ---------- %>
+  <% if (['draft', 'nomination', 'acceptance'].includes(e.phase)) { %>
+    <div class="grid grid-4" style="margin-bottom:1.5rem">
+      <div class="card stat"><div class="num grad-text"><%= candidates.length %></div><div class="label">Нэр дэвшүүлэгдсэн</div></div>
+      <div class="card stat"><div class="num" style="color:var(--success)"><%= counts.accepted %></div><div class="label">Зөвшөөрсөн</div></div>
+      <div class="card stat"><div class="num" style="color:var(--warn)"><%= counts.pending %></div><div class="label">Хариу хүлээгдэж буй</div></div>
+      <div class="card stat"><div class="num grad-text"><%= nominationTotal %></div><div class="label">Нийт нэр дэвшүүлэлт</div></div>
+    </div>
+
+    <h2>Нэр дэвшигчид</h2>
+    <% if (!candidates.length) { %>
+      <div class="empty">Одоогоор нэр дэвшүүлэлт ирээгүй байна.</div>
+    <% } else { %>
+      <div class="grid grid-2">
+        <% candidates.forEach(function (c) { var noms = nomsByCandidate[c.id] || []; %>
+          <div class="card cand">
+            <div class="avatar"><%= h.initials(c) %></div>
+            <div class="body">
+              <div class="row between">
+                <strong><%= c.surname %> <%= c.name %></strong>
+                <span class="badge <%= c.status %>"><%= h.STATUS_LABELS[c.status] %></span>
+              </div>
+              <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>
+              <div class="small" style="margin-top:.35rem">🙋 <%= c.nomination_count %> хүн нэр дэвшүүлсэн</div>
+              <% if (c.statement && c.status === 'accepted') { %><div class="statement"><%= c.statement %></div><% } %>
+              <% if (noms.length) { %>
+                <details class="noms">
+                  <summary>Хэн нэр дэвшүүлсэн бэ?</summary>
+                  <ul>
+                    <% noms.forEach(function (n) { %>
+                      <li><%= n.surname %> <%= n.name %><%= n.nominator_id === c.user_id ? ' (өөрөө)' : '' %><% if (n.reason) { %> — “<%= n.reason %>”<% } %></li>
+                    <% }) %>
+                  </ul>
+                </details>
+              <% } %>
+              <% if (e.phase === 'nomination' && isMember && !myNominations.has(c.id)) { %>
+                <form method="post" action="/elections/<%= e.id %>/nominate" style="margin-top:.75rem">
+                  <input type="hidden" name="_csrf" value="<%= csrf %>">
+                  <input type="hidden" name="nominee_id" value="<%= c.user_id %>">
+                  <button class="btn btn-sm" type="submit">+ Би ч дэмжиж нэр дэвшүүлье</button>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  <% } %>
+
+  <%# ---------- 3. Санал хураалт ---------- %>
+  <% if (e.phase === 'voting') { %>
+    <% if (isMember && !hasVoted) { %>
+      <div class="card glow" style="margin-bottom:1.5rem">
+        <h2>Саналын хуудас</h2>
+        <p class="muted">Удирдах зөвлөлд <strong><%= e.max_choices %></strong> хүртэл нэр дэвшигч сонгоно уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
+        <form method="post" action="/elections/<%= e.id %>/vote" class="stack" data-ballot data-max="<%= e.max_choices %>" data-confirm="Саналаа баталгаажуулах уу? Өгсний дараа өөрчлөх боломжгүй.">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <% accepted.forEach(function (c) { %>
+            <label class="ballot-option">
+              <input type="checkbox" name="choices" value="<%= c.id %>">
+              <div class="avatar"><%= h.initials(c) %></div>
+              <div class="body" style="flex:1;min-width:0">
+                <strong><%= c.surname %> <%= c.name %></strong>
+                <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>
+                <% if (c.statement) { %><div class="small" style="margin-top:.35rem;white-space:pre-line"><%= c.statement %></div><% } %>
+              </div>
+            </label>
+          <% }) %>
+          <div class="ballot-bar">
+            <span>Сонгосон: <strong data-ballot-count>0</strong> / <%= e.max_choices %></span>
+            <button class="btn btn-primary btn-lg" type="submit" data-ballot-submit disabled>Санал өгөх</button>
+          </div>
+        </form>
+      </div>
+    <% } else if (hasVoted) { %>
+      <div class="flash success" style="margin-bottom:1.5rem">✓ Та саналаа өгсөн байна. Баярлалаа! Доор сонгуулийн явцыг шууд харж болно.</div>
+    <% } else if (me) { %>
+      <div class="flash warn" style="margin-bottom:1.5rem">Таны бүртгэл баталгаажаагүй тул санал өгөх боломжгүй.</div>
+    <% } else { %>
+      <div class="flash info" style="margin-bottom:1.5rem"><a href="/login?next=/elections/<%= e.id %>">Нэвтэрч</a> саналаа өгнө үү.</div>
+    <% } %>
+  <% } %>
+
+  <%# ---------- 3-4. Шууд явц / үр дүн ---------- %>
+  <% if (stats) { %>
+    <div id="live" data-url="/elections/<%= e.id %>/live.json" data-poll="<%= e.phase === 'voting' ? 10000 : 0 %>" data-initial="<%= JSON.stringify(stats) %>">
+      <div class="row between" style="margin:1rem 0">
+        <h2 style="margin:0"><%= e.phase === 'closed' ? 'Сонгуулийн үр дүн' : 'Сонгуулийн явц — шууд' %></h2>
+        <span class="small faint" data-live-updated></span>
+      </div>
+
+      <div class="grid grid-4" style="margin-bottom:1.25rem">
+        <div class="card stat"><div class="num grad-text" data-k="ballots">0</div><div class="label">Санал өгсөн</div></div>
+        <div class="card stat"><div class="num grad-text" data-k="eligible">0</div><div class="label">Санал өгөх эрхтэй</div></div>
+        <div class="card stat"><div class="num grad-text" data-k="turnout">0%</div><div class="label">Ирц</div></div>
+        <div class="card stat"><div class="num grad-text" data-k="avgChoices">0</div><div class="label">Нэг хүний дундаж сонголт</div></div>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:1.25rem">
+        <div class="card">
+          <h3>Ирцийн хувь</h3>
+          <div class="donut" data-donut><span data-k="turnout">0%</span></div>
+          <p class="center small muted" style="margin-top:.75rem" data-k="period"></p>
+        </div>
+        <div class="card">
+          <h3><%= e.phase === 'closed' ? 'Нэр дэвшигчдийн авсан санал' : 'Нэр дэвшигчдийн санал (шууд)' %></h3>
+          <div data-tally></div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Сургуулиар ирц</h3>
+          <div data-schools></div>
+        </div>
+        <div class="card">
+          <h3>Цаг тутмын идэвх</h3>
+          <div data-hourly></div>
+          <h3 style="margin-top:1.5rem">Сүүлд санал өгсөн</h3>
+          <ul class="feed" data-feed></ul>
+        </div>
+      </div>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

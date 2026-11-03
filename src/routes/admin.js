@@ -1,0 +1,346 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const { pool } = require('../db');
+const { flash, wrap, requireAdmin } = require('../middleware');
+const { clean, PHASES, PHASE_LABELS } = require('../helpers');
+
+const router = express.Router();
+router.use(requireAdmin);
+
+// ---------- Хянах самбар ----------
+router.get('/', wrap(async (req, res) => {
+  const [[counts]] = await pool.query(
+    `SELECT
+      (SELECT COUNT(*) FROM users WHERE status='pending') AS pending,
+      (SELECT COUNT(*) FROM users WHERE status='approved') AS approved,
+      (SELECT COUNT(*) FROM change_requests WHERE status='open') AS requests,
+      (SELECT COUNT(*) FROM announcements) AS news,
+      (SELECT COUNT(*) FROM elections WHERE phase NOT IN ('draft','closed')) AS activeElections`
+  );
+  const [pendingUsers] = await pool.query(
+    `SELECT u.*, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+     WHERE u.status = 'pending' ORDER BY u.created_at LIMIT 10`
+  );
+  res.render('admin/index', { title: 'Админ', counts, pendingUsers });
+}));
+
+// ---------- Төгсөгчид ----------
+router.get('/users', wrap(async (req, res) => {
+  const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : '';
+  const q = clean(req.query.q, 80);
+  const where = [];
+  const params = [];
+  if (status) { where.push('u.status = ?'); params.push(status); }
+  if (q) {
+    where.push('(u.name LIKE ? OR u.surname LIKE ? OR u.phone LIKE ?)');
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+  }
+  const [users] = await pool.query(
+    `SELECT u.*, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     ORDER BY FIELD(u.status,'pending','approved','rejected'), u.created_at DESC`,
+    params
+  );
+  res.render('admin/users', { title: 'Төгсөгчид — Админ', users, status, q });
+}));
+
+router.post('/users/:id/status', wrap(async (req, res) => {
+  const status = ['pending', 'approved', 'rejected'].includes(req.body.status) ? req.body.status : null;
+  const id = Number(req.params.id);
+  if (status && id !== req.user.id) {
+    // Татгалзсан хэрэглэгчийн сесс loadUser дээр автоматаар хүчингүй болно.
+    await pool.query('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    flash(req, 'success', status === 'approved' ? 'Бүртгэлийг баталгаажууллаа.' : 'Төлөв шинэчлэгдлээ.');
+  }
+  res.redirect(req.get('Referer') || '/admin/users');
+}));
+
+router.get('/users/:id', wrap(async (req, res, next) => {
+  const [[user]] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+  if (!user) return next();
+  const [schools] = await pool.query('SELECT * FROM schools ORDER BY sort_order, name');
+  res.render('admin/user-edit', { title: 'Төгсөгч засах', user, schools });
+}));
+
+router.post('/users/:id', wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  const phone = String(req.body.phone || '').replace(/[\s-]/g, '').slice(0, 20);
+  if (!/^\+?\d{8,15}$/.test(phone)) {
+    flash(req, 'error', 'Утасны дугаар буруу байна.');
+    return res.redirect(`/admin/users/${id}`);
+  }
+  const [dup] = await pool.query('SELECT id FROM users WHERE phone = ? AND id <> ?', [phone, id]);
+  if (dup.length) {
+    flash(req, 'error', 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.');
+    return res.redirect(`/admin/users/${id}`);
+  }
+  // Админ өөрийн эрхийг өөрөө хасахгүй.
+  const role = id === req.user.id ? 'admin' : req.body.role === 'admin' ? 'admin' : 'member';
+  const status = id === req.user.id ? 'approved'
+    : ['pending', 'approved', 'rejected'].includes(req.body.status) ? req.body.status : 'pending';
+  await pool.query(
+    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, city=?, bio=?, role=?, status=?
+     WHERE id = ?`,
+    [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
+      Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null, clean(req.body.occupation, 150) || null,
+      clean(req.body.city, 100) || null, clean(req.body.bio, 3000) || null, role, status, id]
+  );
+  flash(req, 'success', 'Мэдээлэл хадгалагдлаа.');
+  res.redirect(`/admin/users/${id}`);
+}));
+
+router.post('/users/:id/password', wrap(async (req, res) => {
+  const password = String(req.body.password || '');
+  if (password.length < 8) {
+    flash(req, 'error', 'Нууц үг дор хаяж 8 тэмдэгт байх ёстой.');
+  } else {
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(password, 12), req.params.id]);
+    flash(req, 'success', 'Нууц үг шинэчлэгдлээ. Төгсөгчид шинэ нууц үгийг нь мэдэгдээрэй.');
+  }
+  res.redirect(`/admin/users/${req.params.id}`);
+}));
+
+router.post('/users/:id/delete', wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  if (id === req.user.id) {
+    flash(req, 'error', 'Өөрийгөө устгах боломжгүй.');
+  } else {
+    await pool.query('DELETE FROM users WHERE id = ?', [id]);
+    flash(req, 'success', 'Хэрэглэгч устгагдлаа.');
+  }
+  res.redirect('/admin/users');
+}));
+
+// ---------- Мэдээ ----------
+router.get('/news', wrap(async (req, res) => {
+  const [news] = await pool.query('SELECT * FROM announcements ORDER BY pinned DESC, created_at DESC');
+  res.render('admin/news', { title: 'Мэдээ — Админ', news });
+}));
+
+router.get('/news/new', (req, res) => {
+  res.render('admin/news-form', { title: 'Шинэ мэдээ', item: { title: '', body: '', pinned: 0 } });
+});
+
+router.get('/news/:id', wrap(async (req, res, next) => {
+  const [[item]] = await pool.query('SELECT * FROM announcements WHERE id = ?', [req.params.id]);
+  if (!item) return next();
+  res.render('admin/news-form', { title: 'Мэдээ засах', item });
+}));
+
+router.post('/news', wrap(async (req, res) => {
+  const title = clean(req.body.title, 200);
+  const body = clean(req.body.body, 20000);
+  if (!title || !body) {
+    flash(req, 'error', 'Гарчиг болон агуулгаа бичнэ үү.');
+    return res.redirect('/admin/news/new');
+  }
+  await pool.query('INSERT INTO announcements (title, body, pinned, author_id) VALUES (?, ?, ?, ?)',
+    [title, body, req.body.pinned ? 1 : 0, req.user.id]);
+  flash(req, 'success', 'Мэдээ нийтлэгдлээ.');
+  res.redirect('/admin/news');
+}));
+
+router.post('/news/:id', wrap(async (req, res) => {
+  const title = clean(req.body.title, 200);
+  const body = clean(req.body.body, 20000);
+  if (!title || !body) {
+    flash(req, 'error', 'Гарчиг болон агуулгаа бичнэ үү.');
+    return res.redirect(`/admin/news/${req.params.id}`);
+  }
+  await pool.query('UPDATE announcements SET title=?, body=?, pinned=? WHERE id=?',
+    [title, body, req.body.pinned ? 1 : 0, req.params.id]);
+  flash(req, 'success', 'Мэдээ шинэчлэгдлээ.');
+  res.redirect('/admin/news');
+}));
+
+router.post('/news/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM announcements WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Мэдээ устгагдлаа.');
+  res.redirect('/admin/news');
+}));
+
+// ---------- Сургуулиуд ----------
+router.get('/schools', wrap(async (req, res) => {
+  const [schools] = await pool.query(
+    `SELECT s.*, (SELECT COUNT(*) FROM users u WHERE u.school_id = s.id) AS user_count
+     FROM schools s ORDER BY s.sort_order, s.name`
+  );
+  res.render('admin/schools', { title: 'Сургуулиуд — Админ', schools });
+}));
+
+router.post('/schools', wrap(async (req, res) => {
+  const name = clean(req.body.name, 120);
+  if (name) {
+    try {
+      await pool.query('INSERT INTO schools (name, sort_order) VALUES (?, ?)', [name, Number(req.body.sort_order) || 0]);
+      flash(req, 'success', 'Сургууль нэмэгдлээ.');
+    } catch (err) {
+      if (err.code !== 'ER_DUP_ENTRY') throw err;
+      flash(req, 'error', 'Ийм нэртэй сургууль бүртгэлтэй байна.');
+    }
+  }
+  res.redirect('/admin/schools');
+}));
+
+router.post('/schools/:id', wrap(async (req, res) => {
+  const name = clean(req.body.name, 120);
+  if (name) {
+    try {
+      await pool.query('UPDATE schools SET name=?, sort_order=? WHERE id=?', [name, Number(req.body.sort_order) || 0, req.params.id]);
+      flash(req, 'success', 'Хадгалагдлаа.');
+    } catch (err) {
+      if (err.code !== 'ER_DUP_ENTRY') throw err;
+      flash(req, 'error', 'Ийм нэртэй сургууль бүртгэлтэй байна.');
+    }
+  }
+  res.redirect('/admin/schools');
+}));
+
+router.post('/schools/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM schools WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Сургууль устгагдлаа.');
+  res.redirect('/admin/schools');
+}));
+
+// ---------- Засварын хүсэлтүүд ----------
+router.get('/requests', wrap(async (req, res) => {
+  const [requests] = await pool.query(
+    `SELECT r.*, u.surname, u.name, u.phone FROM change_requests r JOIN users u ON u.id = r.user_id
+     ORDER BY FIELD(r.status,'open','done'), r.created_at DESC LIMIT 200`
+  );
+  res.render('admin/requests', { title: 'Хүсэлтүүд — Админ', requests });
+}));
+
+router.post('/requests/:id', wrap(async (req, res) => {
+  const status = req.body.status === 'open' ? 'open' : 'done';
+  await pool.query('UPDATE change_requests SET status=?, admin_note=? WHERE id=?',
+    [status, clean(req.body.admin_note, 500) || null, req.params.id]);
+  flash(req, 'success', 'Хүсэлт шинэчлэгдлээ.');
+  res.redirect('/admin/requests');
+}));
+
+// ---------- Сонгууль ----------
+function electionFields(body) {
+  const seats = Math.min(Math.max(Number(body.seats) || 1, 1), 50);
+  const maxChoices = Math.min(Math.max(Number(body.max_choices) || seats, 1), 50);
+  return {
+    title: clean(body.title, 200),
+    description: clean(body.description, 10000) || null,
+    seats,
+    max_choices: maxChoices,
+    show_live_results: body.show_live_results ? 1 : 0,
+  };
+}
+
+router.get('/elections', wrap(async (req, res) => {
+  const [elections] = await pool.query(
+    `SELECT e.*,
+      (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) AS candidate_count,
+      (SELECT COUNT(*) FROM ballots b WHERE b.election_id = e.id) AS ballot_count
+     FROM elections e ORDER BY e.created_at DESC`
+  );
+  res.render('admin/elections', { title: 'Сонгууль — Админ', elections });
+}));
+
+router.get('/elections/new', (req, res) => {
+  res.render('admin/election-form', {
+    title: 'Шинэ сонгууль',
+    e: {
+      title: 'Төгсөгчдийн удирдах зөвлөлийн сонгууль',
+      description: '',
+      seats: 7,
+      max_choices: 7,
+      show_live_results: 1,
+    },
+  });
+});
+
+router.post('/elections', wrap(async (req, res) => {
+  const f = electionFields(req.body);
+  if (!f.title) {
+    flash(req, 'error', 'Сонгуулийн нэрийг бичнэ үү.');
+    return res.redirect('/admin/elections/new');
+  }
+  const [r] = await pool.query('INSERT INTO elections SET ?', [f]);
+  flash(req, 'success', 'Сонгууль үүслээ. Бэлэн болмогц "Нэр дэвшүүлэх" шатыг эхлүүлнэ үү.');
+  res.redirect(`/admin/elections/${r.insertId}`);
+}));
+
+router.get('/elections/:id', wrap(async (req, res, next) => {
+  const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
+  if (!e) return next();
+  const [candidates] = await pool.query(
+    `SELECT c.*, u.surname, u.name, u.phone, s.name AS school_name,
+       (SELECT COUNT(*) FROM nominations n WHERE n.candidate_id = c.id) AS nomination_count
+     FROM candidates c JOIN users u ON u.id = c.user_id LEFT JOIN schools s ON s.id = u.school_id
+     WHERE c.election_id = ? ORDER BY FIELD(c.status,'accepted','pending','declined'), c.votes DESC, u.name`,
+    [e.id]
+  );
+  const [[{ ballots }]] = await pool.query('SELECT COUNT(*) AS ballots FROM ballots WHERE election_id = ?', [e.id]);
+  res.render('admin/election-manage', { title: e.title, e, candidates, ballots, PHASES, PHASE_LABELS });
+}));
+
+router.post('/elections/:id', wrap(async (req, res) => {
+  const f = electionFields(req.body);
+  if (!f.title) {
+    flash(req, 'error', 'Сонгуулийн нэрийг бичнэ үү.');
+  } else {
+    await pool.query('UPDATE elections SET ? WHERE id = ?', [f, req.params.id]);
+    flash(req, 'success', 'Сонгуулийн тохиргоо хадгалагдлаа.');
+  }
+  res.redirect(`/admin/elections/${req.params.id}`);
+}));
+
+router.post('/elections/:id/phase', wrap(async (req, res, next) => {
+  const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
+  if (!e) return next();
+  const back = `/admin/elections/${e.id}`;
+  const target = ['draft', ...PHASES].includes(req.body.phase) ? req.body.phase : null;
+  const [[{ ballots }]] = await pool.query('SELECT COUNT(*) AS ballots FROM ballots WHERE election_id = ?', [e.id]);
+
+  if (!target || target === e.phase) return res.redirect(back);
+  if (ballots > 0 && !['voting', 'closed'].includes(target)) {
+    flash(req, 'error', 'Санал өгөгдсөн тул өмнөх шат руу буцах боломжгүй.');
+    return res.redirect(back);
+  }
+  if (target === 'voting') {
+    const [[{ n }]] = await pool.query("SELECT COUNT(*) AS n FROM candidates WHERE election_id = ? AND status = 'accepted'", [e.id]);
+    if (n === 0) {
+      flash(req, 'error', 'Зөвшөөрсөн нэр дэвшигч байхгүй тул санал хураалт эхлүүлэх боломжгүй.');
+      return res.redirect(back);
+    }
+    await pool.query(
+      'UPDATE elections SET phase = ?, voting_started_at = COALESCE(voting_started_at, NOW()), voting_ended_at = NULL, eligible_count = NULL WHERE id = ?',
+      [target, e.id]
+    );
+  } else if (target === 'closed') {
+    const [[{ eligible }]] = await pool.query("SELECT COUNT(*) AS eligible FROM users WHERE status = 'approved'");
+    await pool.query('UPDATE elections SET phase = ?, voting_ended_at = NOW(), eligible_count = ? WHERE id = ?', [target, eligible, e.id]);
+  } else {
+    await pool.query('UPDATE elections SET phase = ? WHERE id = ?', [target, e.id]);
+  }
+  flash(req, 'success', `Сонгуулийн шат: "${PHASE_LABELS[target]}" боллоо.`);
+  res.redirect(back);
+}));
+
+router.post('/elections/:id/candidates/:cid', wrap(async (req, res) => {
+  const back = `/admin/elections/${req.params.id}`;
+  const [[e]] = await pool.query('SELECT phase FROM elections WHERE id = ?', [req.params.id]);
+  if (!e || ['voting', 'closed'].includes(e.phase)) {
+    flash(req, 'error', 'Санал хураалт эхэлсэн тул нэр дэвшигчийг өөрчлөх боломжгүй.');
+    return res.redirect(back);
+  }
+  if (req.body.action === 'remove') {
+    await pool.query('DELETE FROM candidates WHERE id = ? AND election_id = ?', [req.params.cid, req.params.id]);
+    flash(req, 'success', 'Нэр дэвшигчийг хаслаа.');
+  }
+  res.redirect(back);
+}));
+
+router.post('/elections/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM elections WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Сонгууль устгагдлаа.');
+  res.redirect('/admin/elections');
+}));
+
+module.exports = router;

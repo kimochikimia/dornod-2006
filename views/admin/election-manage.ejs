@@ -1,0 +1,94 @@
+<%- include('../partials/head') %>
+<%
+  var all = ['draft'].concat(PHASES);
+  var cur = all.indexOf(e.phase);
+  var hint = {
+    draft: 'Ноорог — зөвхөн админд харагдана.',
+    nomination: 'Төгсөгчид өөрийгөө болон бусдыг нэр дэвшүүлж байна.',
+    acceptance: 'Шинэ нэр дэвшүүлэлт хаагдсан. Нэр дэвшигчид зөвшөөрөх/татгалзах хариугаа өгнө.',
+    voting: 'Санал хураалт явагдаж байна. Зөвхөн "Зөвшөөрсөн" нэр дэвшигчид саналын хуудсанд байна.',
+    closed: 'Сонгууль дууссан. Үр дүн нийтэд харагдана.'
+  };
+%>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="card glow" style="margin-bottom:1.25rem">
+    <div class="row between">
+      <h2 style="margin:0"><%= e.title %></h2>
+      <a class="btn btn-sm" href="/elections/<%= e.id %>">Нийтийн хуудас →</a>
+    </div>
+    <p class="muted" style="margin-top:.5rem">Одоогийн шат: <span class="badge grad"><%= PHASE_LABELS[e.phase] %></span> — <%= hint[e.phase] %></p>
+    <p class="small muted">Нэр дэвшигч: <%= candidates.length %> · Зөвшөөрсөн: <%= candidates.filter(function (c) { return c.status === 'accepted'; }).length %> · Санал өгсөн: <%= ballots %></p>
+
+    <h3 style="margin-top:1rem">Шат солих</h3>
+    <div class="phase-controls">
+      <% all.forEach(function (p, i) {
+           var locked = ballots > 0 && i < all.indexOf('voting');
+           if (p === e.phase) return; %>
+        <form method="post" action="/admin/elections/<%= e.id %>/phase" class="inline"
+              data-confirm="Сонгуулийг &quot;<%= PHASE_LABELS[p] %>&quot; шат руу шилжүүлэх үү?">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="phase" value="<%= p %>">
+          <button class="btn btn-sm <%= i === cur + 1 ? 'btn-primary' : '' %>" <%= locked ? 'disabled' : '' %>>
+            <%= i < cur ? '← ' : (i === cur + 1 ? 'Дараагийн шат: ' : '→ ') %><%= PHASE_LABELS[p] %>
+          </button>
+        </form>
+      <% }) %>
+    </div>
+    <p class="small faint" style="margin-top:.75rem">Дараалал: Ноорог → Нэр дэвшүүлэх → Зөвшөөрөл авах → Санал хураалт → Дүн гарсан. Санал өгөгдсөний дараа өмнөх шатууд руу буцах боломжгүй.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <h2>Нэр дэвшигчид</h2>
+    <% if (!candidates.length) { %>
+      <p class="muted">Одоогоор нэр дэвшигч алга.</p>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Нэр</th><th>Сургууль</th><th>Утас</th><th>Дэвшүүлсэн</th><th>Төлөв</th><th>Санал</th><th></th></tr></thead>
+          <tbody>
+            <% candidates.forEach(function (c) { %>
+              <tr>
+                <td><strong><%= c.surname %> <%= c.name %></strong></td>
+                <td class="small"><%= c.school_name || '—' %></td>
+                <td class="small"><%= c.phone %></td>
+                <td><%= c.nomination_count %></td>
+                <td><span class="badge <%= c.status %>"><%= h.STATUS_LABELS[c.status] %></span></td>
+                <td><%= ['voting','closed'].includes(e.phase) ? c.votes : '—' %></td>
+                <td>
+                  <% if (!['voting','closed'].includes(e.phase)) { %>
+                    <form method="post" action="/admin/elections/<%= e.id %>/candidates/<%= c.id %>" class="inline" data-confirm="Энэ нэр дэвшигчийг хасах уу?">
+                      <input type="hidden" name="_csrf" value="<%= csrf %>">
+                      <input type="hidden" name="action" value="remove">
+                      <button class="btn btn-sm btn-danger">Хасах</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <h2>Тохиргоо</h2>
+    <form method="post" action="/admin/elections/<%= e.id %>" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <%- include('_election-fields') %>
+      <div><button class="btn btn-primary" type="submit">Хадгалах</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Сонгууль устгах</h3>
+    <p class="small muted">Бүх нэр дэвшигч, нэр дэвшүүлэлт, саналын бүртгэл хамт устна.</p>
+    <form method="post" action="/admin/elections/<%= e.id %>/delete" data-confirm="Энэ сонгуулийг бүх мэдээллийн хамт устгах уу? Буцаах боломжгүй.">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button class="btn btn-danger" type="submit">Устгах</button>
+    </form>
+  </div>
+</div>
+<%- include('../partials/foot') %>

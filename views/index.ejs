@@ -1,0 +1,84 @@
+<%- include('partials/head') %>
+<section class="hero">
+  <div class="container">
+    <span class="eyebrow">🎓 2006 — 2026 · Төгссөний 20 жил</span>
+    <h1>Дорнод аймгийн <span class="grad-text">2006 оны төгсөгчид</span></h1>
+    <p class="lead">Чойбалсан хот болон сумдын сургуулиудыг 2006 онд төгссөн ангийнхан, найз нөхдийн нэгдсэн орон зай. Мэдээ, уулзалт, төгсөгчдийн холбоо — бүгд нэг дор.</p>
+    <div class="row actions">
+      <% if (!me) { %>
+        <a class="btn btn-primary btn-lg" href="/register">Бүртгүүлэх</a>
+        <a class="btn btn-lg" href="/login">Нэвтрэх</a>
+      <% } else if (election) { %>
+        <a class="btn btn-primary btn-lg" href="/elections/<%= election.id %>">Сонгуульд оролцох</a>
+        <a class="btn btn-lg" href="/members">Төгсөгчид</a>
+      <% } else { %>
+        <a class="btn btn-primary btn-lg" href="/members">Төгсөгчид</a>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section class="container">
+  <div class="grid grid-4">
+    <div class="card stat"><div class="num grad-text"><%= stats.members %></div><div class="label">Бүртгэлтэй төгсөгч</div></div>
+    <div class="card stat"><div class="num grad-text"><%= stats.schools %></div><div class="label">Сургууль</div></div>
+    <div class="card stat"><div class="num grad-text">20</div><div class="label">Жилийн дурсамж</div></div>
+    <div class="card stat"><div class="num grad-text">2006</div><div class="label">Төгссөн он</div></div>
+  </div>
+</section>
+
+<% if (election) { %>
+<section class="container section">
+  <a class="card glow card-link" href="/elections/<%= election.id %>">
+    <div class="row between">
+      <div>
+        <div class="row" style="margin-bottom:.5rem">
+          <span class="badge grad">Сонгууль</span>
+          <% if (election.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
+          <% } else { %><span class="badge"><%= h.PHASE_LABELS[election.phase] %></span><% } %>
+        </div>
+        <h2 style="margin:0"><%= election.title %></h2>
+        <p class="muted" style="margin:.4rem 0 0">
+          <% if (election.phase === 'nomination') { %>Өөрийгөө болон бусдыг нэр дэвшүүлэх боломжтой.
+          <% } else if (election.phase === 'acceptance') { %>Нэр дэвшигчид зөвшөөрлөө өгч байна.
+          <% } else if (election.phase === 'voting') { %>Саналаа өгч, явцыг шууд хараарай.
+          <% } else { %>Сонгуулийн дүн, статистикийг харах.<% } %>
+        </p>
+      </div>
+      <span class="btn btn-primary">Дэлгэрэнгүй →</span>
+    </div>
+  </a>
+</section>
+<% } %>
+
+<section class="container section">
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Сүүлийн мэдээ</h2>
+    <a href="/news">Бүгдийг харах →</a>
+  </div>
+  <% if (!news.length) { %>
+    <div class="empty">Одоогоор мэдээ нийтлэгдээгүй байна.</div>
+  <% } else { %>
+    <div class="grid grid-2">
+      <% news.forEach(function (n) { %>
+        <a class="card card-link news-item" href="/news/<%= n.id %>">
+          <div class="row" style="gap:.5rem">
+            <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
+            <span class="date"><%= h.fmtDay(n.created_at) %></span>
+          </div>
+          <h3 style="margin-top:.5rem"><%= n.title %></h3>
+          <p class="excerpt"><%= n.body %></p>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="container section">
+  <div class="grid grid-3">
+    <div class="card"><h3>🤝 Холбоо тогтоох</h3><p class="muted">Ангийнхан, найзуудаа сургууль, нэрээр нь хайж олоод холбогдоорой.</p></div>
+    <div class="card"><h3>🗳️ Ил тод сонгууль</h3><p class="muted">Удирдах зөвлөлөө нэр дэвшүүлэх, зөвшөөрөх, санал хураах бүх шатыг онлайнаар нууцаар.</p></div>
+    <div class="card"><h3>📣 Мэдээ, зарлал</h3><p class="muted">Уулзалт, арга хэмжээ, хандивын мэдээллийг цаг алдалгүй хүргэнэ.</p></div>
+  </div>
+</section>
+<%- include('partials/foot') %>

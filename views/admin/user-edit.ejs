@@ -1,0 +1,65 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="row between">
+      <h2 style="margin:0"><%= user.surname %> <%= user.name %></h2>
+      <span class="badge <%= user.status %>"><%= h.STATUS_LABELS[user.status] %></span>
+    </div>
+    <p class="small faint">Бүртгүүлсэн: <%= h.fmtDate(user.created_at) %></p>
+    <form method="post" action="/admin/users/<%= user.id %>" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field"><label>Овог</label><input type="text" name="surname" value="<%= user.surname %>" maxlength="80" required></div>
+        <div class="field"><label>Нэр</label><input type="text" name="name" value="<%= user.name %>" maxlength="80" required></div>
+        <div class="field"><label>Утас (нэвтрэх нэр)</label><input type="tel" name="phone" value="<%= user.phone %>" maxlength="20" required></div>
+        <div class="field"><label>И-мэйл</label><input type="email" name="email" value="<%= user.email || '' %>" maxlength="120"></div>
+        <div class="field"><label>Сургууль</label>
+          <select name="school_id">
+            <option value="">—</option>
+            <% schools.forEach(function (s) { %><option value="<%= s.id %>" <%= user.school_id === s.id ? 'selected' : '' %>><%= s.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="field"><label>Анги</label><input type="text" name="class_name" value="<%= user.class_name || '' %>" maxlength="20"></div>
+        <div class="field"><label>Ажил, мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
+        <div class="field"><label>Хот</label><input type="text" name="city" value="<%= user.city || '' %>" maxlength="100"></div>
+        <div class="field"><label>Төлөв</label>
+          <select name="status" <%= user.id === me.id ? 'disabled' : '' %>>
+            <% ['pending','approved','rejected'].forEach(function (s) { %><option value="<%= s %>" <%= user.status === s ? 'selected' : '' %>><%= h.STATUS_LABELS[s] %></option><% }) %>
+          </select>
+        </div>
+        <div class="field"><label>Эрх</label>
+          <select name="role" <%= user.id === me.id ? 'disabled' : '' %>>
+            <option value="member" <%= user.role === 'member' ? 'selected' : '' %>>Төгсөгч</option>
+            <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Админ</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Танилцуулга</label><textarea name="bio" maxlength="3000"><%= user.bio || '' %></textarea></div>
+      <div><button class="btn btn-primary" type="submit">Хадгалах</button></div>
+    </form>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Нууц үг шинэчлэх</h3>
+      <p class="small muted">Төгсөгч нууц үгээ мартсан үед шинэ нууц үг тохируулж өгнө.</p>
+      <form method="post" action="/admin/users/<%= user.id %>/password" class="row">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="password" minlength="8" placeholder="Шинэ нууц үг" required style="flex:1">
+        <button class="btn" type="submit">Шинэчлэх</button>
+      </form>
+    </div>
+    <% if (user.id !== me.id) { %>
+      <div class="card">
+        <h3>Устгах</h3>
+        <p class="small muted">Бүртгэл болон түүний нэр дэвшүүлэлт, хүсэлтүүд устна. Сонгуульд өгсөн санал (тоо) хэвээр үлдэнэ.</p>
+        <form method="post" action="/admin/users/<%= user.id %>/delete" data-confirm="Энэ хэрэглэгчийг бүр мөсөн устгах уу?">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-danger" type="submit">Хэрэглэгч устгах</button>
+        </form>
+      </div>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/foot') %>

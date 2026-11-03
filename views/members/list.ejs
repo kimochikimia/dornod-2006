@@ -1,0 +1,35 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <h1>Төгсөгчид</h1>
+    <p>Баталгаажсан <%= members.length %> төгсөгч<%= q || school ? ' (шүүлтүүрээр)' : '' %>.</p>
+  </div>
+  <form method="get" action="/members" class="card row" style="margin-bottom:1.5rem">
+    <input type="search" name="q" value="<%= q %>" placeholder="Нэр, ажил, хотоор хайх" style="flex:2;min-width:200px">
+    <select name="school" style="flex:1;min-width:160px">
+      <option value="">Бүх сургууль</option>
+      <% schools.forEach(function (s) { %>
+        <option value="<%= s.id %>" <%= school === s.id ? 'selected' : '' %>><%= s.name %></option>
+      <% }) %>
+    </select>
+    <button class="btn btn-primary" type="submit">Хайх</button>
+    <% if (q || school) { %><a class="btn btn-ghost" href="/members">Цэвэрлэх</a><% } %>
+  </form>
+  <% if (!members.length) { %>
+    <div class="empty">Илэрц олдсонгүй.</div>
+  <% } else { %>
+    <div class="grid grid-3">
+      <% members.forEach(function (m) { %>
+        <a class="card card-link member-card" href="/members/<%= m.id %>">
+          <div class="avatar"><%= h.initials(m) %></div>
+          <div style="min-width:0">
+            <div style="font-weight:700"><%= m.surname %> <%= m.name %> <% if (m.role === 'admin') { %><span class="badge grad">Админ</span><% } %></div>
+            <div class="meta"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
+            <% if (m.occupation || m.city) { %><div class="meta"><%= [m.occupation, m.city].filter(Boolean).join(' · ') %></div><% } %>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

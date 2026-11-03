@@ -1,0 +1,22 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card">
+    <h2><%= item.id ? 'Мэдээ засах' : 'Шинэ мэдээ' %></h2>
+    <form method="post" action="/admin/news<%= item.id ? '/' + item.id : '' %>" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="field"><label>Гарчиг</label><input type="text" name="title" value="<%= item.title %>" maxlength="200" required></div>
+      <div class="field">
+        <label>Агуулга</label>
+        <textarea name="body" rows="14" required><%= item.body %></textarea>
+        <div class="hint">Хоосон мөрөөр догол мөр тусгаарлана.</div>
+      </div>
+      <label class="check"><input type="checkbox" name="pinned" value="1" <%= item.pinned ? 'checked' : '' %>> Онцлох (дээр нь байрлуулах)</label>
+      <div class="row">
+        <button class="btn btn-primary" type="submit">Хадгалах</button>
+        <a class="btn btn-ghost" href="/admin/news">Буцах</a>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include('../partials/foot') %>

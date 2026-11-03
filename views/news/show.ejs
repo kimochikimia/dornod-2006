@@ -1,0 +1,11 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <a href="/news" class="small">← Бүх мэдээ</a>
+    <h1 style="margin-top:.75rem"><%= item.title %></h1>
+    <p class="small faint"><%= h.fmtDate(item.created_at) %></p>
+  </div>
+  <article class="card prose"><%- h.text(item.body) %></article>
+  <% if (isAdmin) { %><p style="margin-top:1rem"><a class="btn btn-sm" href="/admin/news/<%= item.id %>">Засах</a></p><% } %>
+</div>
+<%- include('../partials/foot') %>

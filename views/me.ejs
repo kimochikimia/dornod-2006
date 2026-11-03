@@ -1,0 +1,89 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <h1>Миний хуудас</h1>
+    <p>Сайн байна уу, <%= me.name %>! Таны бүртгэлийн төлөв: <span class="badge <%= me.status %>"><%= h.STATUS_LABELS[me.status] %></span></p>
+  </div>
+
+  <% candidacies.forEach(function (c) { %>
+    <div class="card glow" style="margin-bottom:1.25rem">
+      <div class="row" style="margin-bottom:.5rem">
+        <span class="badge grad">🗳️ Нэр дэвшүүлэлт</span>
+        <span class="badge <%= c.status %>"><%= h.STATUS_LABELS[c.status] %></span>
+      </div>
+      <h3>Таныг "<%= c.election_title %>"-д <%= c.nomination_count %> хүн нэр дэвшүүлсэн байна</h3>
+      <% if (['nomination', 'acceptance'].includes(c.phase)) { %>
+        <form method="post" action="/elections/<%= c.election_id %>/respond" class="form">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="back" value="me">
+          <div class="field">
+            <label for="st<%= c.id %>">Мөрийн хөтөлбөр / товч танилцуулга</label>
+            <textarea id="st<%= c.id %>" name="statement" maxlength="3000" placeholder="Сонгогчдод хандах үгээ бичнэ үү"><%= c.statement || '' %></textarea>
+          </div>
+          <div class="row">
+            <button class="btn btn-success" name="action" value="accept">✓ Нэр дэвшихийг зөвшөөрөх</button>
+            <button class="btn btn-danger" name="action" value="decline">✕ Татгалзах</button>
+            <a class="btn btn-ghost" href="/elections/<%= c.election_id %>">Сонгуулийн хуудас</a>
+          </div>
+        </form>
+      <% } else { %>
+        <p class="muted">Санал хураалт эхэлсэн тул хариуг өөрчлөх боломжгүй. <a href="/elections/<%= c.election_id %>">Явцыг харах →</a></p>
+      <% } %>
+    </div>
+  <% }) %>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>Миний мэдээлэл</h2>
+      <dl class="dl">
+        <dt>Овог, нэр</dt><dd><%= me.surname %> <%= me.name %></dd>
+        <dt>Утас</dt><dd><%= me.phone %></dd>
+        <dt>И-мэйл</dt><dd><%= me.email || '—' %></dd>
+        <dt>Сургууль</dt><dd><%= me.school_name || '—' %><%= me.class_name ? ' · ' + me.class_name : '' %></dd>
+        <dt>Ажил</dt><dd><%= me.occupation || '—' %></dd>
+        <dt>Хот</dt><dd><%= me.city || '—' %></dd>
+      </dl>
+      <p class="small faint" style="margin-top:1rem">Мэдээллийн өөрчлөлтийг админ хийнэ. Доорх маягтаар хүсэлт илгээнэ үү.</p>
+    </div>
+
+    <div class="card">
+      <h2>Нууц үг солих</h2>
+      <form method="post" action="/me/password" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field"><label for="current">Одоогийн нууц үг</label><input id="current" type="password" name="current" autocomplete="current-password" required></div>
+        <div class="field"><label for="np">Шинэ нууц үг</label><input id="np" type="password" name="password" minlength="8" autocomplete="new-password" required></div>
+        <div class="field"><label for="np2">Шинэ нууц үг давтах</label><input id="np2" type="password" name="password2" minlength="8" autocomplete="new-password" required></div>
+        <button class="btn btn-primary" type="submit">Солих</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.25rem">
+    <h2>Админд засварын хүсэлт илгээх</h2>
+    <form method="post" action="/me/request" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <textarea name="message" maxlength="2000" placeholder="Жишээ нь: Ажлын газраа 'Дорнод аймгийн ЭМГ' болгож өөрчилнө үү." required></textarea>
+      <div><button class="btn btn-primary" type="submit">Илгээх</button></div>
+    </form>
+    <% if (requests.length) { %>
+      <hr class="sep">
+      <h3>Миний хүсэлтүүд</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Огноо</th><th>Хүсэлт</th><th>Төлөв</th><th>Админы тайлбар</th></tr></thead>
+          <tbody>
+            <% requests.forEach(function (r) { %>
+              <tr>
+                <td class="small"><%= h.fmtDate(r.created_at) %></td>
+                <td><%= r.message %></td>
+                <td><span class="badge <%= r.status %>"><%= h.STATUS_LABELS[r.status] %></span></td>
+                <td class="small muted"><%= r.admin_note || '' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+<%- include('partials/foot') %>

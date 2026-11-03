@@ -1,0 +1,18 @@
+<div class="field"><label>Сонгуулийн нэр</label><input type="text" name="title" value="<%= e.title %>" maxlength="200" required></div>
+<div class="field">
+  <label>Тайлбар, журам</label>
+  <textarea name="description" rows="6" placeholder="Сонгуулийн зорилго, хуваарь, журам"><%= e.description || '' %></textarea>
+</div>
+<div class="form-grid">
+  <div class="field">
+    <label>Сонгогдох гишүүдийн тоо (суудал)</label>
+    <input type="number" name="seats" min="1" max="50" value="<%= e.seats %>" required>
+  </div>
+  <div class="field">
+    <label>Нэг сонгогчийн сонгох дээд тоо</label>
+    <input type="number" name="max_choices" min="1" max="50" value="<%= e.max_choices %>" required>
+    <div class="hint">Ихэвчлэн суудлын тоотой тэнцүү байна.</div>
+  </div>
+</div>
+<label class="check"><input type="checkbox" name="show_live_results" value="1" <%= e.show_live_results ? 'checked' : '' %>> Санал хураалтын үеэр нэр дэвшигчдийн саналыг шууд харуулах</label>
+<p class="small faint" style="margin:0">Унтраавал санал хураалтын үеэр зөвхөн ирц, сургуулиар оролцоо харагдаж, нэр дэвшигчдийн дүн сонгууль хаагдсаны дараа нийтлэгдэнэ.</p>

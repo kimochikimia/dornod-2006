@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title ? title + ' · ' : '' %>Дорнод 2006 Төгсөгчид</title>
+  <meta name="description" content="Дорнод аймгийн ерөнхий боловсролын сургуулиудыг 2006 онд төгссөн төгсөгчдийн нэгдсэн сайт.">
+  <meta name="theme-color" content="#070914">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="container nav">
+    <a class="brand" href="/"><span class="brand-mark">'06</span> Дорнод 2006</a>
+    <button class="nav-toggle" type="button" aria-label="Цэс" data-nav-toggle>☰</button>
+    <nav class="nav-links" data-nav>
+      <a href="/" class="<%= path === '/' ? 'active' : '' %>">Нүүр</a>
+      <a href="/news" class="<%= path.startsWith('/news') ? 'active' : '' %>">Мэдээ</a>
+      <a href="/elections" class="<%= path.startsWith('/elections') ? 'active' : '' %>">Сонгууль</a>
+      <% if (isMember) { %>
+        <a href="/members" class="<%= path.startsWith('/members') ? 'active' : '' %>">Төгсөгчид</a>
+      <% } %>
+      <% if (isAdmin) { %>
+        <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">Админ</a>
+      <% } %>
+      <% if (me) { %>
+        <a href="/me" class="<%= path === '/me' ? 'active' : '' %>"><%= me.name %></a>
+        <form method="post" action="/logout" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-sm btn-ghost" type="submit">Гарах</button>
+        </form>
+      <% } else { %>
+        <a href="/login" class="<%= path === '/login' ? 'active' : '' %>">Нэвтрэх</a>
+        <a href="/register" class="btn btn-sm btn-primary">Бүртгүүлэх</a>
+      <% } %>
+    </nav>
+  </div>
+</header>
+<main>
+<% if (me && me.status === 'pending') { %>
+  <div class="container flash-wrap"><div class="flash warn">Таны бүртгэл админы баталгаажуулалт хүлээж байна. Баталгаажсаны дараа төгсөгчдийн жагсаалт үзэх, нэр дэвшүүлэх, санал өгөх боломжтой болно.</div></div>
+<% } %>
+<% if (flash.length) { %>
+  <div class="container flash-wrap">
+    <% flash.forEach(function (f) { %><div class="flash <%= f.type %>"><%= f.message %></div><% }) %>
+  </div>
+<% } %>

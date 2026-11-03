@@ -1,0 +1,24 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <h1>Мэдээ, зарлал</h1>
+    <p>Төгсөгчдийн уулзалт, арга хэмжээ, удирдах зөвлөлийн мэдээлэл.</p>
+  </div>
+  <% if (!news.length) { %>
+    <div class="empty">Одоогоор мэдээ нийтлэгдээгүй байна.</div>
+  <% } else { %>
+    <div class="grid grid-2">
+      <% news.forEach(function (n) { %>
+        <a class="card card-link news-item" href="/news/<%= n.id %>">
+          <div class="row" style="gap:.5rem">
+            <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
+            <span class="date"><%= h.fmtDay(n.created_at) %></span>
+          </div>
+          <h3 style="margin-top:.5rem"><%= n.title %></h3>
+          <p class="excerpt"><%= n.body %></p>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

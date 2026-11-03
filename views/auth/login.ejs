@@ -1,0 +1,24 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="card auth-card glow">
+    <h1>Нэвтрэх</h1>
+    <p class="muted">Бүртгүүлсэн утасны дугаар, нууц үгээрээ нэвтэрнэ үү.</p>
+    <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+    <form method="post" action="/login" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
+      <div class="field">
+        <label for="phone">Утасны дугаар</label>
+        <input id="phone" type="tel" name="phone" value="<%= phone %>" autocomplete="username" required autofocus>
+      </div>
+      <div class="field">
+        <label for="password">Нууц үг</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary btn-lg" type="submit">Нэвтрэх</button>
+    </form>
+    <hr class="sep">
+    <p class="small muted">Бүртгэлгүй юу? <a href="/register">Бүртгүүлэх</a><br>Нууц үгээ мартсан бол админд хандаж шинэчлүүлнэ үү.</p>
+  </div>
+</div>
+<%- include('../partials/foot') %>

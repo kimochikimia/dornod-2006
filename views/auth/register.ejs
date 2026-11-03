@@ -1,0 +1,67 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="card auth-card wide glow">
+    <h1>Бүртгүүлэх</h1>
+    <p class="muted">Дорнод аймгийн сургуулиудыг 2006 онд төгссөн бол бүртгүүлээрэй. Админ таны мэдээллийг шалгаж баталгаажуулна.</p>
+    <% if (errors.length) { %>
+      <div class="flash error"><% errors.forEach(function (e) { %><div>• <%= e %></div><% }) %></div>
+    <% } %>
+    <form method="post" action="/register" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field">
+          <label for="surname">Овог <span class="req">*</span></label>
+          <input id="surname" type="text" name="surname" value="<%= form.surname || '' %>" maxlength="80" required>
+        </div>
+        <div class="field">
+          <label for="name">Нэр <span class="req">*</span></label>
+          <input id="name" type="text" name="name" value="<%= form.name || '' %>" maxlength="80" required>
+        </div>
+        <div class="field">
+          <label for="phone">Утасны дугаар <span class="req">*</span></label>
+          <input id="phone" type="tel" name="phone" value="<%= form.phone || '' %>" maxlength="20" autocomplete="username" required>
+          <div class="hint">Нэвтрэхдээ энэ дугаарыг ашиглана.</div>
+        </div>
+        <div class="field">
+          <label for="email">И-мэйл</label>
+          <input id="email" type="email" name="email" value="<%= form.email || '' %>" maxlength="120">
+        </div>
+        <div class="field">
+          <label for="school_id">Төгссөн сургууль <span class="req">*</span></label>
+          <select id="school_id" name="school_id" required>
+            <option value="">— Сонгох —</option>
+            <% schools.forEach(function (s) { %>
+              <option value="<%= s.id %>" <%= Number(form.school_id) === s.id ? 'selected' : '' %>><%= s.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label for="class_name">Анги</label>
+          <input id="class_name" type="text" name="class_name" value="<%= form.class_name || '' %>" maxlength="20" placeholder="ж: 10А">
+        </div>
+        <div class="field">
+          <label for="occupation">Ажил, мэргэжил</label>
+          <input id="occupation" type="text" name="occupation" value="<%= form.occupation || '' %>" maxlength="150">
+        </div>
+        <div class="field">
+          <label for="city">Одоо амьдарч буй газар</label>
+          <input id="city" type="text" name="city" value="<%= form.city || '' %>" maxlength="100" placeholder="ж: Улаанбаатар">
+        </div>
+        <div class="field">
+          <label for="password">Нууц үг <span class="req">*</span></label>
+          <input id="password" type="password" name="password" minlength="8" autocomplete="new-password" required>
+          <div class="hint">Дор хаяж 8 тэмдэгт.</div>
+        </div>
+        <div class="field">
+          <label for="password2">Нууц үг давтах <span class="req">*</span></label>
+          <input id="password2" type="password" name="password2" minlength="8" autocomplete="new-password" required>
+        </div>
+      </div>
+      <p class="small faint">Бүртгүүлснээр таны нэр, сургууль, анги, ажил, хот бусад баталгаажсан төгсөгчдөд харагдана. Бүртгэлийн дараах мэдээллийн өөрчлөлтийг админ хийнэ.</p>
+      <button class="btn btn-primary btn-lg" type="submit">Бүртгүүлэх</button>
+    </form>
+    <hr class="sep">
+    <p class="small muted">Бүртгэлтэй юу? <a href="/login">Нэвтрэх</a></p>
+  </div>
+</div>
+<%- include('../partials/foot') %>
