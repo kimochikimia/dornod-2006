@@ -413,7 +413,13 @@ async function saveDocument(req, res, id) {
   } else if (req.body.remove_file) {
     await pool.query('UPDATE board_documents SET file_name = NULL, file_mime = NULL, file_size = NULL, file_data = NULL WHERE id = ?', [docId]);
   }
-  flash(req, 'success', f.status === 'approved' ? `"${f.title}" батлагдсан баримт бичгээр нийтлэгдлээ.` : `"${f.title}" хадгалагдлаа.`);
+  if (f.status === 'approved') {
+    flash(req, 'success', `"${f.title}" батлагдсан баримт бичгээр нийтлэгдлээ.`);
+  } else if (f.content || file || (id && (await loadDocForm(docId)).file_name)) {
+    flash(req, 'warn', `"${f.title}" хадгалагдлаа. Төлөв нь "Батлагдаагүй" тул эцсийн хувилбар нийтэд харагдахгүй — нийтлэх бол "Батлагдсан" болгоно уу.`);
+  } else {
+    flash(req, 'success', `"${f.title}" хадгалагдлаа.`);
+  }
   res.redirect('/admin/documents');
 }
 

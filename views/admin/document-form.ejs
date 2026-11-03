@@ -6,6 +6,9 @@
       <h2 style="margin:0"><%= d.id ? 'Баримт бичиг засах' : 'Шинэ баримт бичиг' %></h2>
       <% if (d.id) { %><a class="btn btn-sm" href="/board/documents/<%= d.id %>" target="_blank" rel="noopener">Нийтийн хуудсаар харах →</a><% } %>
     </div>
+    <% if (d.id && d.status !== 'approved' && (d.content || d.file_name)) { %>
+      <div class="flash warn" style="margin-top:1rem">⚠ Энэ баримтад эцсийн хувилбар (агуулга эсвэл файл) оруулсан боловч төлөв нь <strong>"Батлагдаагүй"</strong> тул нийтэд харагдахгүй байна. Нийтлэх бол төлөвийг <strong>"Батлагдсан"</strong> болгож, батлагдсан огноог оруулаад хадгална уу.</div>
+    <% } %>
     <% if (errors.length) { %><div class="flash error" style="margin-top:1rem"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
     <form method="post" action="/admin/documents<%= d.id ? '/' + d.id : '' %>" class="form" style="margin-top:1rem" data-doc-form>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
