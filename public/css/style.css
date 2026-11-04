@@ -771,3 +771,5 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
 .election-banner.live-election:hover { border-color: rgba(251, 191, 36, 0.9); }
 .election-banner.live-election .badge.grad { background: linear-gradient(135deg, #f97316, #fbbf24); border-color: transparent; color: #2a1300; }
 .election-banner.live-election .btn-primary { background: linear-gradient(135deg, #f97316, #fbbf24); color: #2a1300; box-shadow: 0 10px 26px -12px rgba(249, 115, 22, 0.95); }
+/* Бүтцийн үндсэн хавтас: дээш доошоо илүү зайтай */
+.card.org-card { padding-top: 2.5rem; padding-bottom: 3.5rem; min-height: 460px; }
