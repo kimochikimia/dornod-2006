@@ -30,7 +30,7 @@
               <a class="btn btn-sm btn-primary" href="/login?next=/board/documents/<%= d.id %>" title="Нэвтэрч татаж авна">📄 Төсөл татах</a>
             <% } %>
           <% } %>
-          <% if (canEdit) { %><a class="btn btn-sm" href="/admin/documents/<%= d.id %>">✎ Засах</a><% } %>
+          <% if (canEdit) { %><a class="btn btn-sm" href="/admin/elections/<%= d.election_id %>/documents/<%= d.id %>">✎ Засах</a><% } %>
         </div>
       </div>
       <h1 class="doc-title"><%= d.title %></h1>

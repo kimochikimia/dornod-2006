@@ -5,12 +5,115 @@
       <h1>Удирдах зөвлөл</h1>
       <p style="margin:0">Дорнод аймгийн 2006 оны төгсөгчдийн холбооны удирдах зөвлөлийн бүрэлдэхүүн, хариуцсан ажил.</p>
     </div>
-    <% if (can('manage_board')) { %><a class="btn" href="/admin/board">✎ Зөвлөл засах</a><% } %>
+    <% if (can('manage_board')) { %><a class="btn" href="<%= boardElection ? '/admin/elections/' + boardElection.id + '/board' : '/admin/elections' %>">✎ Зөвлөл засах</a><% } %>
   </div>
+
+  <%# ---------- Явагдаж буй / удахгүй эхлэх сонгууль ---------- %>
+  <% active.forEach(function (e) { %>
+    <a class="card card-link election-banner live-election" href="/elections/<%= e.id %>">
+      <div>
+        <div class="row" style="margin-bottom:.4rem;gap:.5rem">
+          <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
+          <% } else { %><span class="badge grad"><%= e.phase === 'draft' ? 'Удахгүй эхэлнэ' : h.PHASE_LABELS[e.phase] %></span><% } %>
+          <span class="badge">🗳️ Сонгууль<%= e.number ? " № " + e.number : "" %></span>
+        </div>
+        <h3 style="margin:0"><%= e.title %></h3>
+        <% if (e.deadline) { %><p class="small muted" style="margin:.35rem 0 0"><%= e.deadline.label %>: <strong data-countdown="<%= e.deadline.at %>">—</strong></p><% } %>
+      </div>
+      <span class="btn btn-primary">Оролцох →</span>
+    </a>
+  <% }) %>
+
+  <%# ---------- Зөвлөлийн гишүүд (бүлгээр, тойрог зурагтай) ---------- %>
+  <%
+    // Удирдлага: дарга/удирдлага төрлийн албан тушаалын аль нэгийг хашдаг гишүүд
+    var groups = [
+      { title: 'Удирдлага', test: function (m) { return m.lead; } },
+      { title: 'Гишүүд', test: function (m) { return !m.lead && m.appts.length; } },
+      { title: 'Томилгоо хүлээгдэж буй гишүүд', test: function (m) { return !m.appts.length; } }
+    ];
+  %>
+  <section class="tile-section" id="members">
+    <h2 class="tile-section-title joined">Удирдах зөвлөлийн бүрэлдэхүүн</h2>
+    <div class="card joined-card">
+      <% if (boardElection) { %>
+        <a class="board-source" href="/elections/<%= boardElection.id %>">
+          <span class="board-source-icon">🗳️</span>
+          <span>
+            <strong>№ <%= boardElection.number %></strong> сонгуулиар сонгогдсон зөвлөл
+            <span class="small muted">· <%= boardElection.title %><%= boardElection.voting_ended_at ? ' · дүн гарсан ' + h.fmtDay(boardElection.voting_ended_at) : '' %> · <%= boardElection.seats %> суудал</span>
+          </span>
+          <span class="small">Үр дүн →</span>
+        </a>
+      <% } %>
+      <% if (!members.length) { %>
+        <div class="empty" style="border:0">Удирдах зөвлөлийн бүрэлдэхүүнийг удахгүй нийтэлнэ.</div>
+      <% } %>
+      <% var shown = groups.filter(function (g) { return members.some(g.test); }); %>
+      <% shown.forEach(function (g) { var list = members.filter(g.test); %>
+        <div class="tile-group">
+          <% if (shown.length > 1) { %><h3 class="tile-group-title"><%= g.title %></h3><% } %>
+          <div class="tiles">
+            <% list.forEach(function (m) { %>
+              <button type="button" class="member-tile <%= m.isHead ? 'chair' : '' %> <%= !m.appts.length ? 'waiting' : '' %>" data-open-dialog="bm-<%= m.id %>">
+                <span class="tile-ring"><%- avatar(m, m.user_id, 'tile') %></span>
+                <span class="tile-name"><%= m.surname %><br><%= m.name %></span>
+                <span class="tile-post"><%= !m.appts.length ? 'Томилгоо хүлээгдэж буй' : m.appts.map(function (a) { return a.label; }).join(', ') %></span>
+              </button>
+            <% }) %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+
+  <%# ---------- Зөвлөлийн бүтэц ---------- %>
+  <% if (structure.length) { %>
+    <section class="tile-section" id="structure">
+      <h2 class="tile-section-title joined">Зөвлөлийн бүтэц</h2>
+      <div class="card joined-card">
+        <%- include('partials/board-structure', { tree: structure, openDialogs: true }) %>
+      </div>
+    </section>
+  <% } %>
+
+  <%# Гишүүн бүрийн дэлгэрэнгүй (дарахад нээгдэнэ) %>
+  <% members.forEach(function (m) { %>
+    <dialog id="bm-<%= m.id %>" class="dialog member-dialog">
+      <div class="dialog-body">
+        <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+        <div class="member-dialog-head">
+          <span class="tile-ring sm"><%- avatar(m, m.user_id, 'tile') %></span>
+          <div style="min-width:0">
+            <% if (!m.appts.length) { %><span class="badge pending">Томилгоо хүлээгдэж буй</span>
+            <% } else { m.appts.forEach(function (a) { %><span class="badge grad"><%= a.label %></span> <% }); } %>
+            <h3 style="margin:.4rem 0 .1rem"><%= m.surname %> <%= m.name %></h3>
+            <div class="small muted"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
+            <% if (m.occupation || m.city) { %><div class="small muted"><%= [m.occupation, m.city].filter(Boolean).join(' · ') %></div><% } %>
+          </div>
+        </div>
+        <% var apptLines = m.appts.filter(function (a) { return a.appointed_at || a.decision; }); %>
+        <% if (m.term || apptLines.length) { %>
+          <div class="member-meta">
+            <% if (m.term) { %><div>📅 Бүрэн эрх: <strong><%= m.term %></strong></div><% } %>
+            <% apptLines.forEach(function (a) { %><div>📝 <%= a.label %>: <%= [a.appointed_at && a.appointed_at.replace(/-/g, '.'), a.decision].filter(Boolean).join(' · ') %></div><% }) %>
+          </div>
+        <% } %>
+        <% if (m.phone || m.email || m.facebook) { %>
+          <div class="board-contacts">
+            <% if (m.phone) { %><a href="tel:<%= m.phone %>">📞 <%= m.phone %></a><% } %>
+            <% if (m.email) { %><a href="mailto:<%= m.email %>">✉️ <%= m.email %></a><% } %>
+            <% if (m.facebook) { %><a class="fb-link" href="<%= m.facebook %>" target="_blank" rel="noopener noreferrer nofollow"><span class="fb-icon">f</span> Facebook</a><% } %>
+          </div>
+        <% } %>
+        <% if (can('view_members')) { %><a class="btn btn-sm" href="/members/<%= m.user_id %>" style="justify-self:start">Профайл үзэх →</a><% } %>
+      </div>
+    </dialog>
+  <% }) %>
 
   <%# ---------- Зөвлөлийн баримт бичиг (хамгийн дээр, 10 хавтас) ---------- %>
   <% if (documents.length) { var approvedCount = documents.filter(function (d) { return d.status === 'approved'; }).length; %>
-    <section class="docs-section">
+    <section class="docs-section" style="margin-top:2.5rem">
       <div class="row between" style="margin-bottom:.9rem">
         <h2 style="margin:0">📁 Зөвлөлийн баримт бичиг</h2>
         <span class="small muted"><%= approvedCount %> / <%= documents.length %> батлагдсан</span>
@@ -33,106 +136,10 @@
     </section>
   <% } %>
 
-  <%# ---------- Явагдаж буй / удахгүй эхлэх сонгууль ---------- %>
-  <% active.forEach(function (e) { %>
-    <a class="card glow card-link election-banner" href="/elections/<%= e.id %>">
-      <div>
-        <div class="row" style="margin-bottom:.4rem;gap:.5rem">
-          <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
-          <% } else { %><span class="badge grad"><%= e.phase === 'draft' ? 'Удахгүй эхэлнэ' : h.PHASE_LABELS[e.phase] %></span><% } %>
-          <span class="badge">🗳️ Сонгууль</span>
-        </div>
-        <h3 style="margin:0"><%= e.title %></h3>
-        <% if (e.deadline) { %><p class="small muted" style="margin:.35rem 0 0"><%= e.deadline.label %>: <strong data-countdown="<%= e.deadline.at %>">—</strong></p><% } %>
-      </div>
-      <span class="btn btn-primary">Оролцох →</span>
-    </a>
-  <% }) %>
-
-  <%# ---------- Зөвлөлийн бүтэц ---------- %>
-  <% if (structure.length) { %>
-    <section class="tile-section" id="structure">
-      <h2 class="tile-section-title">Зөвлөлийн бүтэц</h2>
-      <div class="card">
-        <%- include('partials/board-structure', { tree: structure, openDialogs: true }) %>
-      </div>
-    </section>
-  <% } %>
-
-  <%# ---------- Зөвлөлийн гишүүд (бүлгээр, тойрог зурагтай) ---------- %>
-  <%
-    var groups = [
-      { title: 'Зөвлөлийн удирдлага', keys: ['chair', 'secretary', 'finance'] },
-      { title: 'Зөвлөлийн гишүүд', keys: ['member'] },
-      { title: 'Томилгоо хүлээгдэж буй гишүүд', keys: ['unassigned'] }
-    ];
-  %>
-  <% if (!members.length) { %>
-    <h2 style="margin-top:1.5rem">Зөвлөлийн гишүүд</h2>
-    <div class="empty">Удирдах зөвлөлийн бүрэлдэхүүнийг удахгүй нийтэлнэ.</div>
-  <% } %>
-  <% groups.forEach(function (g) {
-       var list = members.filter(function (m) { return g.keys.indexOf(m.post) !== -1; });
-       if (!list.length) return; %>
-    <section class="tile-section">
-      <h2 class="tile-section-title"><%= g.title %></h2>
-      <div class="tiles">
-        <% list.forEach(function (m) { %>
-          <button type="button" class="member-tile <%= m.post === 'chair' ? 'chair' : '' %> <%= m.post === 'unassigned' ? 'waiting' : '' %>" data-open-dialog="bm-<%= m.id %>">
-            <span class="tile-ring"><%- avatar(m, m.user_id, 'tile') %></span>
-            <span class="tile-name"><%= m.surname %><br><%= m.name %></span>
-            <span class="tile-post"><%= m.post === 'unassigned' ? 'Томилгоо хүлээгдэж буй' : m.position %></span>
-          </button>
-        <% }) %>
-      </div>
-    </section>
-  <% }) %>
-
-  <%# Гишүүн бүрийн дэлгэрэнгүй (дарахад нээгдэнэ) %>
-  <% members.forEach(function (m) {
-       var duties = (m.responsibilities || '').split(/\r?\n/).map(function (l) { return l.replace(/^[\s•\-*]+/, '').trim(); }).filter(Boolean); %>
-    <dialog id="bm-<%= m.id %>" class="dialog member-dialog">
-      <div class="dialog-body">
-        <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
-        <div class="member-dialog-head">
-          <span class="tile-ring sm"><%- avatar(m, m.user_id, 'tile') %></span>
-          <div style="min-width:0">
-            <% if (m.post === 'unassigned') { %><span class="badge pending">Томилгоо хүлээгдэж буй</span>
-            <% } else { %><span class="badge grad"><%= m.position %></span><% } %>
-            <h3 style="margin:.4rem 0 .1rem"><%= m.surname %> <%= m.name %></h3>
-            <div class="small muted"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
-            <% if (m.occupation || m.city) { %><div class="small muted"><%= [m.occupation, m.city].filter(Boolean).join(' · ') %></div><% } %>
-          </div>
-        </div>
-        <% if (m.term || (m.post !== 'unassigned' && (m.appointed_at || m.decision))) { %>
-          <div class="member-meta">
-            <% if (m.term) { %><div>📅 Бүрэн эрх: <strong><%= m.term %></strong></div><% } %>
-            <% if (m.post !== 'unassigned' && (m.appointed_at || m.decision)) { %><div>📝 Томилсон: <%= [m.appointed_at, m.decision].filter(Boolean).join(' · ') %></div><% } %>
-          </div>
-        <% } %>
-        <% if (duties.length) { %>
-          <div class="board-duties">
-            <div class="board-duties-title">Хариуцсан ажил</div>
-            <ul><% duties.forEach(function (l) { %><li><%= l %></li><% }) %></ul>
-          </div>
-        <% } else if (m.post !== 'unassigned') { %>
-          <p class="small faint" style="margin:0">Хариуцсан ажлыг удахгүй нийтэлнэ.</p>
-        <% } %>
-        <% if (m.phone || m.email || m.facebook) { %>
-          <div class="board-contacts">
-            <% if (m.phone) { %><a href="tel:<%= m.phone %>">📞 <%= m.phone %></a><% } %>
-            <% if (m.email) { %><a href="mailto:<%= m.email %>">✉️ <%= m.email %></a><% } %>
-            <% if (m.facebook) { %><a class="fb-link" href="<%= m.facebook %>" target="_blank" rel="noopener noreferrer nofollow"><span class="fb-icon">f</span> Facebook</a><% } %>
-          </div>
-        <% } %>
-        <% if (can('view_members')) { %><a class="btn btn-sm" href="/members/<%= m.user_id %>" style="justify-self:start">Профайл үзэх →</a><% } %>
-      </div>
-    </dialog>
-  <% }) %>
-
-  <%# ---------- Сонгуулийн түүх (хамгийн доор) ---------- %>
+  <%# ---------- Сонгуулийн түүх (тусдаа, хамгийн доор) ---------- %>
   <% if (others.length) { %>
-    <h2 id="elections" style="margin-top:2.5rem">Сонгуулийн түүх</h2>
+    <section class="history-section" id="elections">
+    <h2 style="margin-top:0">🗳️ Сонгуулийн түүх</h2>
     <div class="grid grid-2">
       <% others.forEach(function (e) { %>
         <a class="card card-link" href="/elections/<%= e.id %>">
@@ -145,6 +152,8 @@
         </a>
       <% }) %>
     </div>
+    </section>
   <% } %>
+
 </div>
 <%- include('partials/foot') %>

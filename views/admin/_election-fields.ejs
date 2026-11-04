@@ -13,6 +13,11 @@
     <input type="number" name="max_choices" min="1" max="50" value="<%= e.max_choices %>" required>
     <div class="hint">Ихэвчлэн суудлын тоотой тэнцүү байна.</div>
   </div>
+  <div class="field">
+    <label>Хүчинтэй болох доод ирц (%)</label>
+    <input type="number" name="min_turnout" min="0" max="100" value="<%= e.min_turnout == null ? 50 : e.min_turnout %>" required>
+    <div class="hint">Санал өгөх эрхтэй (баталгаажсан) төгсөгчдийн энэ хувиас цөөн нь санал өгвөл сонгууль хүчингүй болно.</div>
+  </div>
 </div>
 <div class="schedule-box">
   <label class="check"><input type="checkbox" name="auto_schedule" value="1" data-auto-schedule <%= e.auto_schedule ? 'checked' : '' %>> <strong>Хуваарийн дагуу автоматаар явуулах</strong></label>

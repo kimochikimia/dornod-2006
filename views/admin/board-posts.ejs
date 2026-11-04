@@ -1,0 +1,100 @@
+<%- include('../partials/head') %>
+<%
+  var kindOptions = function (selected) {
+    return KINDS.map(function (k) {
+      return '<option value="' + k[0] + '"' + (k[0] === selected ? ' selected' : '') + '>' + h.escapeHtml(k[1]) + '</option>';
+    }).join('');
+  };
+  var ro = ctxElection.status === 'superseded';
+  var seats = ctxElection.seats;
+  var left = Math.max(seats - total, 0);
+%>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Зөвлөлийн албан тушаал</h2>
+    <span class="badge <%= total === seats ? 'success' : 'pending' %>" title="Албан тушаалуудын нийт орон тоо / сонгуулиар сонгох гишүүд">
+      Нийт орон тоо: <%= total %> / <%= seats %>
+    </span>
+  </div>
+
+  <% if (!ro) { %>
+    <div class="flash info small" style="margin-bottom:1.25rem">
+      Энэ сонгуулиар <strong><%= seats %></strong> гишүүн сонгоно — албан тушаалуудын нийт орон тоо <strong><%= seats %></strong> байх ёстой.
+      <strong>Дарга</strong>, <strong>Удирдлага</strong> төрөл нь 1 орон тоотой бөгөөд нийтийн хуудсанд «Зөвлөлийн удирдлага» бүлэгт харагдана.
+      <% if (total < seats) { %><br>⚠ Дахиад <strong><%= left %></strong> орон тоо хуваарилаагүй байна.<% } %>
+      <% if (total > seats) { %><br>⚠ Нийт орон тоо <strong><%= total - seats %></strong>-оор хэтэрсэн байна — албан тушаалуудын орон тоог багасгана уу.<% } %>
+    </div>
+
+    <div class="card" style="margin-bottom:1.25rem">
+      <h3 style="margin-top:0">＋ Шинэ албан тушаал</h3>
+      <% if (!left) { %>
+        <p class="muted" style="margin:0">Бүх орон тоо (<%= seats %>) хуваарилагдсан. Шинэ албан тушаал нэмэх бол бусдынхаа орон тоог багасгана уу.</p>
+      <% } else { %>
+        <form method="post" action="<%= eb %>/posts" class="post-row">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <div class="field"><label>Албан тушаалын нэр <span class="req">*</span></label><input type="text" name="label" maxlength="100" required placeholder="ж: Дэд дарга"></div>
+          <div class="field"><label>Төрөл <span class="req">*</span></label><select name="kind" data-post-kind><%- kindOptions('member') %></select></div>
+          <div class="field"><label>Орон тоо <span class="req">*</span></label><input type="number" name="seats" min="1" max="<%= left %>" value="<%= left %>" required data-post-seats></div>
+          <div class="post-row-actions"><button class="btn btn-primary" type="submit">Нэмэх</button></div>
+        </form>
+      <% } %>
+    </div>
+  <% } %>
+
+  <% if (!posts.length) { %>
+    <div class="empty">Албан тушаал үүсгээгүй байна.</div>
+  <% } %>
+
+  <% if (posts.length) { %>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>№</th><th>Албан тушаал</th><th>Төрөл</th><th>Орон тоо</th><th>Томилогдсон</th><th></th></tr></thead>
+        <tbody>
+          <% posts.forEach(function (p, i) { var over = p.seats != null && p.member_count > p.seats; %>
+            <tr id="p<%= p.id %>">
+              <td><%= i + 1 %></td>
+              <td><strong><%= p.label %></strong></td>
+              <td><span class="badge <%= p.kind === 'member' ? '' : 'grad' %>"><%= p.kindLabel %></span></td>
+              <td><%= p.seats == null ? '—' : p.seats %></td>
+              <td><span class="<%= over ? '' : 'muted' %>" style="<%= over ? 'color:var(--warn)' : '' %>"><%= p.member_count %> хүн</span></td>
+              <td>
+                <% if (!ro) { %>
+                  <div class="row" style="gap:.35rem;flex-wrap:nowrap;justify-content:flex-end">
+                    <button type="button" class="btn btn-sm btn-primary" data-open-dialog="post-<%= p.id %>">Засах</button>
+                    <form method="post" action="<%= eb %>/posts/<%= p.id %>/delete" class="inline"
+                          data-confirm="&quot;<%= p.label %>&quot; албан тушаалыг устгах уу?<%= p.member_count ? ' Энэ албан тушаалтай ' + p.member_count + ' гишүүн «Томилогдоогүй» болно.' : '' %>">
+                      <input type="hidden" name="_csrf" value="<%= csrf %>">
+                      <button class="btn btn-sm btn-danger" type="submit" title="Устгах" aria-label="Устгах">✕</button>
+                    </form>
+                  </div>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <% if (!ro) { posts.forEach(function (p) { %>
+    <dialog id="post-<%= p.id %>" class="dialog">
+      <form method="post" action="<%= eb %>/posts/<%= p.id %>" class="dialog-body">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+        <h3>Албан тушаал засах</h3>
+        <div class="field"><label>Албан тушаалын нэр</label><input type="text" name="label" value="<%= p.label %>" maxlength="100" required></div>
+        <div class="form-grid">
+          <div class="field"><label>Төрөл</label><select name="kind" data-post-kind><%- kindOptions(p.kind) %></select></div>
+          <div class="field"><label>Орон тоо</label><input type="number" name="seats" value="<%= p.seats == null ? '' : p.seats %>" min="1" max="999" required data-post-seats></div>
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+          <button class="btn btn-primary" type="submit">Хадгалах</button>
+        </div>
+      </form>
+    </dialog>
+  <% }); } %>
+</div>
+<%- include('../partials/foot') %>

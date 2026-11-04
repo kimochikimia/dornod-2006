@@ -76,16 +76,19 @@ CREATE TABLE IF NOT EXISTS change_requests (
 
 CREATE TABLE IF NOT EXISTS elections (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  number VARCHAR(20) NULL,
   title VARCHAR(200) NOT NULL,
   description TEXT NULL,
   seats INT NOT NULL DEFAULT 7,
   max_choices INT NOT NULL DEFAULT 7,
+  min_turnout INT NOT NULL DEFAULT 50,
   phase ENUM('draft','nomination','acceptance','voting','closed') NOT NULL DEFAULT 'draft',
   show_live_results TINYINT(1) NOT NULL DEFAULT 1,
   eligible_count INT NULL,
   voting_started_at TIMESTAMP NULL,
   voting_ended_at TIMESTAMP NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_election_number (number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS candidates (
@@ -95,6 +98,7 @@ CREATE TABLE IF NOT EXISTS candidates (
   status ENUM('pending','accepted','declined') NOT NULL DEFAULT 'pending',
   statement TEXT NULL,
   votes INT NOT NULL DEFAULT 0,
+  last_vote_at TIMESTAMP(3) NULL,
   responded_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_candidate (election_id, user_id),
@@ -160,41 +164,60 @@ CREATE TABLE IF NOT EXISTS user_photos (
 -- Удирдах зөвлөлийн гишүүд
 CREATE TABLE IF NOT EXISTS board_members (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL UNIQUE,
-  position VARCHAR(100) NOT NULL DEFAULT 'Гишүүн',
+  user_id INT NOT NULL,
+  position VARCHAR(255) NOT NULL DEFAULT 'Гишүүн',
   responsibilities TEXT NULL,
   term VARCHAR(50) NULL,
   sort_order INT NOT NULL DEFAULT 100,
   election_id INT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_board_member (user_id, election_id),
   CONSTRAINT fk_board_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_board_election FOREIGN KEY (election_id) REFERENCES elections(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Удирдах зөвлөлийн бүтэц (нэгжүүдийн мод)
+-- Удирдах зөвлөлийн албан тушаалууд (админ үүсгэнэ). board_members.post = code
+CREATE TABLE IF NOT EXISTS board_posts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  election_id INT NULL,
+  code VARCHAR(20) NOT NULL UNIQUE,
+  label VARCHAR(100) NOT NULL,
+  kind VARCHAR(20) NOT NULL DEFAULT 'member',
+  seats INT NULL,
+  sort_order INT NOT NULL DEFAULT 100,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Удирдах зөвлөлийн бүтэц: албан тушаалуудын мод (нэгж бүр нэг албан тушаал)
 CREATE TABLE IF NOT EXISTS board_units (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  election_id INT NULL,
   parent_id INT NULL,
+  post_id INT NULL,
   name VARCHAR(150) NOT NULL,
-  description VARCHAR(500) NULL,
-  head_member_id INT NULL,
   sort_order INT NOT NULL DEFAULT 100,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_unit_parent FOREIGN KEY (parent_id) REFERENCES board_units(id) ON DELETE SET NULL,
-  CONSTRAINT fk_unit_head FOREIGN KEY (head_member_id) REFERENCES board_members(id) ON DELETE SET NULL
+  CONSTRAINT fk_unit_post FOREIGN KEY (post_id) REFERENCES board_posts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS board_unit_members (
-  unit_id INT NOT NULL,
+-- Томилгоо: нэг гишүүн олон албан тушаал хашиж болно (board_members.post/position нь хураангуй)
+CREATE TABLE IF NOT EXISTS board_appointments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
   member_id INT NOT NULL,
-  PRIMARY KEY (unit_id, member_id),
-  CONSTRAINT fk_unitm_unit FOREIGN KEY (unit_id) REFERENCES board_units(id) ON DELETE CASCADE,
-  CONSTRAINT fk_unitm_member FOREIGN KEY (member_id) REFERENCES board_members(id) ON DELETE CASCADE
+  post_id INT NOT NULL,
+  appointed_at DATE NULL,
+  decision VARCHAR(200) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_appointment (member_id, post_id),
+  CONSTRAINT fk_appt_member FOREIGN KEY (member_id) REFERENCES board_members(id) ON DELETE CASCADE,
+  CONSTRAINT fk_appt_post FOREIGN KEY (post_id) REFERENCES board_posts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Зөвлөлийн бодлогын баримт бичиг (дүрэм, журам, төлөвлөгөө, тайлан)
 CREATE TABLE IF NOT EXISTS board_documents (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  election_id INT NULL,
   sort_order INT NOT NULL DEFAULT 100,
   title VARCHAR(200) NOT NULL,
   purpose VARCHAR(500) NULL,

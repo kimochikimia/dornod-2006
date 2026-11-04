@@ -10,7 +10,7 @@
       <div class="flash warn" style="margin-top:1rem">⚠ Энэ баримтад эцсийн хувилбар (агуулга эсвэл файл) оруулсан боловч төлөв нь <strong>"Батлагдаагүй"</strong> тул нийтэд харагдахгүй байна. Нийтлэх бол төлөвийг <strong>"Батлагдсан"</strong> болгож, батлагдсан огноог оруулаад хадгална уу.</div>
     <% } %>
     <% if (errors.length) { %><div class="flash error" style="margin-top:1rem"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
-    <form method="post" action="/admin/documents<%= d.id ? '/' + d.id : '' %>" class="form" style="margin-top:1rem" data-doc-form>
+    <form method="post" action="<%= eb %>/documents<%= d.id ? '/' + d.id : '' %>" class="form" style="margin-top:1rem" data-doc-form>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <div class="form-grid">
         <div class="field" style="grid-column:1/-1"><label>Баримт бичгийн нэр</label><input type="text" name="title" value="<%= d.title || '' %>" maxlength="200" required></div>
@@ -54,10 +54,10 @@
       <div class="row between">
         <div class="row">
           <button class="btn btn-primary" type="submit">Хадгалах</button>
-          <a class="btn btn-ghost" href="/admin/documents">Буцах</a>
+          <a class="btn btn-ghost" href="<%= eb %>/documents">Буцах</a>
         </div>
         <% if (d.id) { %>
-          <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/documents/<%= d.id %>/delete" formnovalidate
+          <button class="btn btn-danger btn-sm" type="submit" formaction="<%= eb %>/documents/<%= d.id %>/delete" formnovalidate
                   data-confirm="Энэ баримт бичгийг бүрмөсөн устгах уу?">Устгах</button>
         <% } %>
       </div>

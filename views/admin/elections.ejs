@@ -1,24 +1,32 @@
 <%- include('../partials/head') %>
+<%
+  var stLabel = { current: 'Хүчинтэй', superseded: 'Хүчингүй', upcoming: 'Явагдаж буй', invalid: 'Ирц хүрээгүй' };
+  var stClass = { current: 'success', superseded: 'pending', upcoming: 'grad', invalid: 'pending' };
+%>
 <div class="container">
   <%- include('_nav') %>
   <div class="row between" style="margin-bottom:1rem">
-    <h2 style="margin:0">Сонгуулиуд</h2>
-    <a class="btn btn-primary" href="/admin/elections/new">+ Шинэ сонгууль</a>
+    <h2 style="margin:0">Удирдах зөвлөл — сонгуулиуд</h2>
+    <% if (can('manage_elections')) { %><a class="btn btn-primary" href="/admin/elections/new">+ Шинэ сонгууль</a><% } %>
   </div>
+  <p class="small muted">Сонгууль бүр өөрийн албан тушаал, томилгоо, бүтэц, баримт бичигтэй. Хамгийн сүүлд дууссан сонгууль <strong>хүчинтэй</strong> — шинэ сонгууль дуусахад өмнөх нь <strong>хүчингүй</strong> болж архивт үлдэнэ.</p>
   <% if (!elections.length) { %>
     <div class="empty">Сонгууль үүсгээгүй байна. "Шинэ сонгууль" товчоор удирдах зөвлөлийн сонгуулийг үүсгэнэ үү.</div>
   <% } else { %>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Нэр</th><th>Шат</th><th>Нэр дэвшигч</th><th>Санал</th><th></th></tr></thead>
+        <thead><tr><th>№</th><th>Нэр</th><th>Шат</th><th>Төлөв</th><th>Суудал</th><th>Нэр дэвшигч</th><th>Санал</th><th></th></tr></thead>
         <tbody>
-          <% elections.forEach(function (e) { %>
+          <% elections.forEach(function (e) { var open = can('manage_elections') ? '/admin/elections/' + e.id : '/admin/elections/' + e.id + '/posts'; %>
             <tr>
-              <td><strong><%= e.title %></strong><div class="small faint"><%= h.fmtDay(e.created_at) %></div></td>
+              <td><span class="badge"><%= e.number || '—' %></span></td>
+              <td><a href="<%= open %>"><strong><%= e.title %></strong></a><div class="small faint"><%= h.fmtDay(e.created_at) %></div></td>
               <td><span class="badge <%= e.phase === 'voting' ? 'live' : '' %>"><%= h.PHASE_LABELS[e.phase] %></span></td>
+              <td><span class="badge <%= stClass[e.status] %>"><%= stLabel[e.status] %></span></td>
+              <td><%= e.seats %></td>
               <td><%= e.candidate_count %></td>
               <td><%= e.ballot_count %></td>
-              <td><div class="row" style="gap:.35rem;flex-wrap:nowrap"><a class="btn btn-sm btn-primary" href="/admin/elections/<%= e.id %>">Удирдах</a><a class="btn btn-sm" href="/elections/<%= e.id %>">Харах</a></div></td>
+              <td><div class="row" style="gap:.35rem;flex-wrap:nowrap"><a class="btn btn-sm btn-primary" href="<%= open %>">Нээх</a><a class="btn btn-sm" href="/elections/<%= e.id %>">Харах</a><% if (can('manage_elections')) { %><form method="post" action="/admin/elections/<%= e.id %>/delete" class="inline" data-confirm="№ <%= e.number %> «<%= e.title %>» сонгуулийг бүх мэдээллийн хамт (нэр дэвшигч, санал, албан тушаал, томилгоо, бүтэц, баримт бичиг) устгах уу? Буцаах боломжгүй."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger" type="submit" title="Сонгууль устгах" aria-label="Сонгууль устгах">✕</button></form><% } %></div></td>
             </tr>
           <% }) %>
         </tbody>

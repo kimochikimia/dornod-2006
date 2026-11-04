@@ -17,12 +17,14 @@
       <% if (e.phase === 'voting') { %><span class="badge live">Санал хураалт явагдаж байна</span>
       <% } else { %><span class="badge grad"><%= e.phase === 'draft' && times ? 'Эхлээгүй' : h.PHASE_LABELS[e.phase] %></span><% } %>
       <% if (times) { %><span class="badge">⏱ Хуваарьтай</span><% } %>
+      <% if (e.number) { %><span class="badge">№ <%= e.number %></span><% } %>
       <span class="badge"><%= e.seats %> суудал</span>
       <span class="badge">Нэг хүн <%= e.max_choices %> хүртэл нэр дэвшигчид санал өгнө</span>
       <% if (can('manage_elections')) { %><a class="btn btn-sm" href="/admin/elections/<%= e.id %>">Админ: удирдах</a><% } %>
     </div>
     <h1 style="margin-top:.75rem"><%= e.title %></h1>
     <% if (e.description) { %><div class="prose muted"><%- h.text(e.description) %></div><% } %>
+    <% if (blocked) { %><div class="flash warn" style="margin-top:1rem">⏸ <%= blocked %></div><% } %>
   </div>
 
   <% if (deadline) { %>
@@ -122,23 +124,27 @@
           <div class="card cand">
             <%- avatar(c, c.user_id) %>
             <div class="body">
-              <div class="row between">
-                <strong><%= c.surname %> <%= c.name %></strong>
+              <div class="cand-head">
+                <div class="cand-who">
+                  <strong><%= c.surname %> <%= c.name %></strong>
+                  <span class="small muted">· <%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></span>
+                </div>
+                <div class="cand-noms">
+                  <div class="small">🙋 <%= c.nomination_count %> хүн нэр дэвшүүлсэн</div>
+                  <% if (noms.length) { %>
+                    <details class="noms">
+                      <summary>Хэн нэр дэвшүүлсэн бэ?</summary>
+                      <ul>
+                        <% noms.forEach(function (n) { %>
+                          <li><%= n.surname %> <%= n.name %><%= n.nominator_id === c.user_id ? ' (өөрөө)' : '' %><% if (n.reason) { %> — “<%= n.reason %>”<% } %></li>
+                        <% }) %>
+                      </ul>
+                    </details>
+                  <% } %>
+                </div>
                 <span class="badge <%= c.status %>"><%= h.STATUS_LABELS[c.status] %></span>
               </div>
-              <div class="small muted"><%= c.school_name || '—' %><%= c.occupation ? ' · ' + c.occupation : '' %></div>
-              <div class="small" style="margin-top:.35rem">🙋 <%= c.nomination_count %> хүн нэр дэвшүүлсэн</div>
               <% if (c.statement && c.status === 'accepted') { %><div class="statement"><%= c.statement %></div><% } %>
-              <% if (noms.length) { %>
-                <details class="noms">
-                  <summary>Хэн нэр дэвшүүлсэн бэ?</summary>
-                  <ul>
-                    <% noms.forEach(function (n) { %>
-                      <li><%= n.surname %> <%= n.name %><%= n.nominator_id === c.user_id ? ' (өөрөө)' : '' %><% if (n.reason) { %> — “<%= n.reason %>”<% } %></li>
-                    <% }) %>
-                  </ul>
-                </details>
-              <% } %>
               <% if (windows.nominate && can('nominate') && !myNominations.has(c.id)) { %>
                 <form method="post" action="/elections/<%= e.id %>/nominate" style="margin-top:.75rem">
                   <input type="hidden" name="_csrf" value="<%= csrf %>">

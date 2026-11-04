@@ -17,10 +17,14 @@ router.use(requireManage);
 // Хэсэг бүрийн эрх
 router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
-router.use('/board', requirePerm('manage_board'));
-router.use('/documents', requirePerm('manage_board'));
 router.use('/requests', requirePerm('manage_requests'));
-router.use('/elections', requirePerm('manage_elections'));
+// Удирдах зөвлөл = сонгууль бүрийн ажлын орчин. Сонгуулийн шатыг manage_elections,
+// албан тушаал / томилгоо / бүтэц / баримт бичгийг manage_board эрхээр удирдана.
+router.use('/elections', (req, res, next) => {
+  if (/^\/\d+\/(posts|board|structure|documents)(\/|$)/.test(req.path)) return requirePerm('manage_board')(req, res, next);
+  if (req.method === 'GET' && req.path === '/') return requirePerm('manage_elections', 'manage_board')(req, res, next);
+  return requirePerm('manage_elections')(req, res, next);
+});
 router.use('/schools', requirePerm('manage_schools'));
 router.use('/roles', requirePerm('manage_roles'));
 router.use('/users', requirePerm('approve_users', 'edit_users'));
@@ -356,7 +360,46 @@ router.post('/plans/:id/delete', wrap(async (req, res) => {
   res.redirect('/admin/plans');
 }));
 
-// ---------- Зөвлөлийн баримт бичиг ----------
+// ---------- Удирдах зөвлөл: сонгууль бүрийн албан тушаал, томилгоо, бүтэц, баримт бичиг ----------
+const board = require('../board');
+const BOARD_SECTIONS = ['posts', 'board', 'structure', 'documents'];
+
+// Сонгуулийн ажлын орчин: req.election, res.locals.eb (= /admin/elections/:id).
+// Хүчингүй болсон сонгуулийн зөвлөлийн мэдээлэл архив тул засахгүй.
+router.use('/elections/:eid', wrap(async (req, res, next) => {
+  if (!/^\d+$/.test(req.params.eid)) return next();
+  const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.eid]);
+  if (!e) return next();
+  e.status = board.electionStatus(e, await board.currentElection());
+  req.election = e;
+  res.locals.ctxElection = e;
+  res.locals.eb = `/admin/elections/${e.id}`;
+  const section = req.path.split('/')[1];
+  if (req.method === 'POST' && section === 'board' && e.status === 'invalid') {
+    flash(req, 'error', 'Ирц хүрээгүй тул сонгууль хүчингүй — зөвлөл томилогдохгүй.');
+    return res.redirect(`${res.locals.eb}/board`);
+  }
+  if (req.method === 'POST' && BOARD_SECTIONS.includes(section) && e.status === 'superseded') {
+    flash(req, 'error', 'Энэ сонгууль хүчингүй болсон тул зөвлөлийн мэдээллийг засах боломжгүй (архив).');
+    return res.redirect(`${res.locals.eb}/${section}`);
+  }
+  next();
+}));
+
+// Хуучин хаягууд (/admin/board..., /admin/documents...) → хүчинтэй сонгуулийн харгалзах хэсэг
+router.get(/^\/(board|documents)(\/.*)?$/, requirePerm('manage_board'), wrap(async (req, res) => {
+  const [, sec, rest = ''] = req.path.match(/^\/(board|documents)(\/.*)?$/);
+  if (sec === 'documents' && /^\/\d+$/.test(rest)) {
+    const [[d]] = await pool.query('SELECT election_id FROM board_documents WHERE id = ?', [rest.slice(1)]);
+    if (d && d.election_id) return res.redirect(`/admin/elections/${d.election_id}/documents${rest}`);
+  }
+  const target = (await board.currentElection()) || (await board.latestElection());
+  if (!target) return res.redirect('/admin/elections');
+  const to = sec === 'documents' ? 'documents' : ({ '/posts': 'posts', '/structure': 'structure' }[rest] || 'board');
+  res.redirect(`/admin/elections/${target.id}/${to}`);
+}));
+
+// ----- Баримт бичиг -----
 function documentFields(body) {
   const status = body.status === 'approved' ? 'approved' : 'draft';
   const approved = /^\d{4}-\d{2}-\d{2}$/.test(body.approved_at || '') ? body.approved_at : null;
@@ -372,52 +415,55 @@ function documentFields(body) {
   };
 }
 
-async function loadDocForm(id) {
+async function loadDocForm(id, electionId) {
   const [[d]] = await pool.query(
-    `SELECT id, sort_order, title, purpose, status, doc_number, decision, content, file_name, file_size,
+    `SELECT id, election_id, sort_order, title, purpose, status, doc_number, decision, content, file_name, file_size,
             draft_name, draft_size, DATE_FORMAT(draft_at, '%Y.%m.%d') AS draft_at,
-            DATE_FORMAT(approved_at, '%Y-%m-%d') AS approved_at FROM board_documents WHERE id = ?`, [id]);
+            DATE_FORMAT(approved_at, '%Y-%m-%d') AS approved_at FROM board_documents WHERE id = ? AND election_id = ?`,
+    [id, electionId]);
   return d || null;
 }
 
-router.get('/documents', wrap(async (req, res) => {
+router.get('/elections/:eid/documents', wrap(async (req, res) => {
   const [docs] = await pool.query(
     `SELECT id, sort_order, title, purpose, status, doc_number, file_name, file_size,
             draft_name, draft_size, DATE_FORMAT(draft_at, '%Y.%m.%d') AS draft_at,
             DATE_FORMAT(approved_at, '%Y.%m.%d') AS approved_at, CHAR_LENGTH(COALESCE(content, '')) AS content_len
-     FROM board_documents ORDER BY sort_order, id`
+     FROM board_documents WHERE election_id = ? ORDER BY sort_order, id`,
+    [req.election.id]
   );
   res.render('admin/documents', { title: 'Баримт бичиг — Удирдлага', docs });
 }));
 
-router.get('/documents/new', wrap(async (req, res) => {
-  const [[{ next }]] = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM board_documents');
+router.get('/elections/:eid/documents/new', wrap(async (req, res) => {
+  const [[{ next }]] = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM board_documents WHERE election_id = ?', [req.election.id]);
   res.render('admin/document-form', { title: 'Шинэ баримт бичиг', d: { sort_order: next, status: 'draft' }, errors: [] });
 }));
 
-router.get('/documents/:id', wrap(async (req, res, next) => {
-  const d = await loadDocForm(req.params.id);
+router.get('/elections/:eid/documents/:id', wrap(async (req, res, next) => {
+  const d = await loadDocForm(req.params.id, req.election.id);
   if (!d) return next();
   res.render('admin/document-form', { title: d.title, d, errors: [] });
 }));
 
 async function saveDocument(req, res, id) {
+  const eid = req.election.id;
   const f = documentFields(req.body);
   const errors = [];
   if (!f.title) errors.push('Баримт бичгийн нэрийг бичнэ үү.');
   if (f.status === 'approved' && !f.approved_at) errors.push('Батлагдсан огноог оруулна уу.');
-  if (f.status === 'approved' && !f.content && !req.body.file_data && !(id && (await loadDocForm(id)).file_name)) {
+  if (f.status === 'approved' && !f.content && !req.body.file_data && !(id && (await loadDocForm(id, eid)).file_name)) {
     errors.push('Батлагдсан баримт бичигт агуулга бичих эсвэл файл хавсаргана уу.');
   }
   const file = parseDocFile(req.body.file_data, req.body.file_name);
   if (file && file.error) errors.push(file.error);
   if (errors.length) {
-    const existing = id ? await loadDocForm(id) : {};
+    const existing = id ? await loadDocForm(id, eid) : {};
     return res.status(400).render('admin/document-form', { title: f.title || 'Баримт бичиг', d: { ...existing, ...f, id }, errors });
   }
   let docId = id;
-  if (id) await pool.query('UPDATE board_documents SET ? WHERE id = ?', [f, id]);
-  else [{ insertId: docId }] = await pool.query('INSERT INTO board_documents SET ?', [f]);
+  if (id) await pool.query('UPDATE board_documents SET ? WHERE id = ? AND election_id = ?', [f, id, eid]);
+  else [{ insertId: docId }] = await pool.query('INSERT INTO board_documents SET ?', [{ ...f, election_id: eid }]);
   if (file) {
     await pool.query('UPDATE board_documents SET file_name = ?, file_mime = ?, file_size = ?, file_data = ? WHERE id = ?',
       [file.name, file.mime, file.buf.length, file.buf, docId]);
@@ -426,25 +472,26 @@ async function saveDocument(req, res, id) {
   }
   if (f.status === 'approved') {
     flash(req, 'success', `"${f.title}" батлагдсан баримт бичгээр нийтлэгдлээ.`);
-  } else if (f.content || file || (id && (await loadDocForm(docId)).file_name)) {
+  } else if (f.content || file || (id && (await loadDocForm(docId, eid)).file_name)) {
     flash(req, 'warn', `"${f.title}" хадгалагдлаа. Төлөв нь "Батлагдаагүй" тул эцсийн хувилбар нийтэд харагдахгүй — нийтлэх бол "Батлагдсан" болгоно уу.`);
   } else {
     flash(req, 'success', `"${f.title}" хадгалагдлаа.`);
   }
-  res.redirect('/admin/documents');
+  res.redirect(`/admin/elections/${eid}/documents`);
 }
 
-router.post('/documents', wrap(async (req, res) => saveDocument(req, res, null)));
-router.post('/documents/:id', wrap(async (req, res, next) => {
-  if (!(await loadDocForm(req.params.id))) return next();
+router.post('/elections/:eid/documents', wrap(async (req, res) => saveDocument(req, res, null)));
+router.post('/elections/:eid/documents/:id', wrap(async (req, res, next) => {
+  if (!(await loadDocForm(req.params.id, req.election.id))) return next();
   return saveDocument(req, res, Number(req.params.id));
 }));
 
 // Баримт бичгийн төсөл оруулах / солих / устгах
-router.post('/documents/:id/draft', wrap(async (req, res, next) => {
-  const d = await loadDocForm(req.params.id);
+router.post('/elections/:eid/documents/:id/draft', wrap(async (req, res, next) => {
+  const d = await loadDocForm(req.params.id, req.election.id);
   if (!d) return next();
-  const back = req.body.back === 'form' ? `/admin/documents/${d.id}` : '/admin/documents';
+  const base = `/admin/elections/${req.election.id}/documents`;
+  const back = req.body.back === 'form' ? `${base}/${d.id}` : base;
   if (req.body.action === 'delete') {
     await pool.query(
       'UPDATE board_documents SET draft_name = NULL, draft_mime = NULL, draft_size = NULL, draft_data = NULL, draft_at = NULL WHERE id = ?',
@@ -466,181 +513,309 @@ router.post('/documents/:id/draft', wrap(async (req, res, next) => {
   res.redirect(back);
 }));
 
-router.post('/documents/:id/delete', wrap(async (req, res) => {
-  await pool.query('DELETE FROM board_documents WHERE id = ?', [req.params.id]);
+router.post('/elections/:eid/documents/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM board_documents WHERE id = ? AND election_id = ?', [req.params.id, req.election.id]);
   flash(req, 'success', 'Баримт бичиг устгагдлаа.');
-  res.redirect('/admin/documents');
+  res.redirect(`/admin/elections/${req.election.id}/documents`);
 }));
 
-// ---------- Удирдах зөвлөл ----------
-const board = require('../board');
+// ----- Томилгоо (нэг гишүүн олон албан тушаал хашиж болно) -----
+const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '');
+const namesOf = (list) => list.map((p) => `${p.surname} ${p.name}`).join(', ');
 
-function boardFields(body) {
-  const post = board.POST_KEYS.includes(body.post) ? body.post : 'unassigned';
-  const appointed = /^\d{4}-\d{2}-\d{2}$/.test(body.appointed_at || '') ? body.appointed_at : null;
-  return {
-    post,
-    position: board.POST_BY_KEY[post].label,
-    appointed_at: post === 'unassigned' ? null : appointed,
-    decision: post === 'unassigned' ? null : clean(body.decision, 200) || null,
-    responsibilities: clean(body.responsibilities, 3000) || null,
-    term: clean(body.term, 50) || null,
-  };
-}
-
-// Дарга, нарийн бичиг, санхүүч тус бүр ганц хүн: шинээр томилоход өмнөх хүн "Зөвлөлийн гишүүн" болно.
-async function vacateSinglePost(post, exceptId) {
-  const p = board.POST_BY_KEY[post];
-  if (!p || !p.single) return [];
-  const [prev] = await pool.query(
-    `SELECT b.id, u.surname, u.name FROM board_members b JOIN users u ON u.id = b.user_id WHERE b.post = ? AND b.id <> ?`,
-    [post, exceptId || 0]
-  );
-  if (prev.length) {
-    await pool.query("UPDATE board_members SET post = 'member', position = ? WHERE id IN (?)",
-      [board.POST_BY_KEY.member.label, prev.map((r) => r.id)]);
+// Томилгоо нэмэх / засах. Орон тоо 1 албан тушаалд өөр хүн томилбол өмнөх хүний тэр томилгоо цуцлагдана
+// (өөр албан тушаалгүй үлдвэл чөлөөтэй "Гишүүн" албан тушаалд, эсвэл "Томилогдоогүй" болно).
+async function saveAppointment(e, memberId, body, apptId) {
+  const posts = await board.loadPosts(e.id);
+  const p = posts.find((x) => x.id === Number(body.post_id));
+  if (!p) return { error: 'Албан тушаал сонгоно уу.' };
+  const [[dup]] = await pool.query('SELECT id FROM board_appointments WHERE member_id = ? AND post_id = ? AND id <> ?', [memberId, p.id, apptId || 0]);
+  if (dup) return { error: `Энэ гишүүн "${p.label}" албан тушаалд аль хэдийн томилогдсон байна.` };
+  if (p.seats > 1) {
+    const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM board_appointments WHERE post_id = ? AND id <> ?', [p.id, apptId || 0]);
+    if (n >= p.seats) return { error: `"${p.label}" албан тушаалын орон тоо (${p.seats}) дүүрсэн байна.` };
   }
-  return prev;
+  const f = { post_id: p.id, appointed_at: isDate(body.appointed_at) ? body.appointed_at : null, decision: clean(body.decision, 200) || null };
+  if (apptId) await pool.query('UPDATE board_appointments SET ? WHERE id = ?', [f, apptId]);
+  else await pool.query('INSERT INTO board_appointments SET ?', [{ member_id: memberId, ...f }]);
+  if (body.term !== undefined) await pool.query('UPDATE board_members SET term = ? WHERE id = ?', [clean(body.term, 50) || null, memberId]);
+
+  let vacated = [];
+  if (p.seats === 1) {
+    [vacated] = await pool.query(
+      `SELECT a.id, a.member_id, u.surname, u.name FROM board_appointments a
+       JOIN board_members b ON b.id = a.member_id JOIN users u ON u.id = b.user_id
+       WHERE a.post_id = ? AND a.member_id <> ?`,
+      [p.id, memberId]
+    );
+    for (const v of vacated) {
+      await pool.query('DELETE FROM board_appointments WHERE id = ?', [v.id]);
+      const [[{ left }]] = await pool.query('SELECT COUNT(*) AS `left` FROM board_appointments WHERE member_id = ?', [v.member_id]);
+      if (!left) {
+        const fb = board.fallbackPost(await board.loadPosts(e.id));
+        if (fb && fb.id !== p.id) await pool.query('INSERT INTO board_appointments (member_id, post_id) VALUES (?, ?)', [v.member_id, fb.id]);
+      }
+      await board.syncMember(v.member_id);
+    }
+  }
+  await board.syncMember(memberId);
+  return { post: p, vacated };
+}
+const vacatedMsg = (r) => (r.vacated && r.vacated.length ? ` ${namesOf(r.vacated)} "${r.post.label}" албан тушаалаас чөлөөлөгдлөө.` : '');
+
+// Сонгуулийн ялагчдын user_id
+async function winnerIds(e) {
+  if (e.phase !== 'closed') return [];
+  const stats = await electionStats(e);
+  const ids = (stats.candidates || []).filter((c) => c.winner).map((c) => c.id);
+  if (!ids.length) return [];
+  const [rows] = await pool.query('SELECT user_id FROM candidates WHERE id IN (?)', [ids]);
+  return rows.map((r) => r.user_id);
 }
 
-router.get('/board', wrap(async (req, res) => {
+router.get('/elections/:eid/board', wrap(async (req, res) => {
+  const e = req.election;
   const [members] = await pool.query(
     `SELECT b.*, DATE_FORMAT(b.appointed_at, '%Y-%m-%d') AS appointed_at, u.surname, u.name, u.photo_v, s.name AS school_name
      FROM board_members b JOIN users u ON u.id = b.user_id LEFT JOIN schools s ON s.id = u.school_id
-     ORDER BY ${board.POST_ORDER_SQL}, u.name`
+     WHERE b.election_id = ?
+     ORDER BY ${board.POST_ORDER_SQL}, u.name`,
+    [e.id]
   );
   const [candidates] = await pool.query(
     `SELECT u.id, u.surname, u.name, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
-     WHERE u.status = 'approved' AND u.id NOT IN (SELECT user_id FROM board_members)
-     ORDER BY u.name, u.surname`
+     WHERE u.status = 'approved' AND u.id NOT IN (SELECT user_id FROM board_members WHERE election_id = ?)
+     ORDER BY u.name, u.surname`,
+    [e.id]
   );
-  const [closed] = await pool.query("SELECT id, title, voting_ended_at FROM elections WHERE phase = 'closed' ORDER BY voting_ended_at DESC");
+  const winners = await winnerIds(e);
+  const inBoard = new Set(members.map((m) => m.user_id));
   res.render('admin/board', {
-    title: 'Удирдах зөвлөл — Удирдлага', members, candidates, closed, POSTS: board.POSTS, today: h.ubInput(new Date()).slice(0, 10),
+    title: 'Томилгоо — Удирдлага', members, candidates, posts: await board.loadPosts(e.id), appts: await board.loadAppointments(e.id),
+    winners: winners.length, notImported: winners.filter((id) => !inBoard.has(id)).length, winnerIds: winners,
+    today: h.ubInput(new Date()).slice(0, 10),
   });
 }));
 
-router.post('/board', wrap(async (req, res) => {
-  const userId = Number(req.body.user_id);
-  const [[u]] = await pool.query("SELECT id, surname, name FROM users WHERE id = ? AND status = 'approved'", [userId]);
+router.post('/elections/:eid/board', wrap(async (req, res) => {
+  const e = req.election;
+  const back = `/admin/elections/${e.id}/board`;
+  if (e.phase !== 'closed') {
+    flash(req, 'error', 'Сонгууль дууссаны дараа зөвлөлийн гишүүдийг нэмнэ.');
+    return res.redirect(back);
+  }
+  const [[u]] = await pool.query("SELECT id, surname, name FROM users WHERE id = ? AND status = 'approved'", [Number(req.body.user_id)]);
   if (!u) {
     flash(req, 'error', 'Баталгаажсан төгсөгч сонгоно уу.');
-    return res.redirect('/admin/board');
+    return res.redirect(back);
   }
-  const f = boardFields(req.body);
+  let memberId;
   try {
-    const [r] = await pool.query('INSERT INTO board_members SET ?', [{ user_id: u.id, ...f }]);
-    const prev = await vacateSinglePost(f.post, r.insertId);
-    flash(req, 'success', `${u.surname} ${u.name} зөвлөлд нэмэгдлээ.` + (prev.length ? ` ${prev.map((p) => `${p.surname} ${p.name}`).join(', ')} "Зөвлөлийн гишүүн" боллоо.` : ''));
+    [{ insertId: memberId }] = await pool.query('INSERT INTO board_members (user_id, election_id, post, position) VALUES (?, ?, ?, ?)',
+      [u.id, e.id, board.UNASSIGNED, board.UNASSIGNED_LABEL]);
   } catch (err) {
     if (err.code !== 'ER_DUP_ENTRY') throw err;
-    flash(req, 'warn', 'Энэ төгсөгч зөвлөлд аль хэдийн байна.');
+    flash(req, 'warn', 'Энэ төгсөгч энэ сонгуулийн зөвлөлд аль хэдийн байна.');
+    return res.redirect(back);
   }
-  res.redirect('/admin/board');
+  let msg = `${u.surname} ${u.name} зөвлөлд нэмэгдлээ.`;
+  if (Number(req.body.post_id)) {
+    const r = await saveAppointment(e, memberId, req.body, null);
+    msg += r.error ? ` Томилгоо хийгдсэнгүй: ${r.error}` : vacatedMsg(r);
+  }
+  flash(req, 'success', msg);
+  res.redirect(back);
 }));
 
-// Дууссан сонгуулийн сонгогдсон гишүүдийг зөвлөлд нэмэх (албан тушаалгүйгээр — хурлаар томилно)
-router.post('/board/import', wrap(async (req, res) => {
-  const [[e]] = await pool.query("SELECT * FROM elections WHERE id = ? AND phase = 'closed'", [req.body.election_id]);
-  if (!e) {
-    flash(req, 'error', 'Дууссан сонгууль сонгоно уу.');
-    return res.redirect('/admin/board');
+// Энэ сонгуулиар сонгогдсон гишүүдийг зөвлөлд нэмэх (албан тушаалгүйгээр — хурлаар томилно)
+router.post('/elections/:eid/board/import', wrap(async (req, res) => {
+  const e = req.election;
+  const back = `/admin/elections/${e.id}/board`;
+  if (e.phase !== 'closed') {
+    flash(req, 'error', 'Сонгууль дуусаагүй байна.');
+    return res.redirect(back);
   }
-  const stats = await electionStats(e);
-  const winners = (stats.candidates || []).filter((c) => c.winner);
+  const winners = await winnerIds(e);
   let added = 0;
-  for (const w of winners) {
-    const [[cand]] = await pool.query('SELECT user_id FROM candidates WHERE id = ?', [w.id]);
+  for (const userId of winners) {
     const [r] = await pool.query(
-      "INSERT IGNORE INTO board_members (user_id, post, position, election_id) VALUES (?, 'unassigned', ?, ?)",
-      [cand.user_id, board.POST_BY_KEY.unassigned.label, e.id]
+      'INSERT IGNORE INTO board_members (user_id, post, position, election_id) VALUES (?, ?, ?, ?)',
+      [userId, board.UNASSIGNED, board.UNASSIGNED_LABEL, e.id]
     );
     added += r.affectedRows;
   }
-  flash(req, 'success', `"${e.title}"-оос ${winners.length} сонгогдсон гишүүн байна: ${added} нь шинээр нэмэгдлээ. Зөвлөлийн хурлын шийдвэрээр албан тушаалд томилно уу.`);
-  res.redirect('/admin/board');
+  flash(req, 'success', `${winners.length} сонгогдсон гишүүнээс ${added} нь шинээр нэмэгдлээ. Зөвлөлийн хурлын шийдвэрээр албан тушаалд томилно уу.`);
+  res.redirect(back);
 }));
 
-// ---------- Зөвлөлийн бүтэц ----------
-router.get('/board/structure', wrap(async (req, res) => {
-  const { tree, flat } = await board.loadStructure();
-  const [members] = await pool.query(
-    `SELECT b.id, b.post, b.position, u.surname, u.name FROM board_members b JOIN users u ON u.id = b.user_id
-     ORDER BY ${board.POST_ORDER_SQL}, u.name`
-  );
-  res.render('admin/board-structure', { title: 'Зөвлөлийн бүтэц — Удирдлага', tree, flat, members });
+async function boardMember(req) {
+  const [[m]] = await pool.query('SELECT id FROM board_members WHERE id = ? AND election_id = ?', [req.params.bid, req.election.id]);
+  return m || null;
+}
+
+// Томилгоо нэмэх
+router.post('/elections/:eid/board/:bid/appoint', wrap(async (req, res, next) => {
+  const m = await boardMember(req);
+  if (!m) return next();
+  const r = await saveAppointment(req.election, m.id, req.body, null);
+  flash(req, r.error ? 'error' : 'success', r.error || `"${r.post.label}" албан тушаалд томилогдлоо.` + vacatedMsg(r));
+  res.redirect(`/admin/elections/${req.election.id}/board#m${m.id}`);
+}));
+
+// Томилгоо засах
+router.post('/elections/:eid/board/:bid/appoint/:aid', wrap(async (req, res, next) => {
+  const m = await boardMember(req);
+  if (!m) return next();
+  const [[a]] = await pool.query('SELECT id FROM board_appointments WHERE id = ? AND member_id = ?', [req.params.aid, m.id]);
+  if (!a) return next();
+  const r = await saveAppointment(req.election, m.id, req.body, a.id);
+  flash(req, r.error ? 'error' : 'success', r.error || 'Томилгоо хадгалагдлаа.' + vacatedMsg(r));
+  res.redirect(`/admin/elections/${req.election.id}/board#m${m.id}`);
+}));
+
+// Томилгоо цуцлах (гишүүн зөвлөлд үлдэнэ)
+router.post('/elections/:eid/board/:bid/appoint/:aid/delete', wrap(async (req, res, next) => {
+  const m = await boardMember(req);
+  if (!m) return next();
+  await pool.query('DELETE FROM board_appointments WHERE id = ? AND member_id = ?', [req.params.aid, m.id]);
+  await board.syncMember(m.id);
+  flash(req, 'success', 'Томилгоо цуцлагдлаа.');
+  res.redirect(`/admin/elections/${req.election.id}/board#m${m.id}`);
+}));
+
+router.post('/elections/:eid/board/:bid/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM board_members WHERE id = ? AND election_id = ?', [req.params.bid, req.election.id]);
+  flash(req, 'success', 'Зөвлөлөөс хасагдлаа.');
+  res.redirect(`/admin/elections/${req.election.id}/board`);
+}));
+
+// ----- Албан тушаал -----
+router.get('/elections/:eid/posts', wrap(async (req, res) => {
+  const posts = await board.loadPosts(req.election.id);
+  const total = posts.reduce((s, p) => s + (p.seats || 0), 0);
+  res.render('admin/board-posts', { title: 'Албан тушаал — Удирдлага', posts, total, KINDS: board.POST_KINDS });
+}));
+
+async function savePost(req, res, existing) {
+  const e = req.election;
+  const back = `/admin/elections/${e.id}/posts` + (existing ? `#p${existing.id}` : '');
+  const fail = (msg) => { flash(req, 'error', msg); res.redirect(back); };
+  const label = clean(req.body.label, 100);
+  if (!label) return fail('Албан тушаалын нэрийг бичнэ үү.');
+  if (label.toLowerCase() === board.UNASSIGNED_LABEL.toLowerCase()) return fail(`"${board.UNASSIGNED_LABEL}" нь системийн төлөв тул өөр нэр сонгоно уу.`);
+  const kind = board.POST_KIND_LABELS[req.body.kind] ? req.body.kind : null;
+  if (!kind) return fail('Албан тушаалын төрлийг сонгоно уу.');
+  // Дарга, удирдлага: орон тоо автоматаар 1. Гишүүн: орон тоог заавал оруулна.
+  let seats = 1;
+  if (kind === 'member') {
+    seats = parseInt(req.body.seats, 10);
+    if (!(seats >= 1 && seats <= 999)) return fail('Гишүүн төрлийн орон тоог оруулна уу.');
+  }
+  const exceptId = existing ? existing.id : 0;
+  const [[dup]] = await pool.query('SELECT id FROM board_posts WHERE election_id = ? AND LOWER(label) = LOWER(?) AND id <> ?', [e.id, label, exceptId]);
+  if (dup) return fail(`"${label}" нэртэй албан тушаал аль хэдийн байна.`);
+  if (kind === 'head') {
+    const [[head]] = await pool.query("SELECT label FROM board_posts WHERE election_id = ? AND kind = 'head' AND id <> ?", [e.id, exceptId]);
+    if (head) return fail(`"Дарга" төрлийн албан тушаал нэг л байна ("${head.label}").`);
+  }
+  // Нийт орон тоо = сонгуулиар сонгох гишүүдийн тоо
+  const [[{ total }]] = await pool.query('SELECT COALESCE(SUM(seats), 0) AS total FROM board_posts WHERE election_id = ? AND id <> ?', [e.id, exceptId]);
+  if (Number(total) + seats > e.seats) {
+    return fail(`Нийт орон тоо сонгуулиар сонгох гишүүдийн тооноос (${e.seats}) хэтэрнэ: бусад албан тушаал ${total}, энэ ${seats}.`);
+  }
+  const fields = { label, kind, seats };
+  if (existing) {
+    await pool.query('UPDATE board_posts SET ? WHERE id = ?', [fields, existing.id]);
+    // Томилогдсон гишүүдийн харагдах нэрийг шинэчилнэ
+    const [holders] = await pool.query('SELECT member_id FROM board_appointments WHERE post_id = ?', [existing.id]);
+    for (const x of holders) await board.syncMember(x.member_id);
+    let msg = 'Албан тушаал хадгалагдлаа.';
+    const n = holders.length;
+    if (n > seats) msg += ` Анхаар: орон тоо ${seats} боловч ${n} хүн томилогдсон байна — томилгоогоо засна уу.`;
+    flash(req, 'success', msg);
+    return res.redirect(back);
+  }
+  const [r] = await pool.query('INSERT INTO board_posts SET ?', [{ election_id: e.id, code: board.newPostCode(), ...fields }]);
+  flash(req, 'success', `"${label}" албан тушаал нэмэгдлээ.`);
+  res.redirect(`/admin/elections/${e.id}/posts#p${r.insertId}`);
+}
+
+router.post('/elections/:eid/posts', wrap(async (req, res) => savePost(req, res, null)));
+
+router.post('/elections/:eid/posts/:pid', wrap(async (req, res, next) => {
+  const [[p]] = await pool.query('SELECT * FROM board_posts WHERE id = ? AND election_id = ?', [req.params.pid, req.election.id]);
+  if (!p) return next();
+  return savePost(req, res, p);
+}));
+
+router.post('/elections/:eid/posts/:pid/delete', wrap(async (req, res) => {
+  const [[p]] = await pool.query('SELECT * FROM board_posts WHERE id = ? AND election_id = ?', [req.params.pid, req.election.id]);
+  if (p) {
+    const [holders] = await pool.query('SELECT member_id FROM board_appointments WHERE post_id = ?', [p.id]);
+    await pool.query('DELETE FROM board_appointments WHERE post_id = ?', [p.id]);
+    const r = { affectedRows: holders.length };
+    // Бүтцэд байсан бол: доорх албан тушаалууд нэг түвшин дээш шилжээд, нэгж нь устна
+    const [units] = await pool.query('SELECT id, parent_id FROM board_units WHERE post_id = ?', [p.id]);
+    for (const u of units) {
+      await pool.query('UPDATE board_units SET parent_id = ? WHERE parent_id = ?', [u.parent_id, u.id]);
+      await pool.query('DELETE FROM board_units WHERE id = ?', [u.id]);
+    }
+    await pool.query('DELETE FROM board_posts WHERE id = ?', [p.id]);
+    for (const x of holders) await board.syncMember(x.member_id);
+    flash(req, 'success', `"${p.label}" устгагдлаа.` + (r.affectedRows ? ` ${r.affectedRows} гишүүний энэ томилгоо цуцлагдлаа.` : ''));
+  }
+  res.redirect(`/admin/elections/${req.election.id}/posts`);
+}));
+
+// ----- Бүтэц -----
+router.get('/elections/:eid/structure', wrap(async (req, res) => {
+  const { tree, flat } = await board.loadStructure(req.election.id);
+  res.render('admin/board-structure', { title: 'Зөвлөлийн бүтэц — Удирдлага', tree, flat, posts: await board.loadPosts(req.election.id) });
 }));
 
 async function saveUnit(req, res, id) {
-  const back = '/admin/board/structure' + (id ? `#u${id}` : '');
-  const name = clean(req.body.name, 150);
-  if (!name) {
-    flash(req, 'error', 'Нэгжийн нэрийг бичнэ үү.');
-    return res.redirect(back);
-  }
-  const { flat } = await board.loadStructure();
+  const e = req.election;
+  const back = `/admin/elections/${e.id}/structure` + (id ? `#u${id}` : '');
+  const fail = (msg) => { flash(req, 'error', msg); res.redirect(back); };
+  const [[post]] = await pool.query('SELECT id, label FROM board_posts WHERE id = ? AND election_id = ?', [Number(req.body.post_id) || 0, e.id]);
+  if (!post) return fail('Албан тушаал сонгоно уу. Албан тушаалыг «Албан тушаал» хэсэгт үүсгэнэ.');
+  const [[used]] = await pool.query('SELECT id FROM board_units WHERE post_id = ? AND id <> ?', [post.id, id || 0]);
+  if (used) return fail(`"${post.label}" бүтцэд аль хэдийн орсон байна.`);
+  const { flat } = await board.loadStructure(e.id);
   const byId = new Map(flat.map((u) => [u.id, u]));
   let parent = Number(req.body.parent_id) || null;
   if (parent && !byId.has(parent)) parent = null;
   if (id && parent && (parent === id || byId.get(id).descendants.includes(parent))) {
-    flash(req, 'error', 'Нэгжийг өөрийнхөө эсвэл доод нэгжийнхээ доор оруулж болохгүй.');
-    return res.redirect(back);
+    return fail('Албан тушаалыг өөрийнхөө эсвэл доод албан тушаалынхаа доор оруулж болохгүй.');
   }
-  const [bm] = await pool.query('SELECT id FROM board_members');
-  const valid = new Set(bm.map((m) => m.id));
-  let head = Number(req.body.head_member_id) || null;
-  if (head && !valid.has(head)) head = null;
-  const memberIds = [...new Set([].concat(req.body.member_ids ?? []).map(Number))].filter((m) => valid.has(m));
-  if (head && !memberIds.includes(head)) memberIds.unshift(head);
   const order = parseInt(req.body.sort_order, 10);
   const fields = {
-    name, parent_id: parent, head_member_id: head,
-    description: clean(req.body.description, 500) || null,
+    election_id: e.id, post_id: post.id, name: post.label, parent_id: parent,
     sort_order: Number.isFinite(order) ? Math.max(0, Math.min(order, 9999)) : 100,
   };
   if (id) await pool.query('UPDATE board_units SET ? WHERE id = ?', [fields, id]);
   else id = (await pool.query('INSERT INTO board_units SET ?', [fields]))[0].insertId;
-  await pool.query('DELETE FROM board_unit_members WHERE unit_id = ?', [id]);
-  if (memberIds.length) {
-    await pool.query('INSERT INTO board_unit_members (unit_id, member_id) VALUES ?', [memberIds.map((m) => [id, m])]);
-  }
   flash(req, 'success', 'Бүтэц хадгалагдлаа.');
-  res.redirect(`/admin/board/structure#u${id}`);
+  res.redirect(`/admin/elections/${e.id}/structure#u${id}`);
 }
 
-router.post('/board/structure', wrap(async (req, res) => saveUnit(req, res, null)));
+router.post('/elections/:eid/structure', wrap(async (req, res) => saveUnit(req, res, null)));
 
-router.post('/board/structure/:uid', wrap(async (req, res, next) => {
-  const [[u]] = await pool.query('SELECT id FROM board_units WHERE id = ?', [req.params.uid]);
+router.post('/elections/:eid/structure/:uid', wrap(async (req, res, next) => {
+  const [[u]] = await pool.query('SELECT id FROM board_units WHERE id = ? AND election_id = ?', [req.params.uid, req.election.id]);
   if (!u) return next();
   return saveUnit(req, res, u.id);
 }));
 
-router.post('/board/structure/:uid/delete', wrap(async (req, res) => {
-  const [[u]] = await pool.query('SELECT id, parent_id FROM board_units WHERE id = ?', [req.params.uid]);
+router.post('/elections/:eid/structure/:uid/delete', wrap(async (req, res) => {
+  const [[u]] = await pool.query('SELECT id, parent_id FROM board_units WHERE id = ? AND election_id = ?', [req.params.uid, req.election.id]);
   if (u) {
-    // Дэд нэгжүүдийг устгахгүй — нэг түвшин дээш шилжүүлнэ.
+    // Доорх албан тушаалуудыг устгахгүй — нэг түвшин дээш шилжүүлнэ.
     await pool.query('UPDATE board_units SET parent_id = ? WHERE parent_id = ?', [u.parent_id, u.id]);
     await pool.query('DELETE FROM board_units WHERE id = ?', [u.id]);
-    flash(req, 'success', 'Нэгж устгагдлаа.');
+    flash(req, 'success', 'Бүтцээс хасагдлаа.');
   }
-  res.redirect('/admin/board/structure');
-}));
-
-router.post('/board/:bid', wrap(async (req, res, next) => {
-  const [[m]] = await pool.query('SELECT id FROM board_members WHERE id = ?', [req.params.bid]);
-  if (!m) return next();
-  const f = boardFields(req.body);
-  await pool.query('UPDATE board_members SET ? WHERE id = ?', [f, m.id]);
-  const prev = await vacateSinglePost(f.post, m.id);
-  flash(req, 'success', 'Томилгоо хадгалагдлаа.' + (prev.length ? ` ${prev.map((p) => `${p.surname} ${p.name}`).join(', ')} "Зөвлөлийн гишүүн" боллоо.` : ''));
-  res.redirect(`/admin/board#m${m.id}`);
-}));
-
-router.post('/board/:bid/delete', wrap(async (req, res) => {
-  await pool.query('DELETE FROM board_members WHERE id = ?', [req.params.bid]);
-  flash(req, 'success', 'Зөвлөлөөс хасагдлаа.');
-  res.redirect('/admin/board');
+  res.redirect(`/admin/elections/${req.election.id}/structure`);
 }));
 
 // ---------- Сургуулиуд ----------
@@ -712,6 +887,7 @@ function electionFields(body) {
     description: clean(body.description, 10000) || null,
     seats,
     max_choices: maxChoices,
+    min_turnout: Math.min(Math.max(Number.isFinite(parseInt(body.min_turnout, 10)) ? parseInt(body.min_turnout, 10) : 50, 0), 100),
     show_live_results: body.show_live_results ? 1 : 0,
     auto_schedule: body.auto_schedule ? 1 : 0,
   };
@@ -735,8 +911,31 @@ async function renderManage(req, res, e, extra = {}) {
     [e.id]
   );
   const [[{ ballots }]] = await pool.query('SELECT COUNT(*) AS ballots FROM ballots WHERE election_id = ?', [e.id]);
+  // Дууссан сонгуулийн үр дүн: сонгогдсон гишүүд + зөвлөлд орсон / томилогдсон эсэх
+  let results = null;
+  if (e.phase === 'closed') {
+    const stats = await electionStats(e);
+    const winners = (stats.candidates || []).filter((c) => c.winner);
+    if (winners.length) {
+      const [rows] = await pool.query(
+        `SELECT c.id AS cid, u.id AS user_id, u.surname, u.name AS first_name, u.phone, u.photo_v, b.id AS member_id, b.post, b.position
+         FROM candidates c JOIN users u ON u.id = c.user_id
+         LEFT JOIN board_members b ON b.user_id = c.user_id AND b.election_id = c.election_id
+         WHERE c.id IN (?)`,
+        [winners.map((w) => w.id)]
+      );
+      const byId = new Map(rows.map((r) => [r.cid, r]));
+      for (const w of winners) Object.assign(w, byId.get(w.id));
+    }
+    results = {
+      winners, tie: stats.tie, tiedOut: (stats.candidates || []).filter((c) => c.tiedOut),
+      ballots: stats.ballots, eligible: stats.eligible, turnout: stats.turnout,
+      minTurnout: stats.minTurnout, quorumMet: stats.quorumMet, invalid: stats.invalid,
+    };
+  }
   res.status(extra.errors && extra.errors.length ? 400 : 200).render('admin/election-manage', {
-    title: e.title, e, form: extra.form || e, errors: extra.errors || [], candidates, ballots, PHASES, PHASE_LABELS,
+    title: e.title, e, form: extra.form || e, errors: extra.errors || [], candidates, ballots, results, PHASES, PHASE_LABELS,
+    rd: await sched.readiness(e), blocked: await sched.blockReason(e),
     auto: sched.hasSchedule(e), deadline: sched.nextDeadline(e), times: sched.stepTimes(e),
   });
 }
@@ -749,7 +948,9 @@ router.get('/elections', wrap(async (req, res) => {
       (SELECT COUNT(*) FROM ballots b WHERE b.election_id = e.id) AS ballot_count
      FROM elections e ORDER BY e.created_at DESC`
   );
-  res.render('admin/elections', { title: 'Сонгууль — Админ', elections });
+  const cur = await board.currentElection();
+  for (const e of elections) e.status = board.electionStatus(e, cur);
+  res.render('admin/elections', { title: 'Удирдах зөвлөл — Сонгууль', elections });
 }));
 
 router.get('/elections/new', (req, res) => {
@@ -761,6 +962,7 @@ router.get('/elections/new', (req, res) => {
       description: '',
       seats: 7,
       max_choices: 7,
+      min_turnout: 50,
       show_live_results: 1,
       auto_schedule: 0,
     },
@@ -772,10 +974,12 @@ router.post('/elections', wrap(async (req, res) => {
   if (errors.length) {
     return res.status(400).render('admin/election-form', { title: 'Шинэ сонгууль', e: f, errors });
   }
+  f.number = await board.nextElectionNumber(h.ubInput(new Date()).slice(0, 4));
   const [r] = await pool.query('INSERT INTO elections SET ?', [f]);
-  flash(req, 'success', f.auto_schedule
-    ? 'Сонгууль үүслээ. Хуваарийн дагуу шатууд автоматаар солигдоно.'
-    : 'Сонгууль үүслээ. Бэлэн болмогц "Нэр дэвшүүлэх" шатыг эхлүүлнэ үү.');
+  await board.seedElection({ id: r.insertId, seats: f.seats });
+  flash(req, 'success', `№ ${f.number} сонгууль үүслээ. ` + (f.auto_schedule
+    ? 'Хуваарийн дагуу шатууд автоматаар солигдоно.'
+    : 'Бэлэн болмогц "Нэр дэвшүүлэх" шатыг эхлүүлнэ үү.'));
   res.redirect(`/admin/elections/${r.insertId}`);
 }));
 
@@ -789,6 +993,10 @@ router.get('/elections/:id', wrap(async (req, res, next) => {
 router.post('/elections/:id', wrap(async (req, res, next) => {
   const [[e]] = await pool.query('SELECT * FROM elections WHERE id = ?', [req.params.id]);
   if (!e) return next();
+  if (e.phase === 'closed') {
+    flash(req, 'error', 'Сонгуулийн үр дүн гарсан тул тохиргоог өөрчлөх боломжгүй.');
+    return res.redirect(`/admin/elections/${e.id}`);
+  }
   const { f, errors } = electionFields(req.body);
   if (errors.length) return renderManage(req, res, e, { form: { ...e, ...f }, errors });
   await pool.query('UPDATE elections SET ? WHERE id = ?', [f, e.id]);
@@ -816,12 +1024,12 @@ router.post('/elections/:id/phase', wrap(async (req, res, next) => {
     flash(req, 'error', 'Санал өгөгдсөн тул өмнөх шат руу буцах боломжгүй.');
     return res.redirect(back);
   }
+  const gate = sched.forwardGate(e.phase, target, await sched.readiness(e));
+  if (gate) {
+    flash(req, 'error', gate);
+    return res.redirect(back);
+  }
   if (target === 'voting') {
-    const [[{ n }]] = await pool.query("SELECT COUNT(*) AS n FROM candidates WHERE election_id = ? AND status = 'accepted'", [e.id]);
-    if (n === 0) {
-      flash(req, 'error', 'Зөвшөөрсөн нэр дэвшигч байхгүй тул санал хураалт эхлүүлэх боломжгүй.');
-      return res.redirect(back);
-    }
     await pool.query(
       'UPDATE elections SET phase = ?, voting_started_at = COALESCE(voting_started_at, NOW()), voting_ended_at = NULL, eligible_count = NULL WHERE id = ?',
       [target, e.id]
@@ -847,12 +1055,10 @@ router.post('/elections/:id/advance', wrap(async (req, res, next) => {
   const target = { draft: 'nomination', nomination: 'acceptance', acceptance: 'voting', voting: 'closed' }[e.phase];
   if (!target) return res.redirect(back);
 
-  if (target === 'voting') {
-    const [[{ n }]] = await pool.query("SELECT COUNT(*) AS n FROM candidates WHERE election_id = ? AND status = 'accepted'", [e.id]);
-    if (n === 0) {
-      flash(req, 'error', 'Зөвшөөрсөн нэр дэвшигч байхгүй тул санал хураалт эхлүүлэх боломжгүй.');
-      return res.redirect(back);
-    }
+  const gate = sched.forwardGate(e.phase, target, await sched.readiness(e));
+  if (gate) {
+    flash(req, 'error', gate);
+    return res.redirect(back);
   }
   // MySQL DATETIME миллисекундийг дээш тоймлодог тул бүхэл секунд хүртэл тайрна.
   const now = new Date(Math.floor(Date.now() / 1000) * 1000);
@@ -896,6 +1102,9 @@ router.post('/elections/:id/candidates/:cid', wrap(async (req, res) => {
 }));
 
 router.post('/elections/:id/delete', wrap(async (req, res) => {
+  for (const t of ['board_units', 'board_members', 'board_posts', 'board_documents']) {
+    await pool.query(`DELETE FROM ${t} WHERE election_id = ?`, [req.params.id]);
+  }
   await pool.query('DELETE FROM elections WHERE id = ?', [req.params.id]);
   flash(req, 'success', 'Сонгууль устгагдлаа.');
   res.redirect('/admin/elections');

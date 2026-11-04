@@ -49,6 +49,16 @@ app.use(
   })
 );
 
+// Redirect хийхээс өмнө session-ийг (flash, нэвтрэлт) хадгалж дуусгана — эс бөгөөс дараагийн хүсэлт хуучин session уншина.
+app.use((req, res, next) => {
+  const redirect = res.redirect.bind(res);
+  res.redirect = (...args) => {
+    if (!req.session) return redirect(...args);
+    req.session.save(() => redirect(...args));
+  };
+  next();
+});
+
 app.use(loadUser);
 app.use(locals);
 app.use(csrfCheck);

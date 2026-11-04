@@ -15,17 +15,18 @@
 
   <div class="card glow" style="margin-bottom:1.25rem">
     <div class="row between">
-      <h2 style="margin:0"><%= e.title %></h2>
+      <h2 style="margin:0">Сонгуулийн явц</h2>
       <a class="btn btn-sm" href="/elections/<%= e.id %>">Нийтийн хуудас →</a>
     </div>
     <p class="muted" style="margin-top:.5rem">Одоогийн шат: <span class="badge grad"><%= PHASE_LABELS[e.phase] %></span> — <%= hint[e.phase] %></p>
-    <p class="small muted">Нэр дэвшигч: <%= candidates.length %> · Зөвшөөрсөн: <%= candidates.filter(function (c) { return c.status === 'accepted'; }).length %> · Санал өгсөн: <%= ballots %></p>
-    <% if (e.phase === 'closed' && can('manage_board')) { %>
-      <form method="post" action="/admin/board/import" class="inline" data-confirm="Энэ сонгуулиар сонгогдсон гишүүдийг удирдах зөвлөлд нэмэх үү?">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="hidden" name="election_id" value="<%= e.id %>">
-        <button class="btn btn-sm btn-primary" type="submit">👥 Сонгогдсон гишүүдийг зөвлөлд нэмэх</button>
-      </form>
+    <p class="small muted">
+      Нэр дэвшигч: <strong style="color:<%= rd.active >= e.seats ? 'var(--success, #4ade80)' : 'var(--warn)' %>"><%= rd.active %> / <%= e.seats %></strong>
+      · Зөвшөөрсөн: <strong style="color:<%= rd.accepted >= e.seats ? 'var(--success, #4ade80)' : 'var(--warn)' %>"><%= rd.accepted %> / <%= e.seats %></strong>
+      · Санал өгсөн: <%= ballots %> · Доод ирц: <%= e.min_turnout %>%
+    </p>
+    <% if (blocked) { %><div class="flash warn small">⏸ Хуваарийн дагуу дараагийн шат эхлэх ёстой байсан ч зогслоо: <%= blocked %></div><% } %>
+    <% if (!['voting', 'closed'].includes(e.phase) && rd.accepted < e.seats && !blocked) { %>
+      <p class="small faint" style="margin:0">Санал хураалт эхлэхийн тулд зөвшөөрсөн нэр дэвшигч ядаж <%= e.seats %> байх ёстой.</p>
     <% } %>
 
     <% if (auto) { %>
@@ -75,6 +76,25 @@
     <% } %>
   </div>
 
+  <% var locked = e.phase === 'closed'; %>
+  <details class="card settings-card" style="margin-bottom:1.25rem" <%= errors.length ? 'open' : '' %>>
+    <summary>
+      <h2>Тохиргоо</h2>
+      <% if (locked) { %><span class="badge">🔒 Үр дүн гарсан — зөвхөн харах</span><% } %>
+    </summary>
+    <div style="margin-top:1rem">
+      <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
+      <form method="post" action="/admin/elections/<%= e.id %>" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <fieldset class="contents" <%= locked ? 'disabled' : '' %>>
+          <%- include('_election-fields', { e: form }) %>
+          <div><button class="btn btn-primary" type="submit">Хадгалах</button></div>
+        </fieldset>
+        <% if (locked) { %><p class="small muted" style="margin:0">Сонгуулийн үр дүн гарсан тул тохиргоог өөрчлөх боломжгүй.</p><% } %>
+      </form>
+    </div>
+  </details>
+
   <div class="card" style="margin-bottom:1.25rem">
     <h2>Нэр дэвшигчид</h2>
     <% if (!candidates.length) { %>
@@ -109,23 +129,54 @@
     <% } %>
   </div>
 
-  <div class="card" style="margin-bottom:1.25rem">
-    <h2>Тохиргоо</h2>
-    <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (x) { %><div>• <%= x %></div><% }) %></div><% } %>
-    <form method="post" action="/admin/elections/<%= e.id %>" class="form">
-      <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <%- include('_election-fields', { e: form }) %>
-      <div><button class="btn btn-primary" type="submit">Хадгалах</button></div>
-    </form>
-  </div>
+  <% if (results) { %>
+    <div class="card" style="margin-bottom:1.25rem" id="results">
+      <div class="row between">
+        <h2 style="margin:0">Сонгуулийн үр дүн — сонгогдсон гишүүд</h2>
+        <% if (can('manage_board')) { %><a class="btn btn-sm" href="<%= eb %>/board">Томилгоо →</a><% } %>
+      </div>
+      <p class="small muted" style="margin:.5rem 0 1rem">
+        <%= e.seats %> суудал · <%= results.winners.length %> гишүүн сонгогдсон · Санал өгсөн: <%= results.ballots %><%= results.eligible ? ' / ' + results.eligible + ' (' + results.turnout + '%)' : '' %>
+      </p>
+      <% if (results.invalid) { %>
+        <div class="flash error small">✖ Ирц <%= results.turnout %>% нь шаардлагатай доод ирц <%= results.minTurnout %>%-д хүрээгүй тул сонгууль <strong>хүчингүй</strong>. Хэн ч сонгогдоогүй — өмнөх зөвлөл хүчинтэй хэвээр.</div>
+      <% } %>
+      <% if (results.tie) { %>
+        <div class="flash warn small">⚖ Сүүлийн суудалд санал тэнцсэн — тухайн саналын тоонд түрүүлж хүрсэн нь сонгогдлоо.
+          Сонгогдоогүй: <%= results.tiedOut.map(function (c) { return c.name + ' (' + c.votes + ' санал)'; }).join(', ') %>.</div>
+      <% } %>
+      <% if (!results.winners.length) { %>
+        <p class="muted">Сонгогдсон гишүүн алга (санал аваагүй).</p>
+      <% } else { %>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Гишүүн</th><th>Сургууль</th><th>Санал</th><th>Хувь</th><th>Зөвлөлд</th></tr></thead>
+            <tbody>
+              <% results.winners.forEach(function (w) { %>
+                <tr>
+                  <td><%= w.rank %></td>
+                  <td>
+                    <div class="row" style="gap:.6rem;flex-wrap:nowrap">
+                      <%- avatar({ surname: w.surname, name: w.first_name, photo_v: w.photo_v }, w.user_id, 'xs') %>
+                      <div><strong><%= w.name %></strong><% if (w.phone) { %><div class="small faint"><%= w.phone %></div><% } %></div>
+                    </div>
+                  </td>
+                  <td class="small"><%= w.school || '—' %></td>
+                  <td><strong><%= w.votes %></strong></td>
+                  <td class="small"><%= w.pct %>%</td>
+                  <td>
+                    <% if (!w.member_id) { %><span class="badge">Нэмээгүй</span>
+                    <% } else if (w.post === 'unassigned') { %><span class="badge pending">Томилогдоогүй</span>
+                    <% } else { %><span class="badge success"><%= w.position %></span><% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
 
-  <div class="card">
-    <h3>Сонгууль устгах</h3>
-    <p class="small muted">Бүх нэр дэвшигч, нэр дэвшүүлэлт, саналын бүртгэл хамт устна.</p>
-    <form method="post" action="/admin/elections/<%= e.id %>/delete" data-confirm="Энэ сонгуулийг бүх мэдээллийн хамт устгах уу? Буцаах боломжгүй.">
-      <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <button class="btn btn-danger" type="submit">Устгах</button>
-    </form>
-  </div>
 </div>
 <%- include('../partials/foot') %>

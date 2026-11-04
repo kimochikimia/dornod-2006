@@ -3,25 +3,46 @@
   <p style="margin:0">Таны төлөв: <span class="badge grad"><%= ROLE_LABELS[me.role] %></span></p>
 </div>
 <%
+  // Удирдах зөвлөл → сонгууль → (Сонгууль | Албан тушаал | Томилгоо | Бүтэц | Баримт бичиг)
+  var inBoard = path.indexOf('/admin/elections') === 0;
+  var ce = typeof ctxElection !== 'undefined' && ctxElection ? ctxElection : null;
   var boardTabs = [];
-  if (can('manage_board')) boardTabs.push(['/admin/board', 'Бүрэлдэхүүн, томилгоо', path === '/admin/board' || /^\/admin\/board\/\d/.test(path)]);
-  if (can('manage_board')) boardTabs.push(['/admin/board/structure', 'Бүтэц', path.indexOf('/admin/board/structure') === 0]);
-  if (can('manage_elections')) boardTabs.push(['/admin/elections', 'Сонгууль', path.indexOf('/admin/elections') === 0]);
-  if (can('manage_board')) boardTabs.push(['/admin/documents', 'Баримт бичиг', path.indexOf('/admin/documents') === 0]);
-  var inBoard = boardTabs.some(function (t) { return t[2]; });
+  if (ce) {
+    var b = '/admin/elections/' + ce.id;
+    if (can('manage_elections')) boardTabs.push([b, 'Сонгууль', path === b]);
+    if (can('manage_board')) {
+      boardTabs.push([b + '/posts', 'Албан тушаал', path.indexOf(b + '/posts') === 0]);
+      boardTabs.push([b + '/board', 'Томилгоо', path.indexOf(b + '/board') === 0]);
+      boardTabs.push([b + '/structure', 'Бүтэц', path.indexOf(b + '/structure') === 0]);
+      boardTabs.push([b + '/documents', 'Баримт бичиг', path.indexOf(b + '/documents') === 0]);
+    }
+  }
+  var ceLabel = { current: 'Хүчинтэй', superseded: 'Хүчингүй', upcoming: 'Явагдаж буй', invalid: 'Ирц хүрээгүй' };
+  var ceClass = { current: 'success', superseded: 'pending', upcoming: 'grad', invalid: 'pending' };
 %>
 <nav class="admin-nav">
   <a href="/admin" class="<%= path === '/admin' ? 'active' : '' %>">Хянах самбар</a>
   <% if (can('approve_users') || can('edit_users')) { %><a href="/admin/users" class="<%= path.startsWith('/admin/users') ? 'active' : '' %>">Төгсөгчид</a><% } %>
   <% if (can('manage_roles')) { %><a href="/admin/roles" class="<%= path.startsWith('/admin/roles') ? 'active' : '' %>">Эрх, төлөв</a><% } %>
-  <% if (boardTabs.length) { %><a href="<%= boardTabs[0][0] %>" class="has-sub <%= inBoard ? 'active' : '' %>">Удирдах зөвлөл <span aria-hidden="true">▾</span></a><% } %>
+  <% if (can('manage_elections') || can('manage_board')) { %><a href="/admin/elections" class="has-sub <%= inBoard ? 'active' : '' %>">Удирдах зөвлөл <span aria-hidden="true">▾</span></a><% } %>
   <% if (can('manage_plans')) { %><a href="/admin/plans" class="<%= path.startsWith('/admin/plans') ? 'active' : '' %>">Төлөвлөгөө</a><% } %>
   <% if (can('manage_news')) { %><a href="/admin/news" class="<%= path.startsWith('/admin/news') ? 'active' : '' %>">Мэдээ</a><% } %>
   <% if (can('manage_requests')) { %><a href="/admin/requests" class="<%= path.startsWith('/admin/requests') ? 'active' : '' %>">Хүсэлтүүд</a><% } %>
   <% if (can('manage_schools')) { %><a href="/admin/schools" class="<%= path.startsWith('/admin/schools') ? 'active' : '' %>">Сургуулиуд</a><% } %>
 </nav>
-<% if (inBoard) { %>
-  <nav class="admin-subnav" aria-label="Удирдах зөвлөл">
+<% if (ce) { %>
+  <div class="election-ctx">
+    <a href="/admin/elections" class="small">← Бүх сонгууль</a>
+    <div class="election-ctx-title">
+      <span class="badge">№ <%= ce.number %></span>
+      <strong><%= ce.title %></strong>
+      <span class="badge <%= ceClass[ce.status] %>"><%= ceLabel[ce.status] %></span>
+    </div>
+  </div>
+  <nav class="admin-subnav" aria-label="Сонгуулийн ажлын хэсэг">
     <% boardTabs.forEach(function (t) { %><a href="<%= t[0] %>" class="<%= t[2] ? 'active' : '' %>"><%= t[1] %></a><% }) %>
   </nav>
+  <% if (ce.status === 'superseded') { %>
+    <div class="flash warn small" style="margin-bottom:1.25rem">📦 Энэ сонгууль хүчингүй болсон (дараагийн сонгууль дууссан). Зөвлөлийн мэдээлэл архивт хадгалагдаж байгаа — засах боломжгүй, нийтэд харагдахгүй.</div>
+  <% } %>
 <% } %>

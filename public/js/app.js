@@ -84,17 +84,22 @@
     });
 
     // Зөвлөлийн томилгоо: "Томилогдоогүй" үед огноо/шийдвэрийг нууна, албан тушаал сонгоход өнөөдрийн огноог бөглөнө
+    // Нэг мөрөнд жагссан томилгооны картад багана нь хөдлөхгүйн тулд visibility-ээр нууна
+    function hideField(f, hide) {
+      if (f.closest('.board-edit')) f.style.visibility = hide ? 'hidden' : '';
+      else f.style.display = hide ? 'none' : '';
+    }
     $$('form[data-appoint]').forEach(function (form) {
       var post = $('[data-post]', form);
       if (!post) return;
       function update() {
         var on = post.value !== 'unassigned';
-        $$('[data-appoint-field]', form).forEach(function (f) { f.style.display = on ? '' : 'none'; });
+        $$('[data-appoint-field]', form).forEach(function (f) { hideField(f, !on); });
         var d = $('input[data-default-date]', form);
         if (on && d && !d.value) d.value = d.getAttribute('data-default-date');
       }
       post.addEventListener('change', update);
-      $$('[data-appoint-field]', form).forEach(function (f) { f.style.display = post.value !== 'unassigned' ? '' : 'none'; });
+      $$('[data-appoint-field]', form).forEach(function (f) { hideField(f, post.value === 'unassigned'); });
     });
 
     // Баримт бичгийн хавсралт: файлыг base64 болгож маягтад хийнэ
@@ -150,6 +155,7 @@
     initProfessions();
     initReactions();
     initOrgChart();
+    initPostKinds();
   });
 
   // ---------- Зураг сонгогч: 400×400 дөрвөлжин болгож JPEG-ээр багасгана ----------
@@ -265,6 +271,23 @@
     function update() { end.style.display = kind.value === 'milestone' ? 'none' : ''; }
     kind.addEventListener('change', update);
     update();
+  }
+
+  // ---------- Албан тушаал: дарга/удирдлага бол орон тоо 1 ----------
+  function initPostKinds() {
+    $$('[data-post-kind]').forEach(function (sel) {
+      var seats = $('[data-post-seats]', sel.form);
+      if (!seats) return;
+      var memberVal = seats.value === '1' && sel.value !== 'member' ? '' : seats.value;
+      function update() {
+        var fixed = sel.value !== 'member';
+        if (fixed) { if (!seats.disabled) memberVal = seats.value; seats.value = '1'; }
+        else if (seats.disabled) seats.value = memberVal;
+        seats.disabled = fixed;
+      }
+      sel.addEventListener('change', update);
+      update();
+    });
   }
 
   // ---------- Зөвлөлийн бүтэц: багтахгүй бол босоо харагдац руу шилжинэ ----------
@@ -420,7 +443,8 @@
         }).join('');
         if (d.phase === 'closed') {
           html += '<p class="small muted" style="margin-top:.75rem">★ — удирдах зөвлөлд сонгогдсон (' + d.seats + ' суудал). Хувь нь нийт санал өгсөн хүнд эзлэх хувь.</p>';
-          if (d.tie) html += '<div class="flash warn small">Сүүлийн суудалд санал тэнцсэн нэр дэвшигчид байна — шийдвэрийг удирдлага гаргана.</div>';
+          if (d.invalid) html += '<div class="flash error small">Ирц ' + d.turnout + '% нь шаардлагатай доод ирц ' + d.minTurnout + '%-д хүрээгүй тул сонгууль хүчингүй. Хэн ч сонгогдоогүй.</div>';
+          if (d.tie) html += '<div class="flash warn small">Сүүлийн суудалд санал тэнцсэн — тухайн саналын тоонд түрүүлж хүрсэн нь сонгогдлоо.</div>';
         }
         tally.innerHTML = html;
       }

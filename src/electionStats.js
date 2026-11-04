@@ -51,19 +51,24 @@ async function electionStats(e) {
     .reverse()
     .map((b) => ({ school: b.school_name || 'Сургууль тодорхойгүй', at: fmtDate(b.created_at) }));
 
+  // Доод ирц: хүрэхгүй бол дууссан сонгууль хүчингүй — хэн ч сонгогдохгүй
+  const minTurnout = e.min_turnout == null ? 50 : Number(e.min_turnout);
+  const quorumMet = eligible > 0 ? ballots * 100 >= minTurnout * eligible : ballots > 0;
+  const invalid = e.phase === 'closed' && !quorumMet;
+
   const showTally = e.phase === 'closed' || (e.phase === 'voting' && !!e.show_live_results);
   let candidates = null;
   let tie = false;
   if (showTally) {
+    // Эрэмбэ: санал ихээр; тэнцвэл тэр саналын тоонд түрүүлж хүрсэн (сүүлийн санал нь эрт ирсэн) нь өмнө.
     const [rows] = await pool.query(
-      `SELECT c.id, c.votes, u.surname, u.name, s.name AS school_name
+      `SELECT c.id, c.votes, c.last_vote_at, u.surname, u.name, s.name AS school_name
        FROM candidates c JOIN users u ON u.id = c.user_id
        LEFT JOIN schools s ON s.id = u.school_id
        WHERE c.election_id = ? AND c.status = 'accepted'
-       ORDER BY c.votes DESC, u.name`,
+       ORDER BY c.votes DESC, (c.last_vote_at IS NULL), c.last_vote_at, c.id`,
       [id]
     );
-    const cutoff = rows.length >= e.seats ? rows[e.seats - 1].votes : 0;
     candidates = rows.map((r, i) => ({
       id: r.id,
       name: `${r.surname} ${r.name}`,
@@ -71,10 +76,20 @@ async function electionStats(e) {
       votes: r.votes,
       rank: i + 1,
       pct: ballots ? Math.round((r.votes / ballots) * 1000) / 10 : 0,
-      // Эрэмбэлсэн тул сүүлийн суудлын саналаас багагүй бол сонгогдсон (тэнцсэн бол бүгд тэмдэглэгдэнэ).
-      winner: r.votes > 0 && r.votes >= cutoff,
+      // Яг суудлын тоогоор: эхний N (1-ээс дээш санал авсан). Ирц хүрээгүй бол хэн ч сонгогдохгүй.
+      winner: !invalid && r.votes > 0 && i < e.seats,
+      tieWon: false,
+      tiedOut: false,
     }));
-    tie = candidates.filter((c) => c.winner).length > e.seats;
+    // Сүүлийн суудалд тэнцсэн: түрүүлж хүрсэн нь сонгогдсон, бусад нь үлдсэн гэж тэмдэглэнэ
+    if (candidates.length > e.seats) {
+      const cut = candidates[e.seats - 1].votes;
+      const tied = candidates.filter((c) => c.votes === cut && cut > 0);
+      if (tied.some((c) => c.winner) && tied.some((c) => !c.winner)) {
+        tie = true;
+        for (const c of tied) { if (c.winner) c.tieWon = true; else c.tiedOut = true; }
+      }
+    }
   }
 
   const [[{ totalVotes }]] = await pool.query(
@@ -90,6 +105,9 @@ async function electionStats(e) {
     eligible,
     ballots,
     turnout: eligible ? Math.round((ballots / eligible) * 1000) / 10 : 0,
+    minTurnout,
+    quorumMet,
+    invalid,
     avgChoices: ballots ? Math.round((Number(totalVotes) / ballots) * 10) / 10 : 0,
     hourly,
     bySchool,

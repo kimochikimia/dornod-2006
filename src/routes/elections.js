@@ -65,6 +65,7 @@ router.get('/:id', wrap(async (req, res, next) => {
   for (const c of candidates) counts[c.status]++;
 
   const stats = ['voting', 'closed'].includes(e.phase) ? await electionStats(e) : null;
+  const blocked = await sched.blockReason(e);
 
   res.render('elections/show', {
     title: e.title,
@@ -78,6 +79,7 @@ router.get('/:id', wrap(async (req, res, next) => {
     counts,
     nominationTotal: nominations.length,
     stats,
+    blocked,
     windows: { nominate: sched.windowOpen(e, 'nominate'), respond: sched.windowOpen(e, 'respond'), vote: sched.windowOpen(e, 'vote') },
     deadline: sched.nextDeadline(e),
     times: sched.stepTimes(e),
@@ -199,7 +201,7 @@ router.post('/:id/vote', requirePerm('vote'), wrap(async (req, res, next) => {
       throw err;
     }
     const [r] = await conn.query(
-      "UPDATE candidates SET votes = votes + 1 WHERE election_id = ? AND status = 'accepted' AND id IN (?)",
+      "UPDATE candidates SET votes = votes + 1, last_vote_at = NOW(3) WHERE election_id = ? AND status = 'accepted' AND id IN (?)",
       [e.id, choices]
     );
     if (r.affectedRows !== choices.length) {

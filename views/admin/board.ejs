@@ -1,110 +1,195 @@
 <%- include('../partials/head') %>
 <%
-  var postOptions = function (selected) {
-    return POSTS.map(function (p) {
-      return '<option value="' + p.key + '"' + (p.key === selected ? ' selected' : '') + '>' + h.escapeHtml(p.label + (p.key === 'unassigned' ? '' : ' — ' + p.desc)) + '</option>';
+  // Албан тушаалын сонголт (орон тооны дүүргэлттэй). exclude: гишүүний аль хэдийн хашдаг албан тушаалууд
+  var postOptions = function (selected, exclude) {
+    exclude = exclude || [];
+    return posts.filter(function (p) { return p.id === selected || exclude.indexOf(p.id) === -1; }).map(function (p) {
+      var seats = p.seats == null ? '' : ' (' + p.member_count + '/' + p.seats + ')';
+      return '<option value="' + p.id + '"' + (p.id === selected ? ' selected' : '') + '>' + h.escapeHtml(p.label + seats) + '</option>';
     }).join('');
   };
-  var waiting = members.filter(function (m) { return m.post === 'unassigned'; }).length;
+  var firstFree = function (exclude) {
+    var p = posts.filter(function (x) { return exclude.indexOf(x.id) === -1 && (x.seats == null || x.member_count < x.seats); })[0];
+    return p ? p.id : null;
+  };
+  var singles = posts.filter(function (p) { return p.single; }).map(function (p) { return p.label; });
+  var waiting = members.filter(function (m) { return !(appts[m.id] || []).length; }).length;
+  var closed = ctxElection.phase === 'closed';
+  var ro = ctxElection.status === 'superseded';
+  var manual = members.filter(function (m) { return winnerIds.indexOf(m.user_id) === -1; }).length;
+  var fmt = function (d) { return d ? d.replace(/-/g, '.') : ''; };
 %>
 <div class="container">
   <%- include('_nav') %>
 
   <div class="row between" style="margin-bottom:1rem">
-    <h2 style="margin:0">Удирдах зөвлөл ба томилгоо</h2>
+    <h2 style="margin:0">Бүрэлдэхүүн, томилгоо</h2>
     <div class="row" style="gap:.5rem">
-      <a class="btn" href="/board">Нийтийн хуудас →</a>
-      <button class="btn btn-primary" type="button" data-open-dialog="add-member">＋ Гишүүн нэмэх</button>
+      <% if (ctxElection.status === 'current') { %><a class="btn" href="/board">Нийтийн хуудас →</a><% } %>
+      <% if (closed && !ro && ctxElection.status !== 'invalid') { %><button class="btn btn-primary" type="button" data-open-dialog="add-member">＋ Гишүүн нэмэх</button><% } %>
     </div>
   </div>
 
-  <div class="flash info small" style="margin-bottom:1.25rem">
-    Сонгууль дууссаны дараа сонгогдсон гишүүдийг зөвлөлд нэмнэ (тэд <strong>"Томилогдоогүй"</strong> төлөвтэй орно).
-    Зөвлөлийн анхны хурлын шийдвэрээр гишүүн бүрийг доор албан тушаалд томилж, огноо болон хурлын шийдвэрийг бичнэ.
-    Дарга, нарийн бичгийн дарга, санхүү хариуцсан гишүүн тус бүр нэг хүн — өөр хүнийг томилбол өмнөх нь "Зөвлөлийн гишүүн" болно.
-  </div>
+  <% if (ctxElection.status === 'invalid') { %>
+    <div class="empty">Энэ сонгуулийн ирц доод хэмжээнд хүрээгүй тул сонгууль хүчингүй — зөвлөл томилогдохгүй.</div>
+  <% } else if (!closed) { %>
+    <div class="empty">Сонгууль дууссаны дараа энэ сонгуулиар сонгогдсон гишүүдийг энд нэмж, албан тушаалд томилно.</div>
+  <% } else { %>
+    <% if (!ro) { %>
+      <div class="flash info small" style="margin-bottom:1.25rem">
+        Энэ сонгуулиар сонгогдсон гишүүдийг зөвлөлд нэмээд, зөвлөлийн хурлын шийдвэрээр <a href="<%= eb %>/posts">албан тушаалд</a> томилно.
+        Нэг гишүүн <strong>нэгээс олон албан тушаал</strong> хашиж болно — «＋ Томилох» товчоор нэмнэ.
+        <% if (singles.length) { %><%= singles.join(', ') %> тус бүр нэг орон тоотой — өөр хүнийг томилбол өмнөх хүн тэр албан тушаалаас чөлөөлөгдөнө.<% } %>
+      </div>
+    <% } %>
 
-  <% if (closed.length) { %>
-    <form method="post" action="/admin/board/import" class="card row" style="margin-bottom:1.25rem"
-          data-confirm="Сонгогдсон гишүүдийг зөвлөлд нэмэх үү? (Аль хэдийн байгаа гишүүдийг давхардуулахгүй)">
-      <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <span>🗳️ Сонгуулийн дүнгээс:</span>
-      <select name="election_id" style="flex:1;min-width:200px">
-        <% closed.forEach(function (e) { %><option value="<%= e.id %>"><%= e.title %><%= e.voting_ended_at ? ' (' + h.fmtDay(e.voting_ended_at) + ')' : '' %></option><% }) %>
-      </select>
-      <button class="btn" type="submit">Сонгогдсон гишүүдийг нэмэх</button>
-    </form>
-  <% } %>
-
-  <% if (!members.length) { %>
-    <div class="empty">Зөвлөлд гишүүн нэмээгүй байна. "Гишүүн нэмэх" эсвэл сонгуулийн дүнгээс нэмнэ үү.</div>
-  <% } else if (waiting) { %>
-    <p class="small" style="color:var(--warn)">⏳ <%= waiting %> гишүүн албан тушаалд томилогдоогүй байна.</p>
-  <% } %>
-
-  <div class="stack">
-    <% members.forEach(function (m) { %>
-      <form method="post" action="/admin/board/<%= m.id %>" class="card board-edit <%= m.post === 'unassigned' ? 'waiting' : '' %>" id="m<%= m.id %>" data-appoint>
+    <% if (!ro && notImported) { %>
+      <form method="post" action="<%= eb %>/board/import" class="card row between" style="margin-bottom:1.25rem"
+            data-confirm="Энэ сонгуулиар сонгогдсон <%= notImported %> гишүүнийг зөвлөлд нэмэх үү?">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <div class="board-edit-head">
-          <%- avatar(m, m.user_id) %>
-          <div style="flex:1;min-width:0">
-            <strong><%= m.surname %> <%= m.name %></strong>
-            <div class="small muted"><%= m.school_name || '—' %></div>
-          </div>
-          <% if (m.post === 'unassigned') { %><span class="badge pending">Томилгоо хүлээгдэж буй</span>
-          <% } else { %><span class="badge grad"><%= m.position %></span><% } %>
-        </div>
-        <div class="form-grid">
-          <div class="field">
-            <label>Албан тушаал</label>
-            <select name="post" data-post><%- postOptions(m.post) %></select>
-          </div>
-          <div class="field" data-appoint-field>
-            <label>Томилсон огноо</label>
-            <input type="date" name="appointed_at" value="<%= m.appointed_at || '' %>" data-default-date="<%= today %>">
-          </div>
-          <div class="field" data-appoint-field>
-            <label>Хурлын шийдвэр</label>
-            <input type="text" name="decision" value="<%= m.decision || '' %>" maxlength="200" placeholder="ж: Зөвлөлийн 1-р хурлын тогтоол №01">
-          </div>
-          <div class="field">
-            <label>Бүрэн эрхийн хугацаа</label>
-            <input type="text" name="term" value="<%= m.term || '' %>" maxlength="50" placeholder="ж: 2026–2028">
-          </div>
-        </div>
-        <div class="field">
-          <label>Хариуцсан ажил <span class="faint small">(мөр бүр нэг ажил)</span></label>
-          <textarea name="responsibilities" rows="3" maxlength="3000" placeholder="Жишээ нь:&#10;Төгсөгчдийн уулзалт зохион байгуулах&#10;8-р сургуулийн төгсөгчдийг төлөөлөх"><%= m.responsibilities || '' %></textarea>
-        </div>
-        <div class="row between">
-          <button class="btn btn-primary btn-sm" type="submit">Томилгоог хадгалах</button>
-          <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/board/<%= m.id %>/delete" formnovalidate
-                  data-confirm="<%= m.surname %> <%= m.name %>-г зөвлөлөөс хасах уу?">Зөвлөлөөс хасах</button>
-        </div>
+        <span>🗳️ Энэ сонгуулиар <strong><%= winners %></strong> гишүүн сонгогдсон<%= winners !== notImported ? ', ' + notImported + ' нь зөвлөлд ороогүй' : '' %>.</span>
+        <button class="btn btn-primary" type="submit">Сонгогдсон гишүүдийг нэмэх</button>
       </form>
-    <% }) %>
-  </div>
+    <% } %>
 
-  <dialog id="add-member" class="dialog">
-    <form method="post" action="/admin/board" class="dialog-body" data-appoint>
-      <input type="hidden" name="_csrf" value="<%= csrf %>">
-      <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
-      <h3>Зөвлөлд гишүүн нэмэх</h3>
-      <input type="search" placeholder="🔍 Нэрээр хайх" data-filter-select="board-user" autocomplete="off">
-      <select id="board-user" name="user_id" size="6" class="nominee-list" required>
-        <% candidates.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %> <%= u.surname %><%= u.school_name ? ' — ' + u.school_name : '' %></option><% }) %>
-      </select>
-      <div class="field"><label>Албан тушаал</label><select name="post" data-post><%- postOptions('unassigned') %></select></div>
-      <div class="form-grid" data-appoint-field>
-        <div class="field"><label>Томилсон огноо</label><input type="date" name="appointed_at" data-default-date="<%= today %>"></div>
-        <div class="field"><label>Хурлын шийдвэр</label><input type="text" name="decision" maxlength="200" placeholder="Тогтоол №"></div>
+    <% if (!members.length) { %>
+      <div class="empty">Зөвлөлд гишүүн нэмээгүй байна.</div>
+    <% } else if (waiting && !ro) { %>
+      <p class="small" style="color:var(--warn)">⏳ <%= waiting %> гишүүн албан тушаалд томилогдоогүй байна.</p>
+    <% } %>
+    <% if (manual) { %>
+      <p class="small muted">Зөвлөлд <strong><%= members.length %></strong> гишүүн: сонгуулиар сонгогдсон <strong><%= members.length - manual %></strong>, гараар нэмсэн <strong><%= manual %></strong>.</p>
+    <% } %>
+
+    <% if (members.length) { %>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Гишүүн</th><th>Албан тушаал · томилсон огноо · шийдвэр</th><th>Бүрэн эрх</th><th></th></tr></thead>
+          <tbody>
+            <% members.forEach(function (m) { var list = appts[m.id] || []; %>
+              <tr id="m<%= m.id %>">
+                <td>
+                  <div class="row" style="gap:.6rem;flex-wrap:nowrap">
+                    <%- avatar(m, m.user_id, 'xs') %>
+                    <div><strong><%= m.surname %> <%= m.name %></strong><div class="small faint"><%= m.school_name || '—' %></div><% if (winnerIds.indexOf(m.user_id) === -1) { %><span class="badge pending" title="Энэ сонгуулиар сонгогдоогүй — зөвлөлд гараар нэмсэн" style="margin-top:.25rem">✋ Гараар нэмсэн</span><% } %></div>
+                  </div>
+                </td>
+                <td>
+                  <% if (!list.length) { %><span class="badge pending">Томилогдоогүй</span><% } %>
+                  <div class="appt-list">
+                    <% list.forEach(function (a) { %>
+                      <div class="appt">
+                        <span class="badge success"><%= a.label %></span>
+                        <span class="small muted"><%= [fmt(a.appointed_at), a.decision].filter(Boolean).join(' · ') || '—' %></span>
+                        <% if (!ro) { %><span class="appt-actions">
+                          <button type="button" class="link-btn small" data-open-dialog="appt-<%= a.id %>" title="Томилгоо засах">✎ Засах</button>
+                          <form method="post" action="<%= eb %>/board/<%= m.id %>/appoint/<%= a.id %>/delete" class="inline"
+                                data-confirm="<%= m.surname %> <%= m.name %>-г &quot;<%= a.label %>&quot; албан тушаалаас чөлөөлөх үү?">
+                            <input type="hidden" name="_csrf" value="<%= csrf %>">
+                            <button class="link-btn small" type="submit" title="Томилгоо цуцлах" aria-label="Томилгоо цуцлах">✕</button>
+                          </form>
+                        </span><% } %>
+                      </div>
+                    <% }) %>
+                  </div>
+                </td>
+                <td class="small"><%= m.term || '—' %></td>
+                <td>
+                  <% if (!ro) { %>
+                    <div class="row" style="gap:.35rem;flex-wrap:nowrap;justify-content:flex-end">
+                      <% if (list.length < posts.length) { %>
+                        <button type="button" class="btn btn-sm <%= list.length ? '' : 'btn-primary' %>" data-open-dialog="appoint-<%= m.id %>">＋ Томилох</button>
+                      <% } %>
+                      <form method="post" action="<%= eb %>/board/<%= m.id %>/delete" class="inline" data-confirm="<%= m.surname %> <%= m.name %>-г зөвлөлөөс хасах уу? Бүх томилгоо нь хамт цуцлагдана.">
+                        <input type="hidden" name="_csrf" value="<%= csrf %>">
+                        <button class="btn btn-sm btn-danger" type="submit" title="Зөвлөлөөс хасах" aria-label="Зөвлөлөөс хасах">✕</button>
+                      </form>
+                    </div>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
-      <div class="row" style="justify-content:flex-end">
-        <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
-        <button class="btn btn-primary" type="submit">Нэмэх</button>
-      </div>
-    </form>
-  </dialog>
+    <% } %>
+
+    <% if (!ro) { members.forEach(function (m) { var list = appts[m.id] || []; var held = list.map(function (a) { return a.post_id; }); %>
+      <%# Шинэ томилгоо %>
+      <% if (list.length < posts.length) { %>
+        <dialog id="appoint-<%= m.id %>" class="dialog">
+          <form method="post" action="<%= eb %>/board/<%= m.id %>/appoint" class="dialog-body">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+            <h3><%= list.length ? 'Нэмэлт албан тушаалд томилох' : 'Томилох' %></h3>
+            <div class="row" style="gap:.6rem">
+              <%- avatar(m, m.user_id, 'xs') %>
+              <div><strong><%= m.surname %> <%= m.name %></strong><% if (list.length) { %><div class="small faint">Одоо: <%= list.map(function (a) { return a.label; }).join(', ') %></div><% } %></div>
+            </div>
+            <div class="field"><label>Албан тушаал</label><select name="post_id" required><%- postOptions(firstFree(held), held) %></select></div>
+            <div class="form-grid">
+              <div class="field"><label>Томилсон огноо</label><input type="date" name="appointed_at" value="<%= today %>"></div>
+              <div class="field"><label>Хурлын шийдвэр</label><input type="text" name="decision" maxlength="200" placeholder="ж: Тогтоол №01"></div>
+            </div>
+            <div class="field"><label>Бүрэн эрхийн хугацаа</label><input type="text" name="term" value="<%= m.term || '' %>" maxlength="50" placeholder="ж: 2026–2028"></div>
+            <div class="row" style="justify-content:flex-end">
+              <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+              <button class="btn btn-primary" type="submit">Томилох</button>
+            </div>
+          </form>
+        </dialog>
+      <% } %>
+      <%# Томилгоо бүрийг засах %>
+      <% list.forEach(function (a) { %>
+        <dialog id="appt-<%= a.id %>" class="dialog">
+          <form method="post" action="<%= eb %>/board/<%= m.id %>/appoint/<%= a.id %>" class="dialog-body">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+            <h3>Томилгоо засах</h3>
+            <div class="row" style="gap:.6rem">
+              <%- avatar(m, m.user_id, 'xs') %>
+              <div><strong><%= m.surname %> <%= m.name %></strong></div>
+            </div>
+            <div class="field"><label>Албан тушаал</label><select name="post_id" required><%- postOptions(a.post_id, held) %></select></div>
+            <div class="form-grid">
+              <div class="field"><label>Томилсон огноо</label><input type="date" name="appointed_at" value="<%= a.appointed_at || '' %>"></div>
+              <div class="field"><label>Хурлын шийдвэр</label><input type="text" name="decision" value="<%= a.decision || '' %>" maxlength="200" placeholder="ж: Тогтоол №01"></div>
+            </div>
+            <div class="field"><label>Бүрэн эрхийн хугацаа</label><input type="text" name="term" value="<%= m.term || '' %>" maxlength="50" placeholder="ж: 2026–2028"></div>
+            <div class="row" style="justify-content:flex-end">
+              <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+              <button class="btn btn-primary" type="submit">Хадгалах</button>
+            </div>
+          </form>
+        </dialog>
+      <% }) %>
+    <% }); } %>
+
+    <% if (!ro) { %>
+      <dialog id="add-member" class="dialog">
+        <form method="post" action="<%= eb %>/board" class="dialog-body">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+          <h3>Зөвлөлд гишүүн нэмэх</h3>
+          <p class="small muted" style="margin:0">Энэ сонгуулиар сонгогдоогүй хүнийг нэмбэл «✋ Гараар нэмсэн» гэж тэмдэглэгдэнэ (ж: сонгогдсон гишүүн татгалзаж, оронд нь орсон).</p>
+          <input type="search" placeholder="🔍 Нэрээр хайх" data-filter-select="board-user" autocomplete="off">
+          <select id="board-user" name="user_id" size="6" class="nominee-list" required>
+            <% candidates.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %> <%= u.surname %><%= u.school_name ? ' — ' + u.school_name : '' %></option><% }) %>
+          </select>
+          <div class="field"><label>Албан тушаал <span class="faint small">(дараа нь ч томилж болно)</span></label>
+            <select name="post_id"><option value="">— Томилохгүй —</option><%- postOptions(null, []) %></select>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Томилсон огноо</label><input type="date" name="appointed_at" value="<%= today %>"></div>
+            <div class="field"><label>Хурлын шийдвэр</label><input type="text" name="decision" maxlength="200" placeholder="Тогтоол №"></div>
+          </div>
+          <div class="row" style="justify-content:flex-end">
+            <button type="button" class="btn btn-ghost" data-close-dialog>Болих</button>
+            <button class="btn btn-primary" type="submit">Нэмэх</button>
+          </div>
+        </form>
+      </dialog>
+    <% } %>
+  <% } %>
 </div>
 <%- include('../partials/foot') %>

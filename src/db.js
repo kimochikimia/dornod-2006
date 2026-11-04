@@ -106,24 +106,69 @@ async function ensureBoardPosts() {
   }
 }
 
-// Зөвлөлийн 10 бодлогын баримт бичгийг (батлагдаагүй төлөвтэй) анх нэг удаа бүртгэнэ.
-const DEFAULT_DOCUMENTS = [
-  ['Дорнод 2006 төгсөгчдийн зөвлөлийн дүрэм', 'Зорилго, бүтэц, эрх, үүрэг, үйл ажиллагааны үндсэн зарчим'],
-  ['Зөвлөлийн гишүүдийг сонгох журам', 'Нэр санал болгох, зөвшөөрөл авах, санал хураах, сонгуулийн үр дүнг баталгаажуулах'],
-  ['Зөвлөлийн үйл ажиллагааны журам', 'Хурал зохион байгуулах, шийдвэр гаргах, үүрэг хуваарилах'],
-  ['Санхүү, хандивын журам', 'Хандив, орлого, зарлага, зарцуулалт, тайлагнал'],
-  ['Ёс зүй, ашиг сонирхлын зөрчлийн журам', 'Гишүүдийн ёс зүй, шударга байдал, хариуцлага'],
-  ['Төгсөгчдийн бүртгэл, мэдээлэл хамгаалах журам', 'Бүртгэл, хувийн мэдээлэл, санал өгөх эрхийн баталгаажуулалт'],
-  ['Зөвлөл байгуулах хурлын тэмдэглэл, шийдвэр', 'Байгуулагдсан үйл явц, сонгуулийн үр дүнг албажуулах'],
-  ['Жилийн үйл ажиллагааны төлөвлөгөө', 'Хийх ажил, хугацаа, хариуцагч, төсөв'],
-  ['Жилийн үйл ажиллагаа, санхүүгийн тайлан', 'Нийт төгсөгчдөд тайлагнах'],
-  ['Албан хэрэг, хурлын тэмдэглэл хөтлөх загвар', 'Шийдвэр, хурлын ирц, архив, үүрэг даалгаврын бүртгэл'],
-];
-async function seedDocuments() {
-  const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM board_documents');
+// Албан тушаалын хүснэгт: туршилтын хувилбарын single/leadership баганыг kind/seats болгоно.
+// (Анхны албан тушаалуудыг сонгууль үүсгэхэд board.seedElection оруулна.)
+async function seedBoardPosts() {
+  await ensureColumn('board_posts', 'kind', "VARCHAR(20) NOT NULL DEFAULT 'member' AFTER label");
+  await ensureColumn('board_posts', 'seats', 'INT NULL AFTER kind');
+  const [old] = await pool.query(
+    "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'board_posts' AND COLUMN_NAME = 'single'"
+  );
+  if (old.length) {
+    await pool.query(`UPDATE board_posts SET
+      kind = CASE WHEN code = 'chair' THEN 'head' WHEN leadership = 1 THEN 'leadership' ELSE 'member' END,
+      seats = CASE WHEN code = 'chair' OR leadership = 1 OR single = 1 THEN 1 ELSE NULL END`);
+    await pool.query('ALTER TABLE board_posts DROP COLUMN single, DROP COLUMN leadership');
+  }
+}
+
+// Удирдах зөвлөлийг сонгууль бүрээр: сонгуулийн дугаар, election_id баганууд, хуучин өгөгдлийг хүчинтэй сонгуульд онооно.
+// Хуучин нэг-албан-тушаалын томилгоог board_appointments руу нэг удаа шилжүүлнэ.
+async function ensureAppointments() {
+  const [[col]] = await pool.query(
+    "SELECT CHARACTER_MAXIMUM_LENGTH AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'board_members' AND COLUMN_NAME = 'position'"
+  );
+  if (col && Number(col.n) < 255) await pool.query("ALTER TABLE board_members MODIFY position VARCHAR(255) NOT NULL DEFAULT 'Гишүүн'");
+  const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM board_appointments');
   if (n > 0) return;
-  for (let i = 0; i < DEFAULT_DOCUMENTS.length; i++) {
-    await pool.query('INSERT INTO board_documents (sort_order, title, purpose) VALUES (?, ?, ?)', [i + 1, ...DEFAULT_DOCUMENTS[i]]);
+  await pool.query(`INSERT IGNORE INTO board_appointments (member_id, post_id, appointed_at, decision)
+    SELECT b.id, p.id, b.appointed_at, b.decision FROM board_members b JOIN board_posts p ON p.code = b.post`);
+}
+
+async function ensureElectionScoping() {
+  const board = require('./board');
+  const { ubInput } = require('./helpers');
+  await ensureColumn('elections', 'number', 'VARCHAR(20) NULL AFTER id');
+  // Сонгууль хүчинтэй болох доод ирц (%), тэнцсэн үед "түрүүлж хүрсэн"-ийг тодорхойлох сүүлийн саналын цаг
+  await ensureColumn('elections', 'min_turnout', 'INT NOT NULL DEFAULT 50 AFTER max_choices');
+  await ensureColumn('candidates', 'last_vote_at', 'TIMESTAMP(3) NULL AFTER votes');
+  const [nIdx] = await pool.query(
+    "SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'elections' AND INDEX_NAME = 'uq_election_number'"
+  );
+  if (!nIdx.length) await pool.query('ALTER TABLE elections ADD UNIQUE KEY uq_election_number (number)');
+  const [noNum] = await pool.query('SELECT id, created_at FROM elections WHERE number IS NULL ORDER BY created_at, id');
+  for (const e of noNum) {
+    const number = await board.nextElectionNumber(ubInput(e.created_at).slice(0, 4));
+    await pool.query('UPDATE elections SET number = ? WHERE id = ?', [number, e.id]);
+  }
+  for (const t of ['board_posts', 'board_units', 'board_documents']) await ensureColumn(t, 'election_id', 'INT NULL AFTER id');
+  // Нэг хүн өөр сонгуулиар дахин сонгогдож болно: (user_id, election_id) давтагдашгүй
+  const [mIdx] = await pool.query(
+    "SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'board_members' AND INDEX_NAME = 'uq_board_member'"
+  );
+  if (!mIdx.length) await pool.query('ALTER TABLE board_members ADD UNIQUE KEY uq_board_member (user_id, election_id)');
+  const [oldIdx] = await pool.query(
+    `SELECT INDEX_NAME AS name FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'board_members' AND NON_UNIQUE = 0 AND INDEX_NAME NOT IN ('PRIMARY', 'uq_board_member')
+     GROUP BY INDEX_NAME HAVING COUNT(*) = 1 AND MAX(COLUMN_NAME) = 'user_id'`
+  );
+  for (const i of oldIdx) await pool.query(`ALTER TABLE board_members DROP INDEX \`${i.name}\``);
+  // Сонгуульгүй хуучин мөрүүдийг хүчинтэй (эсвэл хамгийн сүүлийн) сонгуульд онооно
+  const target = (await board.currentElection()) || (await board.latestElection());
+  if (target) {
+    for (const t of ['board_posts', 'board_units', 'board_documents', 'board_members']) {
+      await pool.query(`UPDATE ${t} SET election_id = ? WHERE election_id IS NULL`, [target.id]);
+    }
   }
 }
 
@@ -220,7 +265,14 @@ async function init() {
   await ensureColumn('board_documents', 'draft_size', 'INT NULL');
   await ensureColumn('board_documents', 'draft_data', 'LONGBLOB NULL');
   await ensureColumn('board_documents', 'draft_at', 'DATETIME NULL');
-  await seedDocuments();
+  await seedBoardPosts();
+  // Бүтцийн нэгжийг албан тушаалтай холбоно (хуучин нэгжийг ижил нэртэй албан тушаалтай тааруулна)
+  await ensureColumn('board_units', 'post_id', 'INT NULL AFTER parent_id');
+  await pool.query(`UPDATE board_units u JOIN board_posts p ON LOWER(p.label) = LOWER(u.name)
+    SET u.post_id = p.id WHERE u.post_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM (SELECT post_id FROM board_units WHERE post_id IS NOT NULL) x WHERE x.post_id = p.id)`);
+  await ensureElectionScoping();
+  await ensureAppointments();
   await syncSchools();
 
   await seedAdmin();

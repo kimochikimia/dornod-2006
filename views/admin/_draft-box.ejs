@@ -7,14 +7,14 @@
       <div class="small muted"><%= h.fmtSize(d.draft_size) %> · <%= d.draft_at %></div>
     </div>
     <a class="btn btn-sm" href="/board/documents/<%= d.id %>/draft" target="_blank" rel="noopener">Нээх</a>
-    <form method="post" action="/admin/documents/<%= d.id %>/draft" class="inline" data-confirm="Төслийг устгах уу?">
+    <form method="post" action="<%= eb %>/documents/<%= d.id %>/draft" class="inline" data-confirm="Төслийг устгах уу?">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <input type="hidden" name="back" value="<%= back %>">
       <button class="btn btn-sm btn-danger" name="action" value="delete">Устгах</button>
     </form>
   </div>
 <% } %>
-<form method="post" action="/admin/documents/<%= d.id %>/draft" class="draft-upload">
+<form method="post" action="<%= eb %>/documents/<%= d.id %>/draft" class="draft-upload">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <input type="hidden" name="back" value="<%= back %>">
   <input type="hidden" name="file_data" data-doc-file-data>

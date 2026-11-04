@@ -26,6 +26,39 @@ function computePhase(e, now = Date.now()) {
   return 'draft';
 }
 
+// Шат ахихад шаардлагатай тоо: нэр дэвшигч (татгалзаагүй) ба зөвшөөрсөн нь сонгох гишүүдийн тоонд хүрсэн байх
+async function readiness(e) {
+  const [[r]] = await pool.query(
+    "SELECT COALESCE(SUM(status <> 'declined'), 0) AS active, COALESCE(SUM(status = 'accepted'), 0) AS accepted FROM candidates WHERE election_id = ?",
+    [e.id]
+  );
+  return { active: Number(r.active), accepted: Number(r.accepted), seats: e.seats };
+}
+
+// from → to шат руу шилжих боломжгүй бол шалтгааныг буцаана (зөвхөн урагш шилжихэд)
+function forwardGate(from, to, rd) {
+  const a = ORDER.indexOf(from);
+  const b = ORDER.indexOf(to);
+  for (let i = a + 1; i <= b; i++) {
+    const p = ORDER[i];
+    if (p === 'acceptance' && rd.active < rd.seats) {
+      return `Нэр дэвшигч ${rd.active} / ${rd.seats} байна — сонгох гишүүдийн тоонд хүрээгүй тул «Зөвшөөрөл авах» шат руу шилжихгүй. Нэр дэвшүүлэх хугацааг сунгана уу.`;
+    }
+    if (p === 'voting' && rd.accepted < rd.seats) {
+      return `Зөвшөөрсөн нэр дэвшигч ${rd.accepted} / ${rd.seats} байна — сонгох гишүүдийн тоонд хүрээгүй тул санал хураалт эхлэхгүй. Нэр дэвшүүлэх / зөвшөөрөл авах хугацааг сунгана уу.`;
+    }
+  }
+  return null;
+}
+
+// Хуваарийн дагуу дараагийн шат руу шилжих ёстой боловч тоо хүрэхгүйгээс зогссон бол шалтгаан
+async function blockReason(e) {
+  if (!hasSchedule(e) || e.phase === 'closed') return null;
+  const target = computePhase(e);
+  if (ORDER.indexOf(target) <= ORDER.indexOf(e.phase)) return null;
+  return forwardGate(e.phase, target, await readiness(e));
+}
+
 // Тухайн үйлдэл яг одоо хийгдэж болох уу (хуваарьгүй бол шатаар нь шийднэ)
 function windowOpen(e, action, now = Date.now()) {
   if (!hasSchedule(e)) {
@@ -34,9 +67,9 @@ function windowOpen(e, action, now = Date.now()) {
     if (action === 'vote') return e.phase === 'voting';
     return false;
   }
-  if (action === 'nominate') return now >= ms(e, 'nomination_start') && now < ms(e, 'nomination_end');
-  if (action === 'respond') return now >= ms(e, 'nomination_start') && now < ms(e, 'acceptance_end');
-  if (action === 'vote') return now >= ms(e, 'voting_start') && now < ms(e, 'voting_end');
+  if (action === 'nominate') return e.phase === 'nomination' && now >= ms(e, 'nomination_start') && now < ms(e, 'nomination_end');
+  if (action === 'respond') return ['nomination', 'acceptance'].includes(e.phase) && now >= ms(e, 'nomination_start') && now < ms(e, 'acceptance_end');
+  if (action === 'vote') return e.phase === 'voting' && now >= ms(e, 'voting_start') && now < ms(e, 'voting_end');
   return false;
 }
 
@@ -66,8 +99,19 @@ function stepTimes(e) {
 // Хуваарийн дагуу шатыг өгөгдлийн санд шинэчилнэ. Санал өгөгдсөний дараа өмнөх шат руу буцахгүй.
 async function syncElection(e) {
   if (!hasSchedule(e)) return e;
-  const target = computePhase(e);
+  let target = computePhase(e);
   if (target === e.phase) return e;
+  if (ORDER.indexOf(target) > ORDER.indexOf(e.phase)) {
+    // Шат шатаар нь шалгаж, тоо хүрэхгүй шатны өмнө зогсоно
+    const rd = await readiness(e);
+    let reach = e.phase;
+    for (let i = ORDER.indexOf(e.phase) + 1; i <= ORDER.indexOf(target); i++) {
+      if (forwardGate(reach, ORDER[i], rd)) break;
+      reach = ORDER[i];
+    }
+    target = reach;
+    if (target === e.phase) return e;
+  }
   if (ORDER.indexOf(target) < ORDER.indexOf('voting')) {
     const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM ballots WHERE election_id = ?', [e.id]);
     if (n > 0) return e;
@@ -115,5 +159,5 @@ function validateSchedule(f) {
 }
 
 module.exports = {
-  STEPS, hasSchedule, computePhase, windowOpen, nextDeadline, stepTimes, syncElection, syncAll, validateSchedule,
+  STEPS, ORDER, hasSchedule, computePhase, readiness, forwardGate, blockReason, windowOpen, nextDeadline, stepTimes, syncElection, syncAll, validateSchedule,
 };
