@@ -23,4 +23,44 @@ function guessPost(text) {
   return 'member';
 }
 
-module.exports = { POSTS, POST_KEYS, POST_BY_KEY, POST_ORDER_SQL, guessPost };
+// Зөвлөлийн бүтэц: { tree, flat }. flat нь модны дарааллаар (depth, descendants-тай).
+async function loadStructure() {
+  const { pool } = require('./db');
+  const [units] = await pool.query(
+    'SELECT id, parent_id, name, description, head_member_id, sort_order FROM board_units ORDER BY sort_order, id'
+  );
+  const [links] = await pool.query(
+    `SELECT l.unit_id, b.id AS member_id, b.user_id, b.post, b.position, u.surname, u.name, u.photo_v
+     FROM board_unit_members l JOIN board_members b ON b.id = l.member_id JOIN users u ON u.id = b.user_id
+     ORDER BY ${POST_ORDER_SQL}, u.name`
+  );
+  const byId = new Map(units.map((u) => [u.id, { ...u, children: [], people: [], memberIds: [], descendants: [], depth: 0 }]));
+  for (const l of links) {
+    const u = byId.get(l.unit_id);
+    if (!u) continue;
+    u.memberIds.push(l.member_id);
+    u.people.push({ ...l, is_head: l.member_id === u.head_member_id });
+  }
+  for (const u of byId.values()) u.people.sort((a, b) => b.is_head - a.is_head);
+  const tree = [];
+  for (const u of byId.values()) {
+    const parent = u.parent_id && byId.get(u.parent_id);
+    (parent ? parent.children : tree).push(u);
+  }
+  const flat = [];
+  const walk = (u, depth, seen) => {
+    if (seen.has(u.id)) return [];
+    seen.add(u.id);
+    u.depth = depth;
+    flat.push(u);
+    for (const c of u.children) u.descendants.push(c.id, ...walk(c, depth + 1, seen));
+    // Схемд эзлэх өргөн: доорх навчны тоо
+    u.leaves = u.children.reduce((s, c) => s + (c.leaves || 1), 0) || 1;
+    return u.descendants;
+  };
+  const seen = new Set();
+  for (const u of tree) walk(u, 0, seen);
+  return { tree, flat };
+}
+
+module.exports = { POSTS, POST_KEYS, POST_BY_KEY, POST_ORDER_SQL, guessPost, loadStructure };

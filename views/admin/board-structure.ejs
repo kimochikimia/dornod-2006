@@ -1,0 +1,98 @@
+<%- include('../partials/head') %>
+<%
+  // Эцэг нэгжийн сонголт: өөрийгөө болон доод нэгжүүдээ сонгох боломжгүй.
+  var parentOptions = function (self, selected) {
+    var blocked = self ? self.descendants.concat([self.id]) : [];
+    var html = '<option value="">— Дээд түвшин (эцэг нэгжгүй) —</option>';
+    flat.forEach(function (u) {
+      if (blocked.indexOf(u.id) !== -1) return;
+      html += '<option value="' + u.id + '"' + (u.id === selected ? ' selected' : '') + '>' +
+        new Array(u.depth + 1).join('   ') + h.escapeHtml(u.name) + '</option>';
+    });
+    return html;
+  };
+  var headOptions = function (selected) {
+    var html = '<option value="">— Сонгоогүй —</option>';
+    members.forEach(function (m) {
+      html += '<option value="' + m.id + '"' + (m.id === selected ? ' selected' : '') + '>' +
+        h.escapeHtml(m.surname + ' ' + m.name + ' — ' + (m.post === 'unassigned' ? 'Томилогдоогүй' : m.position)) + '</option>';
+    });
+    return html;
+  };
+  var memberChecks = function (checked) {
+    if (!members.length) return '<p class="small faint" style="margin:0">Зөвлөлд гишүүн нэмээгүй байна.</p>';
+    return '<div class="unit-members">' + members.map(function (m) {
+      return '<label class="check-chip"><input type="checkbox" name="member_ids" value="' + m.id + '"' +
+        (checked.indexOf(m.id) !== -1 ? ' checked' : '') + '> ' + h.escapeHtml(m.surname + ' ' + m.name) +
+        ' <span class="faint">· ' + h.escapeHtml(m.post === 'unassigned' ? 'Томилогдоогүй' : m.position) + '</span></label>';
+    }).join('') + '</div>';
+  };
+%>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Удирдах зөвлөлийн бүтэц</h2>
+    <a class="btn" href="/board#structure">Нийтийн хуудас →</a>
+  </div>
+
+  <div class="flash info small" style="margin-bottom:1.25rem">
+    Зөвлөлийн бүтцийг нэгжээр оруулна (ж: <em>Зөвлөлийн дарга → Нарийн бичгийн дарга, Санхүү → Арга хэмжээний хороо</em>).
+    Нэгж бүрд эцэг нэгж, ахлагч, гишүүдийг сонгоно. Оруулсан бүтэц нь <strong>Удирдах зөвлөл</strong> хуудсанд модон схемээр харагдана.
+  </div>
+
+  <% if (tree.length) { %>
+    <div class="card" style="margin-bottom:1.25rem">
+      <h3 style="margin-top:0">Харагдах байдал</h3>
+      <%- include('../partials/board-structure', { tree: tree, openDialogs: false }) %>
+    </div>
+  <% } %>
+
+  <details class="card unit-card" <%= flat.length ? '' : 'open' %>>
+    <summary><strong>＋ Шинэ нэгж нэмэх</strong></summary>
+    <form method="post" action="/admin/board/structure" class="form" style="margin-top:1rem">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field"><label>Нэгжийн нэр <span class="req">*</span></label><input type="text" name="name" maxlength="150" required placeholder="ж: Арга хэмжээ зохион байгуулах хороо"></div>
+        <div class="field"><label>Эцэг нэгж</label><select name="parent_id"><%- parentOptions(null, null) %></select></div>
+        <div class="field"><label>Ахлагч</label><select name="head_member_id"><%- headOptions(null) %></select></div>
+        <div class="field"><label>Дараалал</label><input type="number" name="sort_order" min="0" max="9999" placeholder="100"><div class="hint">Бага тоо нь зүүн/дээр гарна.</div></div>
+      </div>
+      <div class="field"><label>Тайлбар</label><textarea name="description" rows="2" maxlength="500" placeholder="Нэгжийн чиг үүрэг"></textarea></div>
+      <div class="field"><label>Гишүүд</label><%- memberChecks([]) %></div>
+      <div><button class="btn btn-primary" type="submit">Нэмэх</button></div>
+    </form>
+  </details>
+
+  <% if (!flat.length) { %>
+    <div class="empty" style="margin-top:1rem">Бүтэц оруулаагүй байна. Эхлээд дээд түвшний нэгжээ (ж: «Зөвлөлийн дарга») нэмнэ үү.</div>
+  <% } %>
+
+  <div class="stack" style="margin-top:1rem">
+    <% flat.forEach(function (u) { %>
+      <details class="card unit-card" id="u<%= u.id %>" style="margin-left:<%= Math.min(u.depth, 4) * 1.25 %>rem">
+        <summary>
+          <strong><%= u.depth ? '└ ' : '' %><%= u.name %></strong>
+          <span class="small muted"> · <%= u.people.length %> хүн<%= u.children.length ? ' · ' + u.children.length + ' дэд нэгж' : '' %></span>
+        </summary>
+        <form method="post" action="/admin/board/structure/<%= u.id %>" class="form" style="margin-top:1rem">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <div class="form-grid">
+            <div class="field"><label>Нэгжийн нэр <span class="req">*</span></label><input type="text" name="name" value="<%= u.name %>" maxlength="150" required></div>
+            <div class="field"><label>Эцэг нэгж</label><select name="parent_id"><%- parentOptions(u, u.parent_id) %></select></div>
+            <div class="field"><label>Ахлагч</label><select name="head_member_id"><%- headOptions(u.head_member_id) %></select></div>
+            <div class="field"><label>Дараалал</label><input type="number" name="sort_order" value="<%= u.sort_order %>" min="0" max="9999"></div>
+          </div>
+          <div class="field"><label>Тайлбар</label><textarea name="description" rows="2" maxlength="500"><%= u.description || '' %></textarea></div>
+          <div class="field"><label>Гишүүд</label><%- memberChecks(u.memberIds) %></div>
+          <div class="row between">
+            <button class="btn btn-primary btn-sm" type="submit">Хадгалах</button>
+            <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/board/structure/<%= u.id %>/delete" formnovalidate
+                    data-confirm="&quot;<%= u.name %>&quot; нэгжийг устгах уу?<%= u.children.length ? ' Дэд нэгжүүд нь дээд нэгж рүү шилжинэ.' : '' %>">Устгах</button>
+          </div>
+        </form>
+      </details>
+    <% }) %>
+  </div>
+</div>
+<%- include('../partials/foot') %>

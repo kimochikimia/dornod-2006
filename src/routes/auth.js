@@ -54,6 +54,8 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
     professions: h.parseProfessions(req.body.prof_field, req.body.prof_title),
     employment: employmentKey(req.body.employment),
     workplace: clean(req.body.workplace, 150),
+    position_level: h.positionKey(req.body.position_level),
+    position: clean(req.body.position, 150),
     city: null,
     facebook: clean(req.body.facebook, 300),
     photo_data: String(req.body.photo_data || ''),
@@ -87,10 +89,11 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const [result] = await pool.query(
-    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, city, facebook)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, position_level, position, city, facebook)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [form.surname, form.name, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
-      h.professionsText(form.professions) || null, form.professions.length ? JSON.stringify(form.professions) : null, form.employment, form.workplace || null, form.city || null, facebook || null]
+      h.professionsText(form.professions) || null, form.professions.length ? JSON.stringify(form.professions) : null, form.employment, form.workplace || null,
+      form.position_level, form.position || null, form.city || null, facebook || null]
   );
   if (photo) await savePhoto(result.insertId, photo);
   await startSession(req, result.insertId);

@@ -1,0 +1,35 @@
+<%#
+  Удирдах зөвлөлийн бүтэц (модон схем).
+  tree: board.loadStructure().tree
+  openDialogs: true бол хүн дээр дарахад тухайн гишүүний цонх (bm-<id>) нээгдэнэ.
+%>
+<%
+  var linkPeople = typeof openDialogs !== 'undefined' && openDialogs;
+  function orgNode(u, depth) {
+%>
+  <li style="flex-grow:<%= u.leaves || 1 %>">
+    <div class="org-node <%= depth === 0 ? 'root' : '' %>">
+      <div class="org-name"><%= u.name %></div>
+      <% if (u.description) { %><div class="org-desc"><%= u.description %></div><% } %>
+      <% if (u.people.length) { %>
+        <div class="org-people">
+          <% u.people.forEach(function (p) { %>
+            <% if (linkPeople) { %><button type="button" class="org-person <%= p.is_head ? 'head' : '' %>" data-open-dialog="bm-<%= p.member_id %>"><% } else { %><div class="org-person <%= p.is_head ? 'head' : '' %>"><% } %>
+              <%- avatar(p, p.user_id, 'xs') %>
+              <span class="org-person-text">
+                <strong><%= p.surname ? p.surname.charAt(0) + '. ' : '' %><%= p.name %></strong>
+                <small><%= p.is_head ? 'Ахлагч' : (p.post === 'unassigned' ? 'Гишүүн' : p.position) %></small>
+              </span>
+            <% if (linkPeople) { %></button><% } else { %></div><% } %>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+    <% if (u.children.length) { %>
+      <ul><% u.children.forEach(function (c) { orgNode(c, depth + 1); }) %></ul>
+    <% } %>
+  </li>
+<% } %>
+<div class="org-scroll" data-org>
+  <ul class="org"><% tree.forEach(function (u) { orgNode(u, 0); }) %></ul>
+</div>

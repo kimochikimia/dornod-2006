@@ -1,0 +1,39 @@
+<%#
+  Reaction мөр. Параметр: type ('news' | 'comment'), id, r ({ counts, mine, total }), back (буцах URL), small (сэтгэгдэлд)
+%>
+<%
+  var RX = h.REACTIONS;
+  var mineDef = null;
+  RX.forEach(function (x) { if (x[0] === r.mine) mineDef = x; });
+  var isSmall = typeof small !== 'undefined' && small;
+%>
+<div class="react <%= isSmall ? 'small' : '' %>" data-react id="rx-<%= type %>-<%= id %>">
+  <% if (me && me.status !== 'rejected') { %>
+    <form method="post" action="/react" class="react-form" data-react-form>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="type" value="<%= type %>">
+      <input type="hidden" name="id" value="<%= id %>">
+      <input type="hidden" name="back" value="<%= back %>">
+      <button type="submit" name="emoji" value="<%= mineDef ? '' : 'like' %>" class="react-main <%= mineDef ? 'on' : '' %>"
+              title="<%= mineDef ? 'Буцаах' : 'Таалагдлаа' %>">
+        <span class="react-emoji"><%= mineDef ? mineDef[1] : '👍' %></span><span><%= mineDef ? mineDef[2] : 'Таалагдлаа' %></span>
+      </button>
+      <button type="button" class="react-more" aria-label="Бусад emoji" title="Бусад emoji">😊<span aria-hidden="true">+</span></button>
+      <div class="react-picker" role="group" aria-label="Emoji сонгох">
+        <% RX.forEach(function (x) { %>
+          <button type="submit" name="emoji" value="<%= r.mine === x[0] ? '' : x[0] %>" class="<%= r.mine === x[0] ? 'on' : '' %>" title="<%= x[2] %>" aria-label="<%= x[2] %>"><%= x[1] %></button>
+        <% }) %>
+      </div>
+    </form>
+  <% } else if (!me) { %>
+    <a class="react-main" href="/login?next=<%= encodeURIComponent(back) %>" title="Нэвтэрч reaction өгнө үү"><span class="react-emoji">👍</span><span>Таалагдлаа</span></a>
+  <% } %>
+  <% if (r.total) { %>
+    <div class="react-summary">
+      <% r.counts.forEach(function (c) { %>
+        <span class="react-count <%= r.mine === c.key ? 'mine' : '' %>"
+              title="<%= c.label %>: <%= c.names.slice(0, 15).join(', ') %><%= c.names.length > 15 ? ' ба бусад ' + (c.names.length - 15) : '' %>"><%= c.emoji %> <%= c.n %></span>
+      <% }) %>
+    </div>
+  <% } %>
+</div>

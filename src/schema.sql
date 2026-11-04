@@ -41,6 +41,29 @@ CREATE TABLE IF NOT EXISTS announcements (
   CONSTRAINT fk_ann_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Мэдээ, сэтгэгдлийн reaction (нэг хүн нэг зүйлд нэг reaction)
+CREATE TABLE IF NOT EXISTS reactions (
+  target_type ENUM('news','comment') NOT NULL,
+  target_id INT NOT NULL,
+  user_id INT NOT NULL,
+  emoji VARCHAR(16) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (target_type, target_id, user_id),
+  CONSTRAINT fk_reaction_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Мэдээний сэтгэгдэл (нэвтэрсэн хэрэглэгч бичнэ)
+CREATE TABLE IF NOT EXISTS news_comments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  announcement_id INT NOT NULL,
+  user_id INT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_comment_news (announcement_id, created_at),
+  CONSTRAINT fk_comment_news FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+  CONSTRAINT fk_comment_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS change_requests (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
@@ -146,6 +169,27 @@ CREATE TABLE IF NOT EXISTS board_members (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_board_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_board_election FOREIGN KEY (election_id) REFERENCES elections(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Удирдах зөвлөлийн бүтэц (нэгжүүдийн мод)
+CREATE TABLE IF NOT EXISTS board_units (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  parent_id INT NULL,
+  name VARCHAR(150) NOT NULL,
+  description VARCHAR(500) NULL,
+  head_member_id INT NULL,
+  sort_order INT NOT NULL DEFAULT 100,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_unit_parent FOREIGN KEY (parent_id) REFERENCES board_units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_unit_head FOREIGN KEY (head_member_id) REFERENCES board_members(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS board_unit_members (
+  unit_id INT NOT NULL,
+  member_id INT NOT NULL,
+  PRIMARY KEY (unit_id, member_id),
+  CONSTRAINT fk_unitm_unit FOREIGN KEY (unit_id) REFERENCES board_units(id) ON DELETE CASCADE,
+  CONSTRAINT fk_unitm_member FOREIGN KEY (member_id) REFERENCES board_members(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Зөвлөлийн бодлогын баримт бичиг (дүрэм, журам, төлөвлөгөө, тайлан)

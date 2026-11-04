@@ -13,6 +13,8 @@
           <div class="row" style="gap:.5rem">
             <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
             <span class="date"><%= h.fmtDay(n.created_at) %></span>
+            <% if (n.reaction_count) { %><span class="date">👍 <%= n.reaction_count %></span><% } %>
+            <% if (n.comment_count) { %><span class="date">💬 <%= n.comment_count %></span><% } %>
           </div>
           <h3 style="margin-top:.5rem"><%= n.title %></h3>
           <p class="excerpt"><%= n.body %></p>

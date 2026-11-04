@@ -170,13 +170,14 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
     ? req.body.status : target.status;
   const professions = h.parseProfessions(req.body.prof_field, req.body.prof_title);
   await pool.query(
-    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?,
+    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?, position_level=?, position=?,
        city=?, facebook=?, bio=?, role=?, status=?
      WHERE id = ?`,
     [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
       Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null,
       h.professionsText(professions) || null, professions.length ? JSON.stringify(professions) : null,
       h.employmentKey(req.body.employment), clean(req.body.workplace, 150) || null,
+      h.positionKey(req.body.position_level), clean(req.body.position, 150) || null,
       place.city, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
   flash(req, 'success', 'Мэдээлэл хадгалагдлаа.');
@@ -272,6 +273,10 @@ router.post('/news/:id', wrap(async (req, res) => {
 }));
 
 router.post('/news/:id/delete', wrap(async (req, res) => {
+  const rx = require('../reactions');
+  const [cs] = await pool.query('SELECT id FROM news_comments WHERE announcement_id = ?', [req.params.id]);
+  await rx.deleteFor('comment', cs.map((c) => c.id));
+  await rx.deleteFor('news', [Number(req.params.id)]);
   await pool.query('DELETE FROM announcements WHERE id = ?', [req.params.id]);
   flash(req, 'success', 'Мэдээ устгагдлаа.');
   res.redirect('/admin/news');
@@ -554,6 +559,72 @@ router.post('/board/import', wrap(async (req, res) => {
   }
   flash(req, 'success', `"${e.title}"-оос ${winners.length} сонгогдсон гишүүн байна: ${added} нь шинээр нэмэгдлээ. Зөвлөлийн хурлын шийдвэрээр албан тушаалд томилно уу.`);
   res.redirect('/admin/board');
+}));
+
+// ---------- Зөвлөлийн бүтэц ----------
+router.get('/board/structure', wrap(async (req, res) => {
+  const { tree, flat } = await board.loadStructure();
+  const [members] = await pool.query(
+    `SELECT b.id, b.post, b.position, u.surname, u.name FROM board_members b JOIN users u ON u.id = b.user_id
+     ORDER BY ${board.POST_ORDER_SQL}, u.name`
+  );
+  res.render('admin/board-structure', { title: 'Зөвлөлийн бүтэц — Удирдлага', tree, flat, members });
+}));
+
+async function saveUnit(req, res, id) {
+  const back = '/admin/board/structure' + (id ? `#u${id}` : '');
+  const name = clean(req.body.name, 150);
+  if (!name) {
+    flash(req, 'error', 'Нэгжийн нэрийг бичнэ үү.');
+    return res.redirect(back);
+  }
+  const { flat } = await board.loadStructure();
+  const byId = new Map(flat.map((u) => [u.id, u]));
+  let parent = Number(req.body.parent_id) || null;
+  if (parent && !byId.has(parent)) parent = null;
+  if (id && parent && (parent === id || byId.get(id).descendants.includes(parent))) {
+    flash(req, 'error', 'Нэгжийг өөрийнхөө эсвэл доод нэгжийнхээ доор оруулж болохгүй.');
+    return res.redirect(back);
+  }
+  const [bm] = await pool.query('SELECT id FROM board_members');
+  const valid = new Set(bm.map((m) => m.id));
+  let head = Number(req.body.head_member_id) || null;
+  if (head && !valid.has(head)) head = null;
+  const memberIds = [...new Set([].concat(req.body.member_ids ?? []).map(Number))].filter((m) => valid.has(m));
+  if (head && !memberIds.includes(head)) memberIds.unshift(head);
+  const order = parseInt(req.body.sort_order, 10);
+  const fields = {
+    name, parent_id: parent, head_member_id: head,
+    description: clean(req.body.description, 500) || null,
+    sort_order: Number.isFinite(order) ? Math.max(0, Math.min(order, 9999)) : 100,
+  };
+  if (id) await pool.query('UPDATE board_units SET ? WHERE id = ?', [fields, id]);
+  else id = (await pool.query('INSERT INTO board_units SET ?', [fields]))[0].insertId;
+  await pool.query('DELETE FROM board_unit_members WHERE unit_id = ?', [id]);
+  if (memberIds.length) {
+    await pool.query('INSERT INTO board_unit_members (unit_id, member_id) VALUES ?', [memberIds.map((m) => [id, m])]);
+  }
+  flash(req, 'success', 'Бүтэц хадгалагдлаа.');
+  res.redirect(`/admin/board/structure#u${id}`);
+}
+
+router.post('/board/structure', wrap(async (req, res) => saveUnit(req, res, null)));
+
+router.post('/board/structure/:uid', wrap(async (req, res, next) => {
+  const [[u]] = await pool.query('SELECT id FROM board_units WHERE id = ?', [req.params.uid]);
+  if (!u) return next();
+  return saveUnit(req, res, u.id);
+}));
+
+router.post('/board/structure/:uid/delete', wrap(async (req, res) => {
+  const [[u]] = await pool.query('SELECT id, parent_id FROM board_units WHERE id = ?', [req.params.uid]);
+  if (u) {
+    // Дэд нэгжүүдийг устгахгүй — нэг түвшин дээш шилжүүлнэ.
+    await pool.query('UPDATE board_units SET parent_id = ? WHERE parent_id = ?', [u.parent_id, u.id]);
+    await pool.query('DELETE FROM board_units WHERE id = ?', [u.id]);
+    flash(req, 'success', 'Нэгж устгагдлаа.');
+  }
+  res.redirect('/admin/board/structure');
 }));
 
 router.post('/board/:bid', wrap(async (req, res, next) => {

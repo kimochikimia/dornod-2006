@@ -224,6 +224,35 @@ function clean(s, max = 255) {
   return String(s ?? '').trim().slice(0, max);
 }
 
+// Reaction-ууд (src/reactions.js-д мөн ашиглана)
+const REACTIONS = [
+  ['like', '👍', 'Таалагдлаа'],
+  ['love', '❤️', 'Хайртай'],
+  ['haha', '😂', 'Хөгжилтэй'],
+  ['wow', '😮', 'Гайхалтай'],
+  ['sad', '😢', 'Харамсалтай'],
+  ['clap', '👏', 'Алга ташилт'],
+];
+
+// Албан тушаалын төрөл
+const POSITION_LEVELS = [
+  ['head', 'Дарга, захирал'],
+  ['lead', 'Ахлах'],
+  ['specialist', 'Мэргэжилтэн'],
+  ['staff', 'Ажилтан'],
+  ['owner', 'Эзэмшигч, үүсгэн байгуулагч'],
+  ['other', 'Бусад'],
+];
+const POSITION_LABELS = Object.fromEntries(POSITION_LEVELS);
+const positionKey = (v) => (POSITION_LABELS[v] ? v : null);
+// Харуулах текст: "Хэлтсийн дарга (Дарга, захирал)"
+function positionText(u) {
+  if (!u) return '';
+  const level = POSITION_LABELS[u.position_level];
+  if (u.position && level) return `${u.position} (${level})`;
+  return u.position || level || '';
+}
+
 // Мэргэжлийн ерөнхий чиглэл
 const PROFESSION_FIELDS = [
   ['law', 'Хууль, эрх зүй'],
@@ -285,5 +314,7 @@ module.exports = {
   TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
   PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, normalizeMapUrl, renderDoc, parseDocFile, fmtSize,
   EMPLOYMENT, EMPLOYMENT_LABELS, employmentKey,
+  REACTIONS,
+  POSITION_LEVELS, POSITION_LABELS, positionKey, positionText,
   PROFESSION_FIELDS, PROFESSION_LABELS, MAX_PROFESSIONS, parseProfessions, professionsText, readProfessions,
 };

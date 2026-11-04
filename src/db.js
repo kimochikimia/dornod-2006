@@ -205,6 +205,8 @@ async function init() {
   await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
   await ensureColumn('users', 'employment', 'VARCHAR(20) NULL AFTER class_name');
   await ensureColumn('users', 'workplace', 'VARCHAR(150) NULL AFTER employment');
+  await ensureColumn('users', 'position_level', 'VARCHAR(20) NULL AFTER workplace');
+  await ensureColumn('users', 'position', 'VARCHAR(150) NULL AFTER position_level');
   // Олон мэргэжил (JSON) — occupation нь тэдгээрийн нэгтгэсэн текст.
   await ensureColumn('users', 'professions', 'TEXT NULL AFTER occupation');
   await widenOccupation();

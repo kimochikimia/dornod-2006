@@ -148,6 +148,8 @@
     initLive();
     initPlanForm();
     initProfessions();
+    initReactions();
+    initOrgChart();
   });
 
   // ---------- Зураг сонгогч: 400×400 дөрвөлжин болгож JPEG-ээр багасгана ----------
@@ -263,6 +265,54 @@
     function update() { end.style.display = kind.value === 'milestone' ? 'none' : ''; }
     kind.addEventListener('change', update);
     update();
+  }
+
+  // ---------- Зөвлөлийн бүтэц: багтахгүй бол босоо харагдац руу шилжинэ ----------
+  function initOrgChart() {
+    var charts = $$('[data-org]');
+    if (!charts.length) return;
+    var MIN = 150; // нэгжийн хайрцгийн хамгийн бага өргөн (px)
+    function fit() {
+      charts.forEach(function (c) {
+        c.classList.remove('vertical');
+        var tooNarrow = $$('.org-node', c).some(function (n) { return n.getBoundingClientRect().width < MIN; });
+        if (tooNarrow || c.scrollWidth > c.clientWidth + 1) c.classList.add('vertical');
+      });
+    }
+    var t;
+    window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(fit, 120); });
+    // Цонх (dialog) дотор биш тул шууд хэмжиж болно
+    fit();
+  }
+
+  // ---------- Reaction: хуудас дахин ачаалахгүйгээр илгээнэ ----------
+  function initReactions() {
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form.matches || !form.matches('[data-react-form]')) return;
+      var btn = e.submitter;
+      if (!window.fetch || !btn) return;
+      e.preventDefault();
+      var box = form.closest('[data-react]');
+      var data = new URLSearchParams(new FormData(form));
+      data.set('emoji', btn.value);
+      box.classList.add('busy');
+      fetch(form.action, {
+        method: 'POST', body: data, credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      }).then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.html) throw new Error(j.error || 'error');
+        var tmp = document.createElement('div');
+        tmp.innerHTML = j.html.trim();
+        box.replaceWith(tmp.firstElementChild);
+      }).catch(function () { form.submit(); });
+    });
+    // Гадна дарахад нээлттэй picker-ийг хаана
+    document.addEventListener('click', function (e) {
+      var more = e.target.closest && e.target.closest('.react-more');
+      $$('.react-form.open').forEach(function (f) { if (!more || f !== more.closest('.react-form')) f.classList.remove('open'); });
+      if (more) more.closest('.react-form').classList.toggle('open');
+    });
   }
 
   // ---------- Мэргэжил: олон мөр нэмэх / хасах ----------

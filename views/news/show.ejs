@@ -6,6 +6,48 @@
     <p class="small faint"><%= h.fmtDate(item.created_at) %></p>
   </div>
   <article class="card prose"><%- h.text(item.body) %></article>
+  <div class="news-react"><%- include('../partials/reactions', { type: 'news', id: item.id, r: newsReact, back: '/news/' + item.id, small: false }) %></div>
   <% if (can('manage_news')) { %><p style="margin-top:1rem"><a class="btn btn-sm" href="/admin/news/<%= item.id %>">Засах</a></p><% } %>
+
+  <section class="comments" id="comments">
+    <h2>Сэтгэгдэл <span class="muted small">(<%= comments.length %>)</span></h2>
+    <% if (!comments.length) { %><p class="small faint">Одоогоор сэтгэгдэл алга.</p><% } %>
+    <div class="comment-list">
+      <% comments.forEach(function (c) { %>
+        <div class="comment" id="c<%= c.id %>">
+          <%- avatar(c, c.user_id) %>
+          <div class="comment-main">
+            <div class="comment-head">
+              <strong><%= c.surname %> <%= c.name %></strong>
+              <span class="small faint"><%= h.fmtDate(c.created_at) %></span>
+              <% if (me && (me.id === c.user_id || can('manage_news'))) { %>
+                <form method="post" action="/news/<%= item.id %>/comments/<%= c.id %>/delete" class="inline comment-del" data-confirm="Сэтгэгдлийг устгах уу?">
+                  <input type="hidden" name="_csrf" value="<%= csrf %>">
+                  <button class="link-btn small" type="submit">Устгах</button>
+                </form>
+              <% } %>
+            </div>
+            <div class="comment-body"><%- h.text(c.body) %></div>
+            <%- include('../partials/reactions', { type: 'comment', id: c.id, r: commentReact[c.id], back: '/news/' + item.id + '#c' + c.id, small: true }) %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (!me) { %>
+      <div class="card comment-login">
+        <span>Сэтгэгдэл бичихийн тулд нэвтэрнэ үү.</span>
+        <a class="btn btn-primary btn-sm" href="/login?next=<%= encodeURIComponent('/news/' + item.id + '#comments') %>">Нэвтрэх</a>
+      </div>
+    <% } else if (me.status === 'rejected') { %>
+      <p class="small faint">Таны бүртгэл татгалзсан тул сэтгэгдэл бичих боломжгүй.</p>
+    <% } else { %>
+      <form method="post" action="/news/<%= item.id %>/comments" class="card comment-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <textarea name="body" rows="3" maxlength="2000" required placeholder="Сэтгэгдлээ бичнэ үү…"></textarea>
+        <div class="row" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit">Илгээх</button></div>
+      </form>
+    <% } %>
+  </section>
 </div>
 <%- include('../partials/foot') %>

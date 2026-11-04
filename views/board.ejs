@@ -49,6 +49,16 @@
     </a>
   <% }) %>
 
+  <%# ---------- Зөвлөлийн бүтэц ---------- %>
+  <% if (structure.length) { %>
+    <section class="tile-section" id="structure">
+      <h2 class="tile-section-title">Зөвлөлийн бүтэц</h2>
+      <div class="card">
+        <%- include('partials/board-structure', { tree: structure, openDialogs: true }) %>
+      </div>
+    </section>
+  <% } %>
+
   <%# ---------- Зөвлөлийн гишүүд (бүлгээр, тойрог зурагтай) ---------- %>
   <%
     var groups = [

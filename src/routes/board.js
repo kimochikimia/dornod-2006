@@ -40,8 +40,10 @@ router.get('/', wrap(async (req, res) => {
      FROM board_documents ORDER BY sort_order, id`
   );
 
+  const { tree: structure } = await board.loadStructure();
+
   res.render('board', {
-    title: 'Удирдах зөвлөл', members, active, others, documents });
+    title: 'Удирдах зөвлөл', members, active, others, documents, structure });
 }));
 
 // Баримт бичиг унших

@@ -4,6 +4,7 @@ const { pool } = require('../db');
 const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware');
 const { clean, employmentKey } = require('../helpers');
 const plan = require('../plan');
+const rx = require('../reactions');
 const sched = require('../electionSchedule');
 
 const router = express.Router();
@@ -27,7 +28,10 @@ router.get('/', wrap(async (req, res) => {
 
 router.get('/news', wrap(async (req, res) => {
   const [news] = await pool.query(
-    'SELECT id, title, body, pinned, created_at FROM announcements ORDER BY pinned DESC, created_at DESC'
+    `SELECT a.id, a.title, a.body, a.pinned, a.created_at,
+            (SELECT COUNT(*) FROM news_comments c WHERE c.announcement_id = a.id) AS comment_count,
+            (SELECT COUNT(*) FROM reactions r WHERE r.target_type = 'news' AND r.target_id = a.id) AS reaction_count
+     FROM announcements a ORDER BY a.pinned DESC, a.created_at DESC`
   );
   res.render('news/list', { title: 'Мэдээ, зарлал', news });
 }));
@@ -35,7 +39,71 @@ router.get('/news', wrap(async (req, res) => {
 router.get('/news/:id', wrap(async (req, res, next) => {
   const [[item]] = await pool.query('SELECT * FROM announcements WHERE id = ?', [req.params.id]);
   if (!item) return next();
-  res.render('news/show', { title: item.title, item });
+  const [comments] = await pool.query(
+    `SELECT c.id, c.user_id, c.body, c.created_at, u.surname, u.name, u.photo_v
+     FROM news_comments c JOIN users u ON u.id = c.user_id
+     WHERE c.announcement_id = ? ORDER BY c.created_at, c.id`,
+    [item.id]
+  );
+  const uid = req.user && req.user.id;
+  const newsReact = await rx.loadOne('news', item.id, uid);
+  const commentReact = await rx.loadReactions('comment', comments.map((c) => c.id), uid);
+  res.render('news/show', { title: item.title, item, comments, newsReact, commentReact });
+}));
+
+// Сэтгэгдэл бичих: нэвтэрсэн хэрэглэгч (татгалзсан бүртгэлээс бусад)
+router.post('/news/:id/comments', requireLogin, wrap(async (req, res, next) => {
+  const [[item]] = await pool.query('SELECT id FROM announcements WHERE id = ?', [req.params.id]);
+  if (!item) return next();
+  const back = `/news/${item.id}#comments`;
+  if (req.user.status === 'rejected') {
+    flash(req, 'error', 'Таны бүртгэл татгалзсан тул сэтгэгдэл бичих боломжгүй.');
+    return res.redirect(back);
+  }
+  const body = clean(req.body.body, 2000);
+  if (!body) {
+    flash(req, 'error', 'Сэтгэгдлээ бичнэ үү.');
+    return res.redirect(back);
+  }
+  const [[recent]] = await pool.query(
+    'SELECT COUNT(*) AS n FROM news_comments WHERE user_id = ? AND created_at > NOW() - INTERVAL 15 SECOND', [req.user.id]
+  );
+  if (recent.n) {
+    flash(req, 'warn', 'Түр хүлээгээд дахин бичнэ үү.');
+    return res.redirect(back);
+  }
+  const [r] = await pool.query('INSERT INTO news_comments (announcement_id, user_id, body) VALUES (?, ?, ?)', [item.id, req.user.id, body]);
+  res.redirect(`/news/${item.id}#c${r.insertId}`);
+}));
+
+// Сэтгэгдэл устгах: өөрийнхөө эсвэл мэдээ удирдах эрхтэй бол
+router.post('/news/:id/comments/:cid/delete', requireLogin, wrap(async (req, res) => {
+  const [[c]] = await pool.query('SELECT id, user_id FROM news_comments WHERE id = ? AND announcement_id = ?', [req.params.cid, req.params.id]);
+  if (c && (c.user_id === req.user.id || can(req.user, 'manage_news'))) {
+    await pool.query('DELETE FROM news_comments WHERE id = ?', [c.id]);
+    await rx.deleteFor('comment', [c.id]);
+    flash(req, 'success', 'Сэтгэгдэл устгагдлаа.');
+  }
+  res.redirect(`/news/${Number(req.params.id)}#comments`);
+}));
+
+// Reaction дарах / солих / буцаах. JS-ээс дуудвал шинэчилсэн мөрийн HTML-ийг буцаана.
+router.post('/react', requireLogin, wrap(async (req, res) => {
+  const wantsJson = (req.get('Accept') || '').includes('application/json');
+  const type = rx.TYPES.includes(req.body.type) ? req.body.type : null;
+  const id = Number(req.body.id) || 0;
+  const emoji = rx.REACTION_KEYS.includes(req.body.emoji) ? req.body.emoji : '';
+  const back = typeof req.body.back === 'string' && req.body.back.startsWith('/') && !req.body.back.startsWith('//') ? req.body.back : '/news';
+  const fail = (code, msg) => (wantsJson ? res.status(code).json({ error: msg }) : (flash(req, 'error', msg), res.redirect(back)));
+  if (!type || !id || !(await rx.targetExists(type, id))) return fail(404, 'Олдсонгүй.');
+  if (req.user.status === 'rejected') return fail(403, 'Таны бүртгэл татгалзсан байна.');
+  await rx.setReaction(type, id, req.user.id, emoji);
+  if (!wantsJson) return res.redirect(back);
+  const r = await rx.loadOne(type, id, req.user.id);
+  res.render('partials/reactions', { type, id, r, back, small: type === 'comment' }, (err, html) => {
+    if (err) return res.status(500).json({ error: 'Алдаа гарлаа.' });
+    res.json({ html });
+  });
 }));
 
 router.get('/plan', wrap(async (req, res) => {
@@ -93,7 +161,7 @@ router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
 
 router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.professions, u.employment, u.workplace,
+    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.professions, u.employment, u.workplace, u.position_level, u.position,
             u.city, u.bio, u.role, u.created_at,
             s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id

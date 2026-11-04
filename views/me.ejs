@@ -20,6 +20,7 @@
         <dt>Сургууль</dt><dd><%= me.school_name || '—' %><%= me.class_name ? ' · ' + me.class_name : '' %></dd>
         <dt>Ажил эрхлэлт</dt><dd><%= me.employment ? h.EMPLOYMENT_LABELS[me.employment] : '—' %></dd>
         <dt>Ажлын газар</dt><dd><%= me.workplace || '—' %></dd>
+        <dt>Албан тушаал</dt><dd><%= h.positionText(me) || '—' %></dd>
         <dt>Мэргэжил</dt><dd><% var profs = h.readProfessions(me); %><% if (profs.length) { %><% profs.forEach(function (p) { %><div><%= p.title || h.PROFESSION_LABELS[p.field] %><% if (p.field && p.title) { %> <span class="small muted">· <%= h.PROFESSION_LABELS[p.field] %></span><% } %></div><% }) %><% } else { %>—<% } %></dd>
         <dt>Хот</dt><dd><%= me.city || '—' %></dd>
       </dl>
