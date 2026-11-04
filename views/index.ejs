@@ -55,6 +55,29 @@
 </section>
 <% } %>
 
+<section class="container section">
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Сүүлийн мэдээ</h2>
+    <a href="/news">Бүгдийг харах →</a>
+  </div>
+  <% if (!news.length) { %>
+    <div class="empty">Одоогоор мэдээ нийтлэгдээгүй байна.</div>
+  <% } else { %>
+    <div class="grid grid-2">
+      <% news.forEach(function (n) { %>
+        <a class="card card-link news-item" href="/news/<%= n.id %>">
+          <div class="row" style="gap:.5rem">
+            <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
+            <span class="date"><%= h.fmtDay(n.created_at) %></span>
+          </div>
+          <h3 style="margin-top:.5rem"><%= n.title %></h3>
+          <p class="excerpt"><%= n.body %></p>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
 <%# ---------- Фото альбом: сошиал загварын давхарласан найруулга ---------- %>
 <%
   var cap = function (p) { return p.caption ? p.caption + ' — ' + p.album_title : p.album_title; };
@@ -132,36 +155,8 @@
     </div>
   </div>
 
-  <% if (albums.length) { %>
-    <div class="album-strip">
-      <% albums.forEach(function (a, i) { %><%- include('partials/album-card', { a: a, i: i }) %><% }) %>
-    </div>
-  <% } %>
 </section>
 <%- include('partials/lightbox') %>
-
-<section class="container section">
-  <div class="row between" style="margin-bottom:1rem">
-    <h2 style="margin:0">Сүүлийн мэдээ</h2>
-    <a href="/news">Бүгдийг харах →</a>
-  </div>
-  <% if (!news.length) { %>
-    <div class="empty">Одоогоор мэдээ нийтлэгдээгүй байна.</div>
-  <% } else { %>
-    <div class="grid grid-2">
-      <% news.forEach(function (n) { %>
-        <a class="card card-link news-item" href="/news/<%= n.id %>">
-          <div class="row" style="gap:.5rem">
-            <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
-            <span class="date"><%= h.fmtDay(n.created_at) %></span>
-          </div>
-          <h3 style="margin-top:.5rem"><%= n.title %></h3>
-          <p class="excerpt"><%= n.body %></p>
-        </a>
-      <% }) %>
-    </div>
-  <% } %>
-</section>
 
 <section class="container section">
   <div class="grid grid-3">
