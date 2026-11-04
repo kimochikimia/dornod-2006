@@ -1040,3 +1040,6 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
   .gal-hero { grid-template-columns: minmax(0, 1fr); }
   .gal-stage { max-width: 440px; }
 }
+
+/* Хэсэг хоорондын бүдэг цайвар цэнхэр зураас */
+.soft-divider { height: 1px; margin: 2rem 0 0; border: 0; background: linear-gradient(90deg, transparent, rgba(125, 180, 255, 0.45) 15%, rgba(125, 180, 255, 0.45) 85%, transparent); }
