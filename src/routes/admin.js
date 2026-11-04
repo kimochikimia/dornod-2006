@@ -168,12 +168,14 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
   const role = !self && can(req.user, 'manage_roles') && perms.ROLES.includes(req.body.role) ? req.body.role : target.role;
   const status = !self && can(req.user, 'approve_users') && ['pending', 'approved', 'rejected'].includes(req.body.status)
     ? req.body.status : target.status;
+  const professions = h.parseProfessions(req.body.prof_field, req.body.prof_title);
   await pool.query(
-    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, employment=?, workplace=?,
+    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?,
        city=?, facebook=?, bio=?, role=?, status=?
      WHERE id = ?`,
     [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
-      Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null, clean(req.body.occupation, 150) || null,
+      Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null,
+      h.professionsText(professions) || null, professions.length ? JSON.stringify(professions) : null,
       h.employmentKey(req.body.employment), clean(req.body.workplace, 150) || null,
       place.city, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
@@ -289,6 +291,8 @@ function planFields(body) {
   if (!isDate(start)) errors.push('Эхлэх огноог зөв оруулна уу.');
   if (end && !isDate(end)) errors.push('Дуусах огноог зөв оруулна уу.');
   if (end && isDate(start) && end < start) errors.push('Дуусах огноо эхлэхээс өмнө байж болохгүй.');
+  const mapUrl = h.normalizeMapUrl(body.map_url);
+  if (mapUrl === false) errors.push('Google Maps линк буруу байна (ж: https://maps.app.goo.gl/...).');
   const color = PLAN_COLORS.some((c) => c.hex === body.color) ? body.color : PLAN_COLORS[0].hex;
   return {
     errors,
@@ -296,6 +300,8 @@ function planFields(body) {
       title, kind, start_date: start, end_date: end, color,
       description: clean(body.description, 3000) || null,
       responsible: clean(body.responsible, 150) || null,
+      location: clean(body.location, 200) || null,
+      map_url: mapUrl || (mapUrl === false ? String(body.map_url || '').trim().slice(0, 1000) : null),
     },
   };
 }

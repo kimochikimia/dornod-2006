@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 const { flash, wrap } = require('../middleware');
 const { clean, parsePhoto, normalizeFacebook, employmentKey } = require('../helpers');
+const h = require('../helpers');
 const { savePhoto } = require('../photos');
 const { parseCity } = require('../locations');
 
@@ -50,7 +51,7 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
     email: clean(req.body.email, 120),
     school_id: Number(req.body.school_id) || null,
     class_name: clean(req.body.class_name, 20),
-    occupation: clean(req.body.occupation, 150),
+    professions: h.parseProfessions(req.body.prof_field, req.body.prof_title),
     employment: employmentKey(req.body.employment),
     workplace: clean(req.body.workplace, 150),
     city: null,
@@ -86,10 +87,10 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const [result] = await pool.query(
-    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, employment, workplace, city, facebook)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, city, facebook)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [form.surname, form.name, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
-      form.occupation || null, form.employment, form.workplace || null, form.city || null, facebook || null]
+      h.professionsText(form.professions) || null, form.professions.length ? JSON.stringify(form.professions) : null, form.employment, form.workplace || null, form.city || null, facebook || null]
   );
   if (photo) await savePhoto(result.insertId, photo);
   await startSession(req, result.insertId);

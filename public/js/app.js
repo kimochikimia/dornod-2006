@@ -147,6 +147,7 @@
     initBallot();
     initLive();
     initPlanForm();
+    initProfessions();
   });
 
   // ---------- Зураг сонгогч: 400×400 дөрвөлжин болгож JPEG-ээр багасгана ----------
@@ -262,6 +263,34 @@
     function update() { end.style.display = kind.value === 'milestone' ? 'none' : ''; }
     kind.addEventListener('change', update);
     update();
+  }
+
+  // ---------- Мэргэжил: олон мөр нэмэх / хасах ----------
+  function initProfessions() {
+    $$('[data-professions]').forEach(function (box) {
+      var rows = $('[data-prof-rows]', box);
+      var tpl = $('[data-prof-template]', box);
+      var add = $('[data-prof-add]', box);
+      var max = Number(box.getAttribute('data-max')) || 5;
+      function update() {
+        var n = $$('[data-prof-row]', rows).length;
+        add.hidden = n >= max;
+        $$('[data-prof-remove]', rows).forEach(function (b) { b.hidden = n <= 1; });
+      }
+      add.addEventListener('click', function () {
+        rows.appendChild(tpl.content.cloneNode(true));
+        var all = $$('[data-prof-row]', rows);
+        $('select', all[all.length - 1]).focus();
+        update();
+      });
+      rows.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-prof-remove]');
+        if (!btn) return;
+        btn.closest('[data-prof-row]').remove();
+        update();
+      });
+      update();
+    });
   }
 
   // ---------- Саналын хуудас: сонголтын хязгаар ----------

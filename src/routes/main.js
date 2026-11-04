@@ -93,7 +93,7 @@ router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
 
 router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.employment, u.workplace,
+    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.professions, u.employment, u.workplace,
             u.city, u.bio, u.role, u.created_at,
             s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id

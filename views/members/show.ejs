@@ -13,7 +13,7 @@
     <dl class="dl">
       <dt>Ажил эрхлэлт</dt><dd><%= member.employment ? h.EMPLOYMENT_LABELS[member.employment] : '—' %></dd>
       <dt>Ажлын газар</dt><dd><%= member.workplace || '—' %></dd>
-      <dt>Мэргэжил</dt><dd><%= member.occupation || '—' %></dd>
+      <dt>Мэргэжил</dt><dd><% var profs = h.readProfessions(member); %><% if (profs.length) { %><% profs.forEach(function (p) { %><div><%= p.title || h.PROFESSION_LABELS[p.field] %><% if (p.field && p.title) { %> <span class="small muted">· <%= h.PROFESSION_LABELS[p.field] %></span><% } %></div><% }) %><% } else { %>—<% } %></dd>
       <dt>Амьдарч буй газар</dt><dd><%= member.city || '—' %></dd>
       <% if (can('view_contacts')) { %>
         <dt>Утас</dt><dd><a href="tel:<%= member.phone %>"><%= member.phone %></a></dd>

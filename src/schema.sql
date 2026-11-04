@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(100) NOT NULL,
   school_id INT NULL,
   class_name VARCHAR(20) NULL,
-  occupation VARCHAR(150) NULL,
+  occupation VARCHAR(500) NULL,
+  professions TEXT NULL,
   city VARCHAR(100) NULL,
   bio TEXT NULL,
   role ENUM('member','moderator','subadmin','admin') NOT NULL DEFAULT 'member',
@@ -112,6 +113,8 @@ CREATE TABLE IF NOT EXISTS plan_items (
   end_date DATE NULL,
   color VARCHAR(7) NOT NULL DEFAULT '#4f7cff',
   responsible VARCHAR(150) NULL,
+  location VARCHAR(200) NULL,
+  map_url VARCHAR(1000) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -65,13 +65,12 @@
           </select>
         </div>
         <div class="field">
-          <label for="occupation">Мэргэжил</label>
-          <input id="occupation" type="text" name="occupation" value="<%= form.occupation || '' %>" maxlength="150" placeholder="ж: Эмч, инженер, багш">
-        </div>
-        <div class="field" style="grid-column:1/-1">
           <label for="workplace">Ажлын газар (байгууллага)</label>
           <input id="workplace" type="text" name="workplace" value="<%= form.workplace || '' %>" maxlength="150" placeholder="ж: Дорнод аймгийн Нэгдсэн эмнэлэг">
         </div>
+
+        <div class="form-section-title">🎓 Мэргэжил</div>
+        <%- include('../partials/professions-field', { list: form.professions }) %>
 
         <div class="form-section-title">🔒 Нууц үг</div>
         <div class="field">

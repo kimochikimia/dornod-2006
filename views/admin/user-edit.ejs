@@ -41,7 +41,6 @@
           </select>
         </div>
         <div class="field"><label>Ажлын газар</label><input type="text" name="workplace" value="<%= user.workplace || '' %>" maxlength="150"></div>
-        <div class="field"><label>Мэргэжил</label><input type="text" name="occupation" value="<%= user.occupation || '' %>" maxlength="150"></div>
         <%- include('../partials/city-field', { value: user.city }) %>
         <div class="field"><label>Facebook линк</label><input type="text" name="facebook" value="<%= user.facebook || '' %>" maxlength="300" placeholder="facebook.com/нэр"></div>
         <div class="field"><label>Бүртгэлийн төлөв</label>
@@ -56,6 +55,8 @@
           <% if (can('manage_roles')) { %><div class="hint">Төлөв бүрийн эрхийг <a href="/admin/roles">Эрх, төлөв</a> хэсэгт тохируулна.</div><% } %>
         </div>
       </div>
+      <div class="field"><label>Мэргэжил</label></div>
+      <%- include('../partials/professions-field', { list: h.readProfessions(user) }) %>
       <div class="field"><label>Танилцуулга</label><textarea name="bio" maxlength="3000"><%= user.bio || '' %></textarea></div>
       <div><button class="btn btn-primary" type="submit">Хадгалах</button></div>
     </form>

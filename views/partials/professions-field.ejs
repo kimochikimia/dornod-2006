@@ -1,0 +1,21 @@
+<%
+  var rows = (typeof list !== 'undefined' && list && list.length) ? list : [{ field: '', title: '' }];
+  function profRow(p) {
+%>
+  <div class="prof-row" data-prof-row>
+    <select name="prof_field" aria-label="Ерөнхий чиглэл">
+      <option value="">— Ерөнхий чиглэл —</option>
+      <% h.PROFESSION_FIELDS.forEach(function (o) { %><option value="<%= o[0] %>" <%= p.field === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %>
+    </select>
+    <input type="text" name="prof_title" value="<%= p.title || '' %>" maxlength="100" aria-label="Мэргэжил" placeholder="ж: Хуульч, програмист, багш">
+    <button type="button" class="btn btn-sm btn-danger" data-prof-remove title="Хасах" aria-label="Хасах">✕</button>
+  </div>
+<% } %>
+<div class="field prof-field" data-professions data-max="<%= h.MAX_PROFESSIONS %>">
+  <div class="prof-rows" data-prof-rows>
+    <% rows.forEach(function (p) { profRow(p); }) %>
+  </div>
+  <button type="button" class="btn btn-sm" data-prof-add>+ Мэргэжил нэмэх</button>
+  <div class="hint">Ерөнхий чиглэлээ сонгоод мэргэжлээ бичнэ үү. Нэгээс олон мэргэжилтэй бол «Мэргэжил нэмэх» товчийг дарна уу.</div>
+  <template data-prof-template><% profRow({ field: '', title: '' }); %></template>
+</div>

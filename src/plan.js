@@ -36,7 +36,7 @@ function todayStr() {
 
 async function loadItems() {
   const [rows] = await pool.query(
-    `SELECT id, title, description, kind, color, responsible,
+    `SELECT id, title, description, kind, color, responsible, location, map_url,
             DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
             DATE_FORMAT(COALESCE(end_date, start_date), '%Y-%m-%d') AS end_date
      FROM plan_items ORDER BY start_date, kind DESC, id`

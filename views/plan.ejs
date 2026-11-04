@@ -123,6 +123,9 @@
                 <span class="dot" style="background:<%= i.color %>"></span>
                 <strong><%= i.kind === 'milestone' ? '◆ ' : '' %><%= i.title %></strong>
                 <% if (i.description) { %><div class="small muted"><%= i.description %></div><% } %>
+                <% if (i.location || i.map_url) { %>
+                  <div class="small">📍 <%= i.location || '' %><% if (i.map_url) { %><%= i.location ? ' · ' : '' %><a href="<%= i.map_url %>" target="_blank" rel="noopener noreferrer">Газрын зураг</a><% } %></div>
+                <% } %>
               </td>
               <td class="small"><%= i.start_date.replace(/-/g, '.') %></td>
               <td class="small"><%= i.kind === 'milestone' ? '—' : i.end_date.replace(/-/g, '.') %></td>

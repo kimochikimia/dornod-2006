@@ -123,6 +123,25 @@ function normalizeFacebook(input) {
   return `https://www.facebook.com${u.pathname}${u.search}`.slice(0, 255);
 }
 
+// Google Maps линкийг шалгана. Хоосон бол null, буруу бол false.
+function normalizeMapUrl(input) {
+  let s = String(input || '').trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  let u;
+  try { u = new URL(s); } catch (e) { return false; }
+  const host = u.hostname.toLowerCase();
+  const path = u.pathname;
+  const ok = host === 'maps.app.goo.gl'
+    || (host === 'goo.gl' && path.startsWith('/maps'))
+    || /^maps\.google\.[a-z.]+$/.test(host)
+    || (/^(www\.)?google\.[a-z.]+$/.test(host) && path.startsWith('/maps'));
+  if (!ok) return false;
+  u.protocol = 'https:';
+  const out = u.toString();
+  return out.length <= 1000 ? out : false;
+}
+
 // Баримт бичгийн энгийн тэмдэглэгээг аюулгүй HTML болгоно:
 // "# " гарчиг, "## " дэд гарчиг, "- "/"• " жагсаалт, "1. " дугаарласан жагсаалт, хоосон мөр = догол мөр.
 function renderDoc(src) {
@@ -205,8 +224,66 @@ function clean(s, max = 255) {
   return String(s ?? '').trim().slice(0, max);
 }
 
+// Мэргэжлийн ерөнхий чиглэл
+const PROFESSION_FIELDS = [
+  ['law', 'Хууль, эрх зүй'],
+  ['it', 'Мэдээллийн технологи'],
+  ['health', 'Эрүүл мэнд, анагаах ухаан'],
+  ['education', 'Боловсрол, сургалт'],
+  ['engineering', 'Инженер, техник, технологи'],
+  ['construction', 'Барилга, архитектур'],
+  ['finance', 'Санхүү, нягтлан бодох бүртгэл'],
+  ['business', 'Эдийн засаг, бизнес, менежмент'],
+  ['marketing', 'Худалдаа, маркетинг'],
+  ['government', 'Төрийн захиргаа, удирдлага'],
+  ['media', 'Хэвлэл мэдээлэл, сэтгүүл зүй'],
+  ['arts', 'Урлаг, соёл'],
+  ['sports', 'Спорт'],
+  ['agriculture', 'Хөдөө аж ахуй, мал эмнэлэг'],
+  ['mining', 'Уул уурхай, геологи, эрчим хүч'],
+  ['transport', 'Тээвэр, логистик'],
+  ['security', 'Батлан хамгаалах, хууль сахиулах'],
+  ['science', 'Шинжлэх ухаан, судалгаа'],
+  ['social', 'Нийгмийн ажил, сэтгэл зүй'],
+  ['tourism', 'Аялал жуулчлал, үйлчилгээ'],
+  ['other', 'Бусад'],
+];
+const PROFESSION_LABELS = Object.fromEntries(PROFESSION_FIELDS);
+const MAX_PROFESSIONS = 5;
+
+// Маягтаас ирсэн prof_field[] / prof_title[] -ийг [{ field, title }] болгоно (хоосон мөрийг алгасна).
+function parseProfessions(fields, titles) {
+  const f = [].concat(fields ?? []);
+  const t = [].concat(titles ?? []);
+  const out = [];
+  for (let i = 0; i < Math.max(f.length, t.length) && out.length < MAX_PROFESSIONS; i++) {
+    const field = PROFESSION_LABELS[f[i]] ? f[i] : '';
+    const title = clean(t[i], 100);
+    if (field || title) out.push({ field, title });
+  }
+  return out;
+}
+
+// Жагсаалт, хайлтад ашиглах энгийн текст (users.occupation).
+function professionsText(list) {
+  return list.map((p) => p.title || PROFESSION_LABELS[p.field]).join(', ').slice(0, 500);
+}
+
+// Хэрэглэгчийн мэргэжлүүдийг уншина. Хуучин бүртгэлд зөвхөн occupation байвал түүнийг нэг мөр болгоно.
+function readProfessions(user) {
+  if (!user) return [];
+  if (user.professions) {
+    try {
+      const list = JSON.parse(user.professions);
+      if (Array.isArray(list)) return parseProfessions(list.map((p) => p && p.field), list.map((p) => p && p.title));
+    } catch (e) { /* хуучин өгөгдөл */ }
+  }
+  return user.occupation ? [{ field: '', title: user.occupation }] : [];
+}
+
 module.exports = {
   TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
-  PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, renderDoc, parseDocFile, fmtSize,
+  PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, normalizeMapUrl, renderDoc, parseDocFile, fmtSize,
   EMPLOYMENT, EMPLOYMENT_LABELS, employmentKey,
+  PROFESSION_FIELDS, PROFESSION_LABELS, MAX_PROFESSIONS, parseProfessions, professionsText, readProfessions,
 };

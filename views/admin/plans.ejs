@@ -18,7 +18,7 @@
         <tbody>
           <% items.forEach(function (i) { %>
             <tr>
-              <td><span class="dot" style="background:<%= i.color %>"></span><strong><%= i.title %></strong></td>
+              <td><span class="dot" style="background:<%= i.color %>"></span><strong><%= i.title %></strong><% if (i.location || i.map_url) { %><div class="small muted">📍 <%= i.location || '' %><% if (i.map_url) { %> <a href="<%= i.map_url %>" target="_blank" rel="noopener noreferrer">(газрын зураг)</a><% } %></div><% } %></td>
               <td class="small"><%= i.kind === 'milestone' ? '◆ Чухал үе' : 'Ажил' %></td>
               <td class="small"><%= i.range %></td>
               <td class="small"><%= i.responsible || '—' %></td>

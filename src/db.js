@@ -61,6 +61,13 @@ async function ensureSchoolCategory() {
   if (!cols.length) await pool.query('ALTER TABLE schools ADD COLUMN category VARCHAR(80) NULL AFTER name');
 }
 
+async function widenOccupation() {
+  const [[col]] = await pool.query(
+    "SELECT CHARACTER_MAXIMUM_LENGTH AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'occupation'"
+  );
+  if (col && Number(col.n) < 500) await pool.query('ALTER TABLE users MODIFY occupation VARCHAR(500) NULL');
+}
+
 async function ensureColumn(table, column, ddl) {
   const [cols] = await pool.query(
     'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
@@ -198,7 +205,13 @@ async function init() {
   await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
   await ensureColumn('users', 'employment', 'VARCHAR(20) NULL AFTER class_name');
   await ensureColumn('users', 'workplace', 'VARCHAR(150) NULL AFTER employment');
+  // Олон мэргэжил (JSON) — occupation нь тэдгээрийн нэгтгэсэн текст.
+  await ensureColumn('users', 'professions', 'TEXT NULL AFTER occupation');
+  await widenOccupation();
   await ensureBoardPosts();
+  // Төлөвлөгөөний ажлын байршил
+  await ensureColumn('plan_items', 'location', 'VARCHAR(200) NULL');
+  await ensureColumn('plan_items', 'map_url', 'VARCHAR(1000) NULL');
   // Баримт бичгийн төсөл (батлагдахаас өмнөх хэлэлцүүлгийн хувилбар)
   await ensureColumn('board_documents', 'draft_name', 'VARCHAR(200) NULL');
   await ensureColumn('board_documents', 'draft_mime', 'VARCHAR(100) NULL');

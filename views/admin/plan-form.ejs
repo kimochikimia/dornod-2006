@@ -34,6 +34,15 @@
           <input type="text" name="responsible" value="<%= item.responsible || '' %>" maxlength="150">
         </div>
         <div class="field">
+          <label>Хаана болох</label>
+          <input type="text" name="location" value="<%= item.location || '' %>" maxlength="200" placeholder="ж: Чойбалсан, Кэрлэн ресторан">
+        </div>
+        <div class="field">
+          <label>Google Maps линк</label>
+          <input type="url" name="map_url" value="<%= item.map_url || '' %>" maxlength="1000" placeholder="https://maps.app.goo.gl/...">
+          <div class="hint">Google Maps дээр байршлаа сонгоод «Хуваалцах» → «Линк хуулах».</div>
+        </div>
+        <div class="field">
           <label>Өнгө</label>
           <div class="swatches">
             <% PLAN_COLORS.forEach(function (c) { %>
