@@ -1,0 +1,55 @@
+<%#
+  Системийн заавар: толгойн заавар товчоор баруун талд нарийн самбар болж нээгдэнэ (сайтыг таглахгүй).
+  Цэс дээр дарахад доошоо нээгдэж алхам алхмаар заавар (жишээ зурагтай) харагдана; дахин дарахад хураагдана.
+  Өгөгдөл: src/guides.js. Зургууд: public/img/guide/<img>.png (npm run guide:screens).
+%>
+<%
+  var gctx = { me: me, can: can };
+  var gList = guideData.guides.filter(function (g) { return g.show(gctx); });
+  var gCur = guideData.guideFor(path);
+  if (!gList.some(function (g) { return g.key === gCur; })) gCur = '';
+  var groups = [['general', 'Ерөнхий'], ['admin', 'Удирдлага']];
+%>
+<aside class="help-drawer" id="help-drawer" aria-label="Заавар" aria-hidden="true" data-help-drawer>
+  <div class="help-head">
+    <strong>📘 Заавар</strong>
+    <button type="button" class="modal-close" data-help-close aria-label="Хаах">&times;</button>
+  </div>
+  <p class="help-intro">Цэс дээр дарахад алхам алхмаар заавар жишээ зурагтай нээгдэнэ.</p>
+
+  <% groups.forEach(function (gr) { var items = gList.filter(function (g) { return g.group === gr[0]; }); if (!items.length) return; %>
+    <div class="help-group-title"><%= gr[1] %></div>
+    <% items.forEach(function (g) { %>
+      <details class="help-acc <%= g.key === gCur ? 'current' : '' %>" data-guide="<%= g.key %>">
+        <summary class="help-menu-item">
+          <span class="help-menu-icon"><%= g.icon %></span>
+          <span class="help-menu-text"><strong><%= g.title %></strong><small><%= g.steps.length %> алхам<%= g.key === gCur ? ' · энэ хуудас' : '' %></small></span>
+          <span class="help-menu-arrow" aria-hidden="true">›</span>
+        </summary>
+        <div class="guide-body">
+          <% g.steps.forEach(function (s, i) { %>
+            <figure class="guide-step" data-step <%= i ? 'hidden' : '' %>>
+              <a class="guide-img" href="/img/guide/<%= s.img %>.png" target="_blank" rel="noopener" title="Томоор нээх">
+                <img data-src="/img/guide/<%= s.img %>.png" alt="<%= s.title %>" onerror="this.closest('.guide-img').classList.add('missing')">
+                <span class="guide-img-missing">Жишээ зураг удахгүй</span>
+              </a>
+              <figcaption>
+                <span class="guide-num"><%= i + 1 %></span>
+                <div><strong><%= s.title %></strong><p><%= s.text %></p></div>
+              </figcaption>
+            </figure>
+          <% }) %>
+          <% if (g.steps.length > 1) { %>
+            <div class="help-stage-nav">
+              <button type="button" class="btn btn-sm" data-step-prev aria-label="Өмнөх алхам">←</button>
+              <div class="guide-dots">
+                <% g.steps.forEach(function (s, i) { %><button type="button" data-step-go="<%= i %>" aria-label="Алхам <%= i + 1 %>"></button><% }) %>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" data-step-next>Дараах →</button>
+            </div>
+          <% } %>
+        </div>
+      </details>
+    <% }) %>
+  <% }) %>
+</aside>

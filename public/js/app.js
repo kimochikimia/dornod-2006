@@ -155,6 +155,7 @@
     initProfessions();
     initReactions();
     initOrgChart();
+    initHelp();
     initPostKinds();
   });
 
@@ -287,6 +288,73 @@
       }
       sel.addEventListener('change', update);
       update();
+    });
+  }
+
+  // ---------- Заавар: баруун талын нарийн самбар — цэс дарахад доошоо нээгдэнэ (алхам алхмаар, зурагтай) ----------
+  function initHelp() {
+    var drawer = $('[data-help-drawer]');
+    if (!drawer) return;
+    var openers = $$('[data-help-open]');
+    var accs = $$('details[data-guide]', drawer);
+    var active = null; // одоо нээлттэй цэс
+
+    function showStep(acc, i) {
+      var steps = $$('[data-step]', acc);
+      var n = steps.length;
+      i = Math.max(0, Math.min(i, n - 1));
+      acc._step = i;
+      steps.forEach(function (s, k) {
+        s.hidden = k !== i;
+        if (k === i || k === i + 1) {
+          var img = $('img[data-src]', s); // идэвхтэй болон дараагийн зургийг л ачаална
+          if (img) { img.src = img.getAttribute('data-src'); img.removeAttribute('data-src'); }
+        }
+      });
+      var prev = $('[data-step-prev]', acc);
+      var next = $('[data-step-next]', acc);
+      if (prev) prev.disabled = i === 0;
+      if (next) { next.disabled = i === n - 1; next.textContent = i === n - 1 ? 'Дууслаа ✓' : 'Дараах →'; }
+      $$('[data-step-go]', acc).forEach(function (d, k) { d.classList.toggle('on', k === i); });
+    }
+    accs.forEach(function (acc) {
+      acc.addEventListener('toggle', function () {
+        if (acc.open) {
+          accs.forEach(function (o) { if (o !== acc) o.open = false; }); // нэг л цэс нээлттэй
+          active = acc;
+          showStep(acc, acc._step || 0);
+        } else if (active === acc) {
+          active = null;
+        }
+      });
+      acc.addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.closest('[data-step-prev]')) showStep(acc, acc._step - 1);
+        else if (t.closest('[data-step-next]')) showStep(acc, acc._step + 1);
+        else if (t.closest('[data-step-go]')) showStep(acc, Number(t.closest('[data-step-go]').getAttribute('data-step-go')));
+        else if (t.closest('.guide-img.missing')) e.preventDefault();
+      });
+    });
+    function set(open) {
+      drawer.classList.toggle('open', open);
+      drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+      openers.forEach(function (b) { b.setAttribute('aria-expanded', open ? 'true' : 'false'); });
+    }
+    openers.forEach(function (b) { b.addEventListener('click', function () { set(!drawer.classList.contains('open')); }); });
+    $$('[data-help-close]', drawer).forEach(function (b) { b.addEventListener('click', function () { set(false); }); });
+    // #help эсвэл #help=<түлхүүр> холбоосоор шууд нээнэ (заавар хуваалцах)
+    var hm = /^#help(?:=([\w-]+))?$/.exec(window.location.hash);
+    if (hm) {
+      set(true);
+      var acc = hm[1] && $('details[data-guide="' + hm[1] + '"]', drawer);
+      if (acc) { acc.open = true; acc.scrollIntoView({ block: 'nearest' }); }
+    }
+    document.addEventListener('keydown', function (e) {
+      if (!drawer.classList.contains('open')) return;
+      var typing = /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '');
+      if (e.key === 'Escape') set(false);
+      else if (!typing && active && e.key === 'ArrowRight') showStep(active, active._step + 1);
+      else if (!typing && active && e.key === 'ArrowLeft') showStep(active, active._step - 1);
     });
   }
 

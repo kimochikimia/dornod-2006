@@ -63,6 +63,7 @@ function locals(req, res, next) {
   delete req.session.flash;
   res.locals.path = req.path;
   res.locals.h = helpers;
+  res.locals.guideData = require('./guides');
   next();
 }
 

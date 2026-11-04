@@ -773,3 +773,61 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
 .election-banner.live-election .btn-primary { background: linear-gradient(135deg, #f97316, #fbbf24); color: #2a1300; box-shadow: 0 10px 26px -12px rgba(249, 115, 22, 0.95); }
 /* Бүтцийн үндсэн хавтас: дээш доошоо илүү зайтай */
 .card.org-card { padding-top: 2.5rem; padding-bottom: 3.5rem; min-height: 460px; }
+
+/* ---------- Заавар (толгойн товч + зүүн талын самбар) ---------- */
+.help-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.55rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(19, 23, 50, 0.6); color: var(--muted); font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+.help-btn:hover, .help-btn[aria-expanded="true"] { color: #fff; border-color: var(--border-strong); background: var(--panel-2); }
+.help-btn-mobile { display: none; padding: 0.4rem 0.55rem; }
+@media (max-width: 980px) {
+  .help-btn-mobile { display: inline-flex; margin-left: auto; margin-right: 0.5rem; }
+  .nav-actions .help-btn { display: none; }
+}
+/* Баруун талын нарийн самбар — сайтыг таглахгүй */
+.help-drawer {
+  position: fixed; top: 66px; right: 0; bottom: 0; z-index: 30; width: min(400px, 100vw); overflow-y: auto;
+  padding: 0 1rem 1.5rem; background: var(--panel-solid); border-left: 1px solid var(--border-strong);
+  box-shadow: -24px 0 50px -24px rgba(0, 0, 0, 0.85);
+  transform: translateX(105%); transition: transform 0.22s ease; visibility: hidden;
+}
+.help-drawer.open { transform: none; visibility: visible; }
+.help-drawer [hidden] { display: none !important; }
+.help-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; position: sticky; top: 0; z-index: 2; margin: 0 -1rem; padding: 0.8rem 1rem; background: var(--panel-solid); border-bottom: 1px solid var(--border); font-size: 1rem; }
+.help-head .modal-close { position: static; }
+.help-intro { color: var(--muted); font-size: 0.82rem; margin: 0.75rem 0 0.25rem; }
+.help-group-title { margin: 0.9rem 0 0.4rem; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.help-menu-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; margin-bottom: 0.35rem; padding: 0.5rem 0.65rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.02); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.help-menu-item:hover { border-color: var(--border-strong); background: var(--panel-2); }
+.help-acc { margin-bottom: 0.35rem; border-radius: 10px; }
+.help-acc > summary { list-style: none; margin-bottom: 0; }
+.help-acc > summary::-webkit-details-marker { display: none; }
+.help-acc.current > summary { border-color: rgba(251, 146, 60, 0.6); }
+.help-acc .help-menu-arrow { transition: transform 0.15s; }
+.help-acc[open] > summary { border-color: rgba(251, 146, 60, 0.7); background: rgba(249, 115, 22, 0.1); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.help-acc[open] .help-menu-arrow { transform: rotate(90deg); color: #fb923c; }
+.guide-body { padding: 0.75rem; border: 1px solid rgba(251, 146, 60, 0.45); border-top: 0; border-radius: 0 0 10px 10px; background: rgba(255, 255, 255, 0.02); }
+.help-menu-icon { font-size: 1.05rem; width: 1.5rem; text-align: center; flex: none; }
+.help-menu-text { flex: 1; min-width: 0; display: grid; }
+.help-menu-text strong { font-size: 0.88rem; }
+.help-menu-text small { color: var(--faint); font-size: 0.72rem; }
+.help-menu-arrow { color: var(--faint); font-size: 1.1rem; }
+.help-back { margin: 0.75rem 0 0.25rem; padding: 0; border: none; background: none; color: var(--muted); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.help-back:hover { color: #fff; }
+.help-stage-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin: 0.35rem 0 0.75rem; }
+.help-stage-head strong { font-size: 1rem; }
+.guide-step { margin: 0; }
+.guide-img { position: relative; display: block; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-strong); background: #05060f; aspect-ratio: 16 / 10; cursor: zoom-in; }
+.guide-img img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.guide-img-missing { display: none; position: absolute; inset: 0; place-items: center; color: var(--faint); font-size: 0.85rem; }
+.guide-img.missing { cursor: default; }
+.guide-img.missing img { display: none; }
+.guide-img.missing .guide-img-missing { display: grid; }
+.guide-step figcaption { display: flex; gap: 0.6rem; align-items: flex-start; margin-top: 0.75rem; }
+.guide-step figcaption strong { font-size: 0.92rem; }
+.guide-step figcaption p { margin: 0.2rem 0 0; color: #cfd4f5; font-size: 0.85rem; line-height: 1.5; }
+.guide-num { flex: none; display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: linear-gradient(135deg, #f97316, #fbbf24); color: #2a1300; font-weight: 800; font-size: 0.85rem; }
+.help-stage-nav { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.9rem; }
+.help-stage-nav button:disabled { opacity: 0.4; cursor: default; }
+.guide-dots { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: center; }
+.guide-dots button { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: none; background: var(--border-strong); cursor: pointer; }
+.guide-dots button.on { background: #fb923c; width: 20px; border-radius: 6px; }
+

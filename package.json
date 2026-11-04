@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch-path=./src --watch-path=./server.js server.js"
+    "dev": "node --watch-path=./src --watch-path=./server.js server.js",
+    "guide:screens": "node scripts/guide-screenshots.js"
   },
   "engines": {
     "node": ">=20"
