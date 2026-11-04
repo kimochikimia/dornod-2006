@@ -9,7 +9,6 @@ const SEEDED = '__seeded';
 
 // Тохируулж болох эрхүүд. group нь эрхийн хүснэгтэд бүлэглэж харуулахад.
 const PERMISSIONS = [
-  { key: 'view_members', group: 'Харах', label: 'Төгсөгчдийн жагсаалт харах' },
   { key: 'view_contacts', group: 'Харах', label: 'Төгсөгчдийн утас, и-мэйл харах' },
   { key: 'nominate', group: 'Оролцох', label: 'Сонгуульд нэр дэвшүүлэх' },
   { key: 'vote', group: 'Оролцох', label: 'Сонгуульд санал өгөх' },
@@ -30,7 +29,7 @@ const MANAGE_PERMS = PERMISSIONS.filter((p) => p.group === 'Удирдах').map
 // Админаас хэзээ ч авч болохгүй эрх (бүгд түгжигдэхээс сэргийлнэ)
 const LOCKED = { admin: ['manage_roles'] };
 
-const BASE = ['view_members', 'view_contacts', 'nominate', 'vote'];
+const BASE = ['view_contacts', 'nominate', 'vote'];
 const DEFAULTS = {
   member: BASE,
   moderator: [...BASE, 'manage_news', 'manage_plans', 'approve_users', 'manage_requests'],

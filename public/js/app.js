@@ -158,6 +158,7 @@
     initHelp();
     initLightbox();
     initGalleryUpload();
+    initStory();
     initPostKinds();
   });
 
@@ -293,6 +294,38 @@
     });
   }
 
+  // ---------- Нүүр хуудасны story карт: зургууд ээлжлэн солигдоно (явцын зураастай) ----------
+  function initStory() {
+    $$('[data-story]').forEach(function (story) {
+      var slides = $$('.gs-slide', story);
+      var bars = $$('.gs-progress span', story);
+      var dateEl = $('[data-story-date]', story);
+      var titleEl = $('[data-story-title]', story);
+      if (slides.length < 2) { if (bars[0]) bars[0].classList.add('done'); return; }
+      var DUR = 4500;
+      var i = 0, timer = null, paused = false;
+      story.style.setProperty('--dur', DUR + 'ms');
+      function go(n) {
+        i = (n + slides.length) % slides.length;
+        slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+        bars.forEach(function (b, k) {
+          b.classList.remove('run', 'done');
+          b.classList.add('reset');
+          if (k < i) { b.classList.remove('reset'); b.classList.add('done'); }
+        });
+        void story.offsetWidth; // явцын зураасыг шинээр эхлүүлнэ
+        if (bars[i]) { bars[i].classList.remove('reset'); bars[i].classList.add('run'); }
+        if (dateEl) dateEl.textContent = '🕒 ' + (slides[i].getAttribute('data-date') || '');
+        if (titleEl) titleEl.textContent = slides[i].getAttribute('data-title') || '';
+        clearTimeout(timer);
+        if (!paused) timer = setTimeout(function () { go(i + 1); }, DUR);
+      }
+      story.addEventListener('mouseenter', function () { paused = true; clearTimeout(timer); });
+      story.addEventListener('mouseleave', function () { paused = false; go(i + 1); });
+      if (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches) go(0);
+    });
+  }
+
   // ---------- Фото альбом: зураг томоор харах (‹ › сум, гарын сум, шударч шилжих) ----------
   function initLightbox() {
     var dlg = $('[data-lightbox-dialog]');
@@ -315,13 +348,17 @@
       if (nxt) { var pre = new Image(); pre.src = nxt.getAttribute('href'); }
     }
     document.addEventListener('click', function (e) {
-      var a = e.target.closest && e.target.closest('[data-lightbox]');
+      var a = e.target.closest && e.target.closest('[data-lightbox], [data-lightbox-proxy]');
       if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
       e.preventDefault();
       var group = a.closest('[data-lightbox-group]') || document;
-      items = $('[data-lightbox]', group);
+      items = $$('[data-lightbox]', group);
+      // Орлуулагч карт: цуваанд ижил зураг байвал түүнээс, үгүй бол өөрөө нэмэгдэнэ
+      var at = -1;
+      items.forEach(function (it, k) { if (at < 0 && it.getAttribute('href') === a.getAttribute('href')) at = k; });
+      if (at < 0) { items.push(a); at = items.length - 1; }
       if (!dlg.open) dlg.showModal();
-      show(items.indexOf(a));
+      show(at);
     });
     $('[data-lb-prev]', dlg).addEventListener('click', function () { show(idx - 1); });
     $('[data-lb-next]', dlg).addEventListener('click', function () { show(idx + 1); });

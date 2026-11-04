@@ -140,12 +140,12 @@ form.inline { display: inline; }
 .card-link:hover { transform: translateY(-2px); border-color: var(--border-strong); color: inherit; }
 
 /* ---------- Hero ---------- */
-.hero { padding: 4.5rem 0 3rem; position: relative; }
+.hero { padding: 1.75rem 0 3rem; position: relative; }
 .hero .eyebrow {
   display: inline-flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0.85rem; border-radius: 999px;
   border: 1px solid var(--border-strong); background: var(--grad-soft); color: #dbe2ff; font-size: 0.85rem; font-weight: 600;
 }
-.hero h1 { font-size: clamp(2.2rem, 6vw, 3.8rem); margin: 1rem 0 0.75rem; }
+.hero h1 { font-size: clamp(2.2rem, 6vw, 3.8rem); margin: 0 0 0.75rem; }
 .hero p.lead { font-size: 1.15rem; color: var(--muted); max-width: 640px; }
 .hero .actions { margin-top: 1.75rem; }
 .page-head { padding: 2.5rem 0 1rem; }
@@ -957,3 +957,86 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
 .admin-photo input[type=text] { padding: 0.45rem 0.6rem; font-size: 0.85rem; }
 .admin-photo-actions { display: flex; gap: 0.35rem; }
 .admin-photo-actions .btn:first-child { flex: 1; }
+
+/* ===== Нүүр хуудасны фото альбом: сошиал загварын давхарласан найруулга ===== */
+.gal-hero { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: center; gap: 2rem; }
+.gal-copy p { max-width: 420px; }
+.gal-stats { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+.gal-stats span { padding: 0.4rem 0.8rem; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); color: var(--muted); font-size: 0.88rem; }
+.gal-stats strong { color: #fff; font-size: 1.05rem; margin-right: 0.15rem; }
+
+.gal-stage { position: relative; width: 100%; max-width: 560px; aspect-ratio: 6 / 7; justify-self: center; }
+.gal-stage a { text-decoration: none; color: inherit; }
+.gal-stage img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+@keyframes galFloat { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-8px) rotate(var(--r, 0deg)); } }
+@keyframes galPop { 0%, 100% { transform: scale(1) rotate(var(--r, 0deg)); } 50% { transform: scale(1.08) rotate(var(--r, 0deg)); } }
+
+/* Ард хазайсан карт */
+.gs-back {
+  --r: -4deg; position: absolute; left: 4%; top: 20%; width: 42%; height: 34%; z-index: 1;
+  border-radius: 20px; overflow: hidden; background: #e9ecf8; box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.9);
+  transform: rotate(var(--r)); animation: galFloat 7s ease-in-out infinite;
+}
+.gs-icon { position: absolute; left: 10px; top: 10px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, 0.92); font-size: 1rem; box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.5); }
+
+/* Гол story карт */
+.gs-story {
+  position: absolute; left: 36%; top: 2%; width: 50%; height: 76%; z-index: 2;
+  border-radius: 24px; overflow: hidden; background: #1a1d3a;
+  box-shadow: 0 30px 70px -26px rgba(79, 124, 255, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.gs-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.6s ease, transform 6s ease; transform: scale(1.06); }
+.gs-slide.active { opacity: 1; transform: scale(1); }
+.gs-slide::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0, 0, 0, 0.35), transparent 22%, transparent 70%, rgba(0, 0, 0, 0.45)); pointer-events: none; }
+.gs-progress { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 3; display: flex; gap: 5px; }
+.gs-progress span { flex: 1; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.35); overflow: hidden; }
+.gs-progress i { display: block; height: 100%; width: 0; background: #fff; border-radius: 4px; }
+.gs-progress span.done i { width: 100%; }
+.gs-progress span.run i { width: 100%; transition: width var(--dur, 4.5s) linear; }
+.gs-progress span.reset i { width: 0; transition: none; }
+.gs-chip { position: absolute; right: -2px; top: 34px; z-index: 3; padding: 0.4rem 0.75rem 0.4rem 0.65rem; border-radius: 12px 0 0 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 700; font-size: 0.82rem; box-shadow: 0 10px 24px -10px rgba(99, 102, 241, 0.9); }
+.gs-story-foot { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 3; display: flex; gap: 8px; align-items: center; }
+.gs-pill { flex: 1; min-width: 0; padding: 0.45rem 0.85rem; border-radius: 999px; border: 2px solid rgba(255, 255, 255, 0.85); color: #fff; font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(4px); }
+.gs-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.85); flex: none; }
+
+/* Урд цагаан пост карт */
+.gs-post {
+  --r: 2deg; position: absolute; left: 14%; top: 47%; width: 38%; z-index: 3; display: grid; gap: 0.45rem;
+  padding: 12px; border-radius: 20px; background: #fff; color: #1e2140 !important;
+  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.85); animation: galFloat 8s ease-in-out infinite 0.8s;
+}
+.gs-post img { aspect-ratio: 4 / 3.4; height: auto; border-radius: 12px; }
+.gs-post strong { font-size: 0.86rem; line-height: 1.25; color: #1e2140; }
+.gs-post small { font-size: 0.74rem; color: #6b7095; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-badge { position: absolute; left: 22px; top: 22px; z-index: 1; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #4f7cff, #8b5cf6); color: #fff; font-size: 0.85rem; box-shadow: 0 6px 14px -6px rgba(79, 124, 255, 0.9); }
+
+/* Дугуй зураг */
+.gs-avatar {
+  position: absolute; left: 42%; top: 72%; width: 24%; aspect-ratio: 1; z-index: 4;
+  border-radius: 50%; overflow: hidden; padding: 5px; background: linear-gradient(135deg, #4f7cff, #22d3ee);
+  box-shadow: 0 20px 44px -16px rgba(34, 211, 238, 0.8); animation: galFloat 6s ease-in-out infinite 1.6s;
+}
+.gs-avatar img { border-radius: 50%; border: 4px solid #fff; }
+
+/* Хөвөгч стикерүүд */
+.sticker { position: absolute; z-index: 5; display: grid; place-items: center; line-height: 1; pointer-events: none; user-select: none; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45)); }
+.st-smile { --r: -12deg; left: 0; top: 5%; font-size: clamp(2.2rem, 6vw, 3.4rem); animation: galPop 4s ease-in-out infinite; }
+.st-party { --r: 10deg; right: 2%; top: 0; font-size: clamp(1.6rem, 4vw, 2.3rem); animation: galFloat 5s ease-in-out infinite 0.4s; }
+.st-heart { --r: 0deg; right: 2%; top: 56%; width: clamp(54px, 13%, 74px); aspect-ratio: 1; border-radius: 50%; font-size: clamp(1.4rem, 3.4vw, 2rem); background: linear-gradient(135deg, #ff5c8a, #ff2d55); box-shadow: 0 16px 34px -10px rgba(255, 45, 85, 0.85); animation: galPop 2.6s ease-in-out infinite; }
+
+/* Хоосон үеийн орлуулга */
+.gs-ph { background: linear-gradient(135deg, rgba(255, 107, 157, 0.35), rgba(34, 211, 238, 0.3)); }
+.gs-story .gs-ph { display: grid; place-items: center; font-size: 3rem; }
+.gs-post.gs-ph i { display: block; height: 10px; border-radius: 6px; background: #e3e6f3; }
+.gs-post.gs-ph i + i { width: 65%; }
+.gs-ph-img { display: block; aspect-ratio: 4 / 3.4; border-radius: 12px; background: linear-gradient(135deg, #ffd1e1, #c7f2ff); }
+.gs-avatar.gs-ph { display: grid; place-items: center; font-size: 2rem; }
+.gs-avatar.gs-ph span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; border: 4px solid #fff; background: #ffe6a8; }
+
+.gs-card:hover, .gs-post:hover, .gs-avatar:hover { animation-play-state: paused; filter: brightness(1.06); }
+@media (prefers-reduced-motion: reduce) { .gal-stage * { animation: none !important; transition: none !important; } }
+@media (max-width: 860px) {
+  .gal-hero { grid-template-columns: minmax(0, 1fr); }
+  .gal-stage { max-width: 440px; }
+}

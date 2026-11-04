@@ -26,7 +26,8 @@ router.get('/', wrap(async (req, res) => {
   const election = elections[0] || null;
   const photos = await gallery.latestPhotos(req.user, 9);
   const albums = await gallery.visibleAlbums(req.user, 6);
-  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null, photos, albums });
+  const galleryCounts = await gallery.visibleCounts(req.user);
+  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null, photos, albums, galleryCounts });
 }));
 
 router.get('/news', wrap(async (req, res) => {
@@ -161,13 +162,17 @@ router.get('/gallery/photo/:id', wrap(async (req, res, next) => {
   res.send(p.img);
 }));
 
-router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
+router.get('/members', wrap(async (req, res) => {
+  const guest = !req.user; // бүртгэлгүй: зөвхөн нэр, сургууль
   const q = clean(req.query.q, 80);
   const school = Number(req.query.school) || null;
-  const employment = employmentKey(req.query.employment);
+  const employment = guest ? null : employmentKey(req.query.employment);
   const where = ["u.status = 'approved'"];
   const params = [];
-  if (q) {
+  if (q && guest) {
+    where.push('(u.name LIKE ? OR u.surname LIKE ?)');
+    params.push(`%${q}%`, `%${q}%`);
+  } else if (q) {
     where.push('(u.name LIKE ? OR u.surname LIKE ? OR u.occupation LIKE ? OR u.workplace LIKE ? OR u.city LIKE ?)');
     params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
@@ -180,8 +185,8 @@ router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
     params.push(employment);
   }
   const [members] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.class_name, u.occupation, u.employment, u.workplace, u.city, u.role, u.photo_v,
-            s.name AS school_name
+    `SELECT u.id, u.surname, u.name, u.class_name, u.role, u.photo_v, s.name AS school_name
+            ${guest ? '' : ', u.occupation, u.employment, u.workplace, u.city'}
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE ${where.join(' AND ')} ORDER BY s.sort_order, u.name`,
     params
@@ -190,7 +195,7 @@ router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {
   res.render('members/list', { title: 'Төгсөгчид', members, schools, q, school, employment });
 }));
 
-router.get('/members/:id', requirePerm('view_members'), wrap(async (req, res, next) => {
+router.get('/members/:id', requireLogin, wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
     `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.professions, u.employment, u.workplace, u.position_level, u.position,
             u.city, u.bio, u.role, u.created_at,

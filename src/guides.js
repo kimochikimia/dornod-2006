@@ -82,7 +82,7 @@ const guides = [
   },
   {
     key: 'members', group: 'general', icon: '👥', title: 'Төгсөгчид', match: ['/members'],
-    show: (c) => c.can('view_members'),
+    show: () => true,
     steps: [
       { img: 'members-1', url: '/members', as: 'admin', mark: 'main form.card',
         title: 'Хайх, шүүх', text: 'Нэр, мэргэжил, байгууллага, хотоор хайж; сургууль, ажил эрхлэлтээр шүүнэ.' },

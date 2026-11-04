@@ -2,7 +2,6 @@
 <section class="hero">
   <div class="container hero-grid">
   <div>
-    <span class="eyebrow">🎓 2006 — 2026 · Төгссөний 20 жил</span>
     <h1>Дорнод аймгийн <span class="grad-text">2006 оны төгсөгчид</span></h1>
     <p class="lead">Чойбалсан хот болон сумдын сургуулиудыг 2006 онд төгссөн ангийнхан, найз нөхдийн нэгдсэн орон зай. Мэдээ, уулзалт, төгсөгчдийн холбоо — бүгд нэг дор.</p>
     <div class="row actions">
@@ -11,11 +10,9 @@
         <a class="btn btn-lg" href="/login">Нэвтрэх</a>
       <% } else if (election) { %>
         <a class="btn btn-primary btn-lg" href="/elections/<%= election.id %>">Сонгуульд оролцох</a>
-        <% if (can('view_members')) { %><a class="btn btn-lg" href="/members">Төгсөгчид</a><% } %>
-      <% } else if (can('view_members')) { %>
-        <a class="btn btn-primary btn-lg" href="/members">Төгсөгчид</a>
+        <a class="btn btn-lg" href="/members">Төгсөгчид</a>
       <% } else { %>
-        <a class="btn btn-primary btn-lg" href="/plan">Төлөвлөгөө</a>
+        <a class="btn btn-primary btn-lg" href="/members">Төгсөгчид</a>
       <% } %>
     </div>
   </div>
@@ -58,45 +55,87 @@
 </section>
 <% } %>
 
-<%# ---------- Фото альбом (өнгөлөг коллаж) ---------- %>
+<%# ---------- Фото альбом: сошиал загварын давхарласан найруулга ---------- %>
+<%
+  var cap = function (p) { return p.caption ? p.caption + ' — ' + p.album_title : p.album_title; };
+  var pick = function (k) { return photos.length ? photos[k % photos.length] : null; };
+  var story = photos.slice(0, 6);
+  var back = pick(1), post = pick(2), circle = pick(3);
+%>
 <section class="container section gallery-home">
-  <div class="gh-head">
-    <div>
+  <div class="gal-hero">
+    <div class="gal-copy">
       <span class="gh-eyebrow">📸 Дурсамжийн цомог</span>
       <h2 class="gh-title">Фото <span>альбом</span></h2>
-      <p class="muted" style="margin:0">Уулзалт, арга хэмжээ, ангийнхны дурсамжийн агшнууд.</p>
+      <p class="muted">Уулзалт, арга хэмжээ, ангийнхны дурсамжийн агшнууд — бүгд нэг дор.</p>
+      <% if (photos.length) { %>
+        <div class="gal-stats">
+          <span><strong><%= galleryCounts.photos %></strong> зураг</span>
+          <span><strong><%= galleryCounts.albums %></strong> альбом</span>
+        </div>
+      <% } %>
+      <div class="row" style="gap:.5rem;margin-top:1.25rem">
+        <% if (albums.length) { %><a class="btn btn-primary" href="/gallery">Бүх альбом →</a><% } %>
+        <% if (can('manage_gallery')) { %><a class="btn" href="/admin/gallery">＋ Зураг нэмэх</a><% } %>
+      </div>
+      <% if (!photos.length) { %>
+        <p class="small faint" style="margin-top:1rem">
+          <%= can('manage_gallery') ? 'Анхны альбомоо үүсгээд дурсамжийн зургуудаа оруулаарай.' : 'Удахгүй дурсамжийн зургууд нэмэгдэнэ.' + (me ? '' : ' Зарим альбом зөвхөн нэвтэрсэн төгсөгчдөд харагдана.') %>
+        </p>
+      <% } %>
     </div>
-    <div class="row" style="gap:.5rem">
-      <% if (can('manage_gallery')) { %><a class="btn" href="/admin/gallery">＋ Зураг нэмэх</a><% } %>
-      <% if (albums.length) { %><a class="btn btn-primary" href="/gallery">Бүх альбом →</a><% } %>
+
+    <div class="gal-stage <%= photos.length ? '' : 'is-empty' %>" data-lightbox-group>
+      <span class="sticker st-smile" aria-hidden="true">😄</span>
+      <span class="sticker st-party" aria-hidden="true">🎉</span>
+
+      <% if (back) { %>
+        <a class="gs-card gs-back" href="/gallery/photo/<%= back.id %>" data-lightbox-proxy data-caption="<%= cap(back) %>">
+          <img src="/gallery/photo/<%= back.id %>?s=t" alt="" loading="lazy">
+          <span class="gs-icon">📷</span>
+        </a>
+      <% } else { %><span class="gs-card gs-back gs-ph"></span><% } %>
+
+      <div class="gs-story" data-story>
+        <div class="gs-progress"><% (story.length ? story : [0]).forEach(function () { %><span><i></i></span><% }) %></div>
+        <% story.forEach(function (p, i) { %>
+          <a class="gs-slide <%= i ? '' : 'active' %>" href="/gallery/photo/<%= p.id %>" data-lightbox data-caption="<%= cap(p) %>" data-date="<%= p.date_text %>" data-title="<%= p.album_title %>">
+            <img src="/gallery/photo/<%= p.id %>?s=t" alt="<%= p.caption || p.album_title %>" <%= i > 1 ? 'loading=lazy' : '' %>>
+          </a>
+        <% }) %>
+        <% if (!story.length) { %><div class="gs-slide active gs-ph"><span>📸</span></div><% } %>
+        <span class="gs-chip" data-story-date>🕒 <%= story.length ? story[0].date_text : '2006 — 2026' %></span>
+        <div class="gs-story-foot">
+          <span class="gs-pill" data-story-title><%= story.length ? story[0].album_title : 'Дурсамж' %></span>
+          <span class="gs-dot"></span><span class="gs-dot"></span>
+        </div>
+      </div>
+
+      <% if (post) { %>
+        <a class="gs-post" href="/gallery/photo/<%= post.id %>" data-lightbox-proxy data-caption="<%= cap(post) %>">
+          <span class="gs-badge">⭐</span>
+          <img src="/gallery/photo/<%= post.id %>?s=t" alt="" loading="lazy">
+          <strong><%= post.album_title %></strong>
+          <small><%= post.caption || post.date_text %></small>
+        </a>
+      <% } else { %>
+        <span class="gs-post gs-ph"><span class="gs-badge">⭐</span><span class="gs-ph-img"></span><i></i><i></i></span>
+      <% } %>
+
+      <% if (circle) { %>
+        <a class="gs-avatar" href="/gallery/photo/<%= circle.id %>" data-lightbox-proxy data-caption="<%= cap(circle) %>">
+          <img src="/gallery/photo/<%= circle.id %>?s=t" alt="" loading="lazy">
+        </a>
+      <% } else { %><span class="gs-avatar gs-ph"><span>🎓</span></span><% } %>
+
+      <span class="sticker st-heart" aria-hidden="true">❤️</span>
     </div>
   </div>
 
-  <% if (!photos.length) { %>
-    <div class="gallery-empty">
-      <div class="ge-icons">📸 🎉 🎓</div>
-      <% if (can('manage_gallery')) { %>
-        <strong>Анхны альбомоо үүсгээд дурсамжийн зургуудаа оруулаарай</strong>
-        <a class="btn btn-primary btn-sm" href="/admin/gallery" style="margin-top:.5rem">Альбом үүсгэх</a>
-      <% } else { %>
-        <strong>Удахгүй дурсамжийн зургууд нэмэгдэнэ</strong>
-        <p class="muted small" style="margin:0">Уулзалт, арга хэмжээний зургууд энд нийтлэгдэнэ.<%= me ? '' : ' Зарим альбом зөвхөн нэвтэрсэн төгсөгчдөд харагдана.' %></p>
-      <% } %>
+  <% if (albums.length) { %>
+    <div class="album-strip">
+      <% albums.forEach(function (a, i) { %><%- include('partials/album-card', { a: a, i: i }) %><% }) %>
     </div>
-  <% } else { %>
-    <div class="bento" data-lightbox-group>
-      <% photos.forEach(function (p, i) { %>
-        <a class="bento-tile t<%= i %> c<%= i % 6 %>" href="/gallery/photo/<%= p.id %>" data-lightbox data-caption="<%= p.caption ? p.caption + ' — ' + p.album_title : p.album_title %>">
-          <img src="/gallery/photo/<%= p.id %>?s=t" alt="<%= p.caption || p.album_title %>" loading="lazy">
-          <span class="bento-cap"><strong><%= p.album_title %></strong><% if (p.caption) { %><small><%= p.caption %></small><% } %></span>
-        </a>
-      <% }) %>
-    </div>
-    <% if (albums.length) { %>
-      <div class="album-strip">
-        <% albums.forEach(function (a, i) { %><%- include('partials/album-card', { a: a, i: i }) %><% }) %>
-      </div>
-    <% } %>
   <% } %>
 </section>
 <%- include('partials/lightbox') %>

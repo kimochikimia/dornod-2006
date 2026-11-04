@@ -106,7 +106,7 @@
             <% if (m.facebook) { %><a class="fb-link" href="<%= m.facebook %>" target="_blank" rel="noopener noreferrer nofollow"><span class="fb-icon">f</span> Facebook</a><% } %>
           </div>
         <% } %>
-        <% if (can('view_members')) { %><a class="btn btn-sm" href="/members/<%= m.user_id %>" style="justify-self:start">Профайл үзэх →</a><% } %>
+        <% if (me) { %><a class="btn btn-sm" href="/members/<%= m.user_id %>" style="justify-self:start">Профайл үзэх →</a><% } %>
       </div>
     </dialog>
   <% }) %>

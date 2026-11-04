@@ -28,13 +28,24 @@ async function visibleAlbums(user, limit = 100) {
 // Харагдах альбомуудын сүүлийн зургууд (нүүр хуудасны коллаж)
 async function latestPhotos(user, limit = 9) {
   const [rows] = await pool.query(
-    `SELECT p.id, p.caption, p.width, p.height, p.album_id, a.title AS album_title
+    `SELECT p.id, p.caption, p.width, p.height, p.album_id, a.title AS album_title,
+            DATE_FORMAT(COALESCE(a.event_date, p.created_at), '%Y.%m.%d') AS date_text
      FROM gallery_photos p JOIN gallery_albums a ON a.id = p.album_id
      WHERE a.is_public = 1 OR ?
      ORDER BY p.created_at DESC, p.id DESC LIMIT ?`,
     [seesPrivate(user), limit]
   );
   return rows;
+}
+
+// Харагдах нийт зураг, альбомын тоо
+async function visibleCounts(user) {
+  const [[r]] = await pool.query(
+    `SELECT COUNT(DISTINCT a.id) AS albums, COUNT(p.id) AS photos
+     FROM gallery_albums a JOIN gallery_photos p ON p.album_id = a.id WHERE a.is_public = 1 OR ?`,
+    [seesPrivate(user)]
+  );
+  return { albums: Number(r.albums), photos: Number(r.photos) };
 }
 
 async function albumPhotos(albumId) {
@@ -67,4 +78,4 @@ function parseJpeg(dataUrl, max) {
   return buf;
 }
 
-module.exports = { MAX_PHOTO, MAX_THUMB, seesPrivate, visibleAlbums, latestPhotos, albumPhotos, getAlbum, canView, parseJpeg };
+module.exports = { MAX_PHOTO, MAX_THUMB, seesPrivate, visibleAlbums, visibleCounts, latestPhotos, albumPhotos, getAlbum, canView, parseJpeg };

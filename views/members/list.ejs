@@ -5,33 +5,39 @@
     <p>Баталгаажсан <%= members.length %> төгсөгч<%= q || school || employment ? ' (шүүлтүүрээр)' : '' %>.</p>
   </div>
   <form method="get" action="/members" class="card row" style="margin-bottom:1.5rem">
-    <input type="search" name="q" value="<%= q %>" placeholder="Нэр, мэргэжил, байгууллага, хотоор хайх" style="flex:2;min-width:200px">
+    <input type="search" name="q" value="<%= q %>" placeholder="<%= me ? 'Нэр, мэргэжил, байгууллага, хотоор хайх' : 'Нэрээр хайх' %>" style="flex:2;min-width:200px">
     <select name="school" style="flex:1;min-width:160px">
       <option value="">Бүх сургууль</option>
       <%- include('../partials/school-options', { schools: schools, selected: school }) %>
     </select>
-    <select name="employment" style="flex:1;min-width:170px">
-      <option value="">Бүх ажил эрхлэлт</option>
-      <% h.EMPLOYMENT.forEach(function (o) { %><option value="<%= o[0] %>" <%= employment === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %>
-    </select>
+    <% if (me) { %>
+      <select name="employment" style="flex:1;min-width:170px">
+        <option value="">Бүх ажил эрхлэлт</option>
+        <% h.EMPLOYMENT.forEach(function (o) { %><option value="<%= o[0] %>" <%= employment === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %>
+      </select>
+    <% } %>
     <button class="btn btn-primary" type="submit">Хайх</button>
     <% if (q || school || employment) { %><a class="btn btn-ghost" href="/members">Цэвэрлэх</a><% } %>
   </form>
+  <% if (!me) { %>
+    <p class="small muted" style="margin:-.5rem 0 1rem">🔒 Мэргэжил, ажил, амьдарч буй газар болон дэлгэрэнгүй мэдээллийг харахын тулд <a href="/login?next=/members">нэвтэрнэ үү</a>.</p>
+  <% } %>
   <% if (!members.length) { %>
     <div class="empty">Илэрц олдсонгүй.</div>
   <% } else { %>
     <div class="grid grid-3">
       <% members.forEach(function (m) { %>
-        <a class="card card-link member-card" href="/members/<%= m.id %>">
+        <% if (me) { %><a class="card card-link member-card" href="/members/<%= m.id %>"><% } else { %><div class="card member-card"><% } %>
           <%- avatar(m, m.id) %>
           <div style="min-width:0">
             <div style="font-weight:700"><%= m.surname %> <%= m.name %> <% if (m.role !== 'member') { %><span class="badge grad"><%= ROLE_LABELS[m.role] %></span><% } %></div>
             <div class="meta"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
-            <% var work = [m.occupation, m.workplace].filter(Boolean).join(', '); %>
-            <% if (m.employment) { %><div class="meta">💼 <%= h.EMPLOYMENT_LABELS[m.employment] %></div><% } %>
-            <% if (work || m.city) { %><div class="meta"><%= [work, m.city].filter(Boolean).join(' · ') %></div><% } %>
+            <% if (me) { var work = [m.occupation, m.workplace].filter(Boolean).join(', '); %>
+              <% if (m.employment) { %><div class="meta">💼 <%= h.EMPLOYMENT_LABELS[m.employment] %></div><% } %>
+              <% if (work || m.city) { %><div class="meta"><%= [work, m.city].filter(Boolean).join(' · ') %></div><% } %>
+            <% } %>
           </div>
-        </a>
+        <% if (me) { %></a><% } else { %></div><% } %>
       <% }) %>
     </div>
   <% } %>
