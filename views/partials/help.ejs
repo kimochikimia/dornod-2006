@@ -30,7 +30,7 @@
           <% g.steps.forEach(function (s, i) { %>
             <figure class="guide-step" data-step <%= i ? 'hidden' : '' %>>
               <a class="guide-img" href="/img/guide/<%= s.img %>.png" target="_blank" rel="noopener" title="Томоор нээх">
-                <img data-src="/img/guide/<%= s.img %>.png" alt="<%= s.title %>" onerror="this.closest('.guide-img').classList.add('missing')">
+                <img data-src="/img/guide/<%= s.img %>.png" alt="<%= s.title %>">
                 <span class="guide-img-missing">Жишээ зураг удахгүй</span>
               </a>
               <figcaption>

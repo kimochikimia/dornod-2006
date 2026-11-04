@@ -5,6 +5,7 @@ const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware')
 const { clean, employmentKey } = require('../helpers');
 const plan = require('../plan');
 const rx = require('../reactions');
+const gallery = require('../gallery');
 const sched = require('../electionSchedule');
 
 const router = express.Router();
@@ -23,7 +24,9 @@ router.get('/', wrap(async (req, res) => {
     "SELECT * FROM elections WHERE phase <> 'draft' OR auto_schedule = 1 ORDER BY FIELD(phase,'voting','acceptance','nomination','draft','closed'), created_at DESC LIMIT 1"
   );
   const election = elections[0] || null;
-  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null });
+  const photos = await gallery.latestPhotos(req.user, 9);
+  const albums = await gallery.visibleAlbums(req.user, 6);
+  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null, photos, albums });
 }));
 
 router.get('/news', wrap(async (req, res) => {
@@ -128,6 +131,34 @@ router.get('/photos/:id', requireLogin, wrap(async (req, res, next) => {
   res.set('Cache-Control', 'private, max-age=604800'); // ?v= өөрчлөгдөхөд шинэчлэгдэнэ
   res.set('X-Content-Type-Options', 'nosniff');
   res.send(p.data);
+}));
+
+// ---------- Фото альбом ----------
+router.get('/gallery', wrap(async (req, res) => {
+  res.render('gallery/list', { title: 'Фото альбом', albums: await gallery.visibleAlbums(req.user) });
+}));
+
+router.get('/gallery/:id', wrap(async (req, res, next) => {
+  const album = await gallery.getAlbum(req.params.id);
+  if (!gallery.canView(album, req.user)) {
+    if (album && !req.user) return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
+    return next();
+  }
+  res.render('gallery/album', { title: album.title, album, photos: await gallery.albumPhotos(album.id) });
+}));
+
+// Зураг: ?s=t бол жижиг хувилбар. Нийтийн альбомынх хэн ч, бусдынх зөвхөн баталгаажсан төгсөгчид.
+router.get('/gallery/photo/:id', wrap(async (req, res, next) => {
+  const thumb = req.query.s === 't';
+  const [[p]] = await pool.query(
+    `SELECT ${thumb ? 'p.thumb' : 'p.data'} AS img, a.is_public FROM gallery_photos p JOIN gallery_albums a ON a.id = p.album_id WHERE p.id = ?`,
+    [req.params.id]
+  );
+  if (!p || !gallery.canView(p, req.user)) return next();
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', `${p.is_public ? 'public' : 'private'}, max-age=2592000, immutable`);
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(p.img);
 }));
 
 router.get('/members', requirePerm('view_members'), wrap(async (req, res) => {

@@ -17,6 +17,7 @@ router.use(requireManage);
 // Хэсэг бүрийн эрх
 router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
+router.use('/gallery', requirePerm('manage_gallery'));
 router.use('/requests', requirePerm('manage_requests'));
 // Удирдах зөвлөл = сонгууль бүрийн ажлын орчин. Сонгуулийн шатыг manage_elections,
 // албан тушаал / томилгоо / бүтэц / баримт бичгийг manage_board эрхээр удирдана.
@@ -816,6 +817,99 @@ router.post('/elections/:eid/structure/:uid/delete', wrap(async (req, res) => {
     flash(req, 'success', 'Бүтцээс хасагдлаа.');
   }
   res.redirect(`/admin/elections/${req.election.id}/structure`);
+}));
+
+// ---------- Фото альбом ----------
+const gallery = require('../gallery');
+
+function albumFields(body) {
+  return {
+    title: clean(body.title, 150),
+    description: clean(body.description, 500) || null,
+    event_date: /^\d{4}-\d{2}-\d{2}$/.test(body.event_date || '') ? body.event_date : null,
+    is_public: body.is_public ? 1 : 0,
+  };
+}
+
+router.get('/gallery', wrap(async (req, res) => {
+  const [albums] = await pool.query(
+    `SELECT a.*, DATE_FORMAT(a.event_date, '%Y.%m.%d') AS event_date_text,
+            (SELECT COUNT(*) FROM gallery_photos p WHERE p.album_id = a.id) AS photo_count,
+            COALESCE(a.cover_photo_id, (SELECT p.id FROM gallery_photos p WHERE p.album_id = a.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1)) AS cover_id
+     FROM gallery_albums a ORDER BY COALESCE(a.event_date, DATE(a.created_at)) DESC, a.id DESC`
+  );
+  res.render('admin/gallery', { title: 'Фото альбом — Удирдлага', albums });
+}));
+
+router.post('/gallery', wrap(async (req, res) => {
+  const f = albumFields(req.body);
+  if (!f.title) {
+    flash(req, 'error', 'Альбомын нэрийг бичнэ үү.');
+    return res.redirect('/admin/gallery');
+  }
+  const [r] = await pool.query('INSERT INTO gallery_albums SET ?', [{ ...f, created_by: req.user.id }]);
+  flash(req, 'success', `"${f.title}" альбом үүслээ. Одоо зургаа оруулна уу.`);
+  res.redirect(`/admin/gallery/${r.insertId}`);
+}));
+
+router.get('/gallery/:id', wrap(async (req, res, next) => {
+  const album = await gallery.getAlbum(req.params.id);
+  if (!album) return next();
+  res.render('admin/gallery-album', { title: `${album.title} — Фото альбом`, album, photos: await gallery.albumPhotos(album.id) });
+}));
+
+router.post('/gallery/:id', wrap(async (req, res, next) => {
+  const album = await gallery.getAlbum(req.params.id);
+  if (!album) return next();
+  const f = albumFields(req.body);
+  if (!f.title) {
+    flash(req, 'error', 'Альбомын нэрийг бичнэ үү.');
+  } else {
+    await pool.query('UPDATE gallery_albums SET ? WHERE id = ?', [f, album.id]);
+    flash(req, 'success', 'Альбом хадгалагдлаа.');
+  }
+  res.redirect(`/admin/gallery/${album.id}`);
+}));
+
+router.post('/gallery/:id/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM gallery_albums WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Альбом бүх зурагтайгаа устгагдлаа.');
+  res.redirect('/admin/gallery');
+}));
+
+// Зураг оруулах: браузер дээр шахсан JPEG (бүтэн + жижиг), нэг удаад нэг зураг — JSON буцаана
+router.post('/gallery/:id/photos', wrap(async (req, res) => {
+  const album = await gallery.getAlbum(req.params.id);
+  if (!album) return res.status(404).json({ error: 'Альбом олдсонгүй.' });
+  const data = gallery.parseJpeg(req.body.data, gallery.MAX_PHOTO);
+  const thumb = gallery.parseJpeg(req.body.thumb, gallery.MAX_THUMB);
+  if (!data || !thumb) return res.status(400).json({ error: 'Зураг буруу эсвэл хэт том байна.' });
+  const dim = (v) => Math.min(Math.max(parseInt(v, 10) || 0, 0), 20000) || null;
+  const [r] = await pool.query('INSERT INTO gallery_photos SET ?', [{
+    album_id: album.id, data, thumb, width: dim(req.body.w), height: dim(req.body.h),
+    caption: clean(req.body.caption, 300) || null, uploaded_by: req.user.id,
+  }]);
+  res.json({ ok: true, id: r.insertId });
+}));
+
+router.post('/gallery/:id/photos/:pid', wrap(async (req, res) => {
+  const back = `/admin/gallery/${Number(req.params.id)}#ph${Number(req.params.pid)}`;
+  if (req.body.action === 'cover') {
+    await pool.query(
+      'UPDATE gallery_albums a JOIN gallery_photos p ON p.album_id = a.id SET a.cover_photo_id = p.id WHERE a.id = ? AND p.id = ?',
+      [req.params.id, req.params.pid]
+    );
+    flash(req, 'success', 'Альбомын нүүр зураг солигдлоо.');
+  } else if (req.body.action === 'delete') {
+    await pool.query('UPDATE gallery_albums SET cover_photo_id = NULL WHERE id = ? AND cover_photo_id = ?', [req.params.id, req.params.pid]);
+    await pool.query('DELETE FROM gallery_photos WHERE id = ? AND album_id = ?', [req.params.pid, req.params.id]);
+    flash(req, 'success', 'Зураг устгагдлаа.');
+  } else {
+    await pool.query('UPDATE gallery_photos SET caption = ? WHERE id = ? AND album_id = ?',
+      [clean(req.body.caption, 300) || null, req.params.pid, req.params.id]);
+    flash(req, 'success', 'Тайлбар хадгалагдлаа.');
+  }
+  res.redirect(back);
 }));
 
 // ---------- Сургуулиуд ----------

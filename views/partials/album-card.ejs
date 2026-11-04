@@ -1,0 +1,10 @@
+<%# Өнгөлөг альбомын карт. Параметр: a (альбом), i (дугаар — өнгө сонгоно) %>
+<a class="album-card c<%= i % 6 %>" href="/gallery/<%= a.id %>">
+  <span class="album-stack">
+    <% if (a.cover_id) { %><img src="/gallery/photo/<%= a.cover_id %>?s=t" alt="" loading="lazy"><% } else { %><span class="album-empty">📷</span><% } %>
+  </span>
+  <span class="album-meta">
+    <strong><%= a.title %></strong>
+    <small>📷 <%= a.photo_count %> зураг<%= a.event_date ? ' · ' + a.event_date : '' %><%= !a.is_public ? ' · 🔒 Төгсөгчдөд' : '' %></small>
+  </span>
+</a>

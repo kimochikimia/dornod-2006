@@ -1,0 +1,68 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="row between" style="margin-bottom:1rem">
+    <div>
+      <a href="/admin/gallery" class="small">← Бүх альбом</a>
+      <h2 style="margin:.35rem 0 0"><%= album.title %></h2>
+    </div>
+    <a class="btn" href="/gallery/<%= album.id %>">Нийтийн хуудас →</a>
+  </div>
+
+  <%# ---------- Зураг оруулах ---------- %>
+  <div class="card uploader" data-gallery-upload data-url="/admin/gallery/<%= album.id %>/photos" style="margin-bottom:1.25rem">
+    <input type="hidden" name="_csrf" value="<%= csrf %>" data-csrf>
+    <label class="drop-zone" data-drop>
+      <input type="file" accept="image/*" multiple data-files hidden>
+      <span class="dz-icon">🖼️</span>
+      <strong>Зургаа энд чирж оруулах эсвэл дарж сонгох</strong>
+      <small class="muted">Олон зураг зэрэг сонгож болно. Зураг автоматаар шахагдаж (дээд тал нь 1920px) нэг нэгээр нь хуулагдана.</small>
+    </label>
+    <div class="upload-list" data-upload-list></div>
+  </div>
+
+  <%# ---------- Зургууд ---------- %>
+  <h3>Зургууд <span class="muted small">(<%= photos.length %>)</span></h3>
+  <% if (!photos.length) { %>
+    <div class="empty">Зураг оруулаагүй байна.</div>
+  <% } else { %>
+    <div class="admin-photos">
+      <% photos.forEach(function (p) { var isCover = album.cover_photo_id === p.id; %>
+        <form method="post" action="/admin/gallery/<%= album.id %>/photos/<%= p.id %>" class="admin-photo <%= isCover ? 'is-cover' : '' %>" id="ph<%= p.id %>">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <a href="/gallery/photo/<%= p.id %>" target="_blank" rel="noopener" class="admin-photo-img">
+            <img src="/gallery/photo/<%= p.id %>?s=t" alt="" loading="lazy">
+            <% if (isCover) { %><span class="cover-badge">⭐ Нүүр зураг</span><% } %>
+          </a>
+          <input type="text" name="caption" value="<%= p.caption || '' %>" maxlength="300" placeholder="Тайлбар (заавал биш)">
+          <div class="admin-photo-actions">
+            <button class="btn btn-sm" type="submit" name="action" value="caption">Хадгалах</button>
+            <% if (!isCover) { %><button class="btn btn-sm" type="submit" name="action" value="cover" title="Альбомын нүүр зураг болгох">⭐</button><% } %>
+            <button class="btn btn-sm btn-danger" type="submit" name="action" value="delete" data-confirm="Энэ зургийг устгах уу?" title="Устгах" aria-label="Устгах">✕</button>
+          </div>
+        </form>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <%# ---------- Альбомын тохиргоо ---------- %>
+  <details class="card settings-card" style="margin-top:1.5rem">
+    <summary><h2>Альбомын тохиргоо</h2></summary>
+    <form method="post" action="/admin/gallery/<%= album.id %>" class="form" style="margin-top:1rem">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field"><label>Альбомын нэр</label><input type="text" name="title" value="<%= album.title %>" maxlength="150" required></div>
+        <div class="field"><label>Огноо</label><input type="date" name="event_date" value="<%= album.event_date_input || '' %>"></div>
+      </div>
+      <div class="field"><label>Тайлбар</label><input type="text" name="description" value="<%= album.description || '' %>" maxlength="500"></div>
+      <label class="check"><input type="checkbox" name="is_public" value="1" <%= album.is_public ? 'checked' : '' %>> Нийтэд харагдана <span class="small faint">(чагтгүй бол зөвхөн баталгаажсан төгсөгчид)</span></label>
+      <div class="row between">
+        <button class="btn btn-primary" type="submit">Хадгалах</button>
+        <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/gallery/<%= album.id %>/delete" formnovalidate
+                data-confirm="&quot;<%= album.title %>&quot; альбомыг бүх зурагтай нь устгах уу? Буцаах боломжгүй.">Альбом устгах</button>
+      </div>
+    </form>
+  </details>
+</div>
+<%- include('../partials/foot') %>

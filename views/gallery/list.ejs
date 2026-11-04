@@ -1,0 +1,25 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head row between">
+    <div>
+      <span class="gh-eyebrow">📸 Дурсамжийн цомог</span>
+      <h1 class="gh-title" style="margin-top:.5rem">Фото <span>альбом</span></h1>
+      <p class="muted" style="margin:0">Төгсөгчдийн уулзалт, арга хэмжээ, дурсамжийн зургууд.</p>
+    </div>
+    <% if (can('manage_gallery')) { %><a class="btn btn-primary" href="/admin/gallery">＋ Альбом, зураг нэмэх</a><% } %>
+  </div>
+
+  <% if (!albums.length) { %>
+    <div class="gallery-empty">
+      <div class="ge-icons">📸 🎉 🎓</div>
+      <strong>Одоогоор альбом нийтлэгдээгүй байна</strong>
+      <p class="muted small"><%= me ? 'Удахгүй дурсамжийн зургууд нэмэгдэнэ.' : 'Нэвтэрсэн төгсөгчдөд зөвхөн тэдэнд нээлттэй альбомууд харагдана.' %></p>
+    </div>
+  <% } else { %>
+    <div class="album-grid">
+      <% albums.forEach(function (a, i) { %><%- include('../partials/album-card', { a: a, i: i }) %><% }) %>
+    </div>
+    <% if (!me) { %><p class="small faint" style="margin-top:1.25rem">🔒 Зарим альбом зөвхөн нэвтэрсэн төгсөгчдөд харагдана. <a href="/login?next=/gallery">Нэвтрэх</a></p><% } %>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

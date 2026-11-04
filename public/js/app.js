@@ -25,13 +25,13 @@
     }
 
     // data-confirm бүхий маягт илгээхээс өмнө баталгаажуулна
-    $$('form[data-confirm]').forEach(function (f) {
-      f.addEventListener('submit', function (ev) {
-        // Товч өөрийн асуулттай бол (жишээ нь нэр дэвшигч бүрийн "Санал өгөх") түүнийг ашиглана.
-        var msg = (ev.submitter && ev.submitter.getAttribute('data-confirm')) || f.getAttribute('data-confirm');
-        if (!window.confirm(msg)) ev.preventDefault();
-      });
-    });
+    // Товч өөрийн асуулттай бол (жишээ нь "Устгах") түүнийг, үгүй бол маягтын асуултыг ашиглана.
+    // Маягт дээр асуултгүй ч товч дээр нь байвал мөн асууна.
+    document.addEventListener('submit', function (ev) {
+      var f = ev.target;
+      var msg = (ev.submitter && ev.submitter.getAttribute('data-confirm')) || (f.getAttribute && f.getAttribute('data-confirm'));
+      if (msg && !window.confirm(msg)) { ev.preventDefault(); ev.stopImmediatePropagation(); }
+    }, true);
 
     // Төлөв сонгоход маягтыг шууд илгээнэ
     $$('form[data-autosubmit] select').forEach(function (sel) {
@@ -156,6 +156,8 @@
     initReactions();
     initOrgChart();
     initHelp();
+    initLightbox();
+    initGalleryUpload();
     initPostKinds();
   });
 
@@ -291,6 +293,125 @@
     });
   }
 
+  // ---------- Фото альбом: зураг томоор харах (‹ › сум, гарын сум, шударч шилжих) ----------
+  function initLightbox() {
+    var dlg = $('[data-lightbox-dialog]');
+    if (!dlg) return;
+    var img = $('[data-lb-img]', dlg);
+    var cap = $('[data-lb-caption]', dlg);
+    var count = $('[data-lb-count]', dlg);
+    var items = [];
+    var idx = 0;
+    function show(i) {
+      if (!items.length) return;
+      idx = (i + items.length) % items.length;
+      var a = items[idx];
+      img.src = a.getAttribute('href');
+      img.alt = a.getAttribute('data-caption') || '';
+      cap.textContent = a.getAttribute('data-caption') || '';
+      count.textContent = (idx + 1) + ' / ' + items.length;
+      // дараагийн зургийг урьдчилан ачаална
+      var nxt = items[(idx + 1) % items.length];
+      if (nxt) { var pre = new Image(); pre.src = nxt.getAttribute('href'); }
+    }
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('[data-lightbox]');
+      if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      var group = a.closest('[data-lightbox-group]') || document;
+      items = $('[data-lightbox]', group);
+      if (!dlg.open) dlg.showModal();
+      show(items.indexOf(a));
+    });
+    $('[data-lb-prev]', dlg).addEventListener('click', function () { show(idx - 1); });
+    $('[data-lb-next]', dlg).addEventListener('click', function () { show(idx + 1); });
+    $('[data-lb-close]', dlg).addEventListener('click', function () { dlg.close(); });
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener('close', function () { img.removeAttribute('src'); });
+    document.addEventListener('keydown', function (e) {
+      if (!dlg.open) return;
+      if (e.key === 'ArrowRight') show(idx + 1);
+      else if (e.key === 'ArrowLeft') show(idx - 1);
+    });
+    var sx = null;
+    dlg.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; }, { passive: true });
+    dlg.addEventListener('touchend', function (e) {
+      if (sx === null) return;
+      var dx = e.changedTouches[0].clientX - sx;
+      if (Math.abs(dx) > 50) show(idx + (dx < 0 ? 1 : -1));
+      sx = null;
+    });
+  }
+
+  // ---------- Фото альбом: олон зураг сонгоод браузер дээр шахаж нэг нэгээр нь хуулах ----------
+  function initGalleryUpload() {
+    var box = $('[data-gallery-upload]');
+    if (!box) return;
+    var input = $('[data-files]', box);
+    var drop = $('[data-drop]', box);
+    var list = $('[data-upload-list]', box);
+    var url = box.getAttribute('data-url');
+    var csrf = $('[data-csrf]', box).value;
+    var busy = false;
+
+    function resize(bitmap, max, quality) {
+      var scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(bitmap.width * scale);
+      c.height = Math.round(bitmap.height * scale);
+      var ctx = c.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(bitmap, 0, 0, c.width, c.height);
+      return { url: c.toDataURL('image/jpeg', quality), w: c.width, h: c.height };
+    }
+    function row(name) {
+      var el = document.createElement('div');
+      el.className = 'upload-item';
+      el.innerHTML = '<span class="name"></span><span class="state">Хүлээгдэж байна</span><div class="bar"><span></span></div>';
+      $('.name', el).textContent = name;
+      list.appendChild(el);
+      return el;
+    }
+    function setRow(el, text, pct, cls) {
+      $('.state', el).textContent = text;
+      $('.bar span', el).style.width = pct + '%';
+      if (cls) el.classList.add(cls);
+    }
+    async function uploadOne(file, el) {
+      if (!/^image\//.test(file.type)) throw new Error('Зураг биш файл');
+      setRow(el, 'Шахаж байна…', 25);
+      var bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      var full = resize(bmp, 1920, 0.85);
+      if (full.url.length > 5.2e6) full = resize(bmp, 1600, 0.75); // ≈4MB-аас том бол дахин шахна
+      var thumb = resize(bmp, 640, 0.8);
+      if (bmp.close) bmp.close();
+      setRow(el, 'Хуулж байна…', 60);
+      var body = new URLSearchParams({ _csrf: csrf, data: full.url, thumb: thumb.url, w: full.w, h: full.h });
+      var r = await fetch(url, {
+        method: 'POST', body: body, credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      var j = await r.json().catch(function () { return {}; });
+      if (!r.ok || !j.ok) throw new Error(j.error || ('Алдаа ' + r.status));
+    }
+    async function run(files) {
+      if (busy || !files.length) return;
+      busy = true;
+      var ok = 0;
+      var rows = files.map(function (f) { return row(f.name); });
+      for (var i = 0; i < files.length; i++) {
+        try { await uploadOne(files[i], rows[i]); setRow(rows[i], '✓ Хуулагдлаа', 100, 'done'); ok++; }
+        catch (err) { setRow(rows[i], '✕ ' + err.message, 100, 'fail'); }
+      }
+      busy = false;
+      if (ok) setTimeout(function () { window.location.reload(); }, 700);
+    }
+    input.addEventListener('change', function () { run(Array.prototype.slice.call(input.files)); input.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+    drop.addEventListener('drop', function (e) { run(Array.prototype.slice.call(e.dataTransfer.files)); });
+  }
+
   // ---------- Заавар: баруун талын нарийн самбар — цэс дарахад доошоо нээгдэнэ (алхам алхмаар, зурагтай) ----------
   function initHelp() {
     var drawer = $('[data-help-drawer]');
@@ -308,7 +429,10 @@
         s.hidden = k !== i;
         if (k === i || k === i + 1) {
           var img = $('img[data-src]', s); // идэвхтэй болон дараагийн зургийг л ачаална
-          if (img) { img.src = img.getAttribute('data-src'); img.removeAttribute('data-src'); }
+          if (img) {
+            img.addEventListener('error', function () { var b = img.closest('.guide-img'); if (b) b.classList.add('missing'); });
+            img.src = img.getAttribute('data-src'); img.removeAttribute('data-src');
+          }
         }
       });
       var prev = $('[data-step-prev]', acc);

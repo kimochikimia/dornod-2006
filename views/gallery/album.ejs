@@ -1,0 +1,32 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <a href="/gallery" class="small">← Бүх альбом</a>
+    <div class="row between" style="margin-top:.75rem;align-items:flex-end">
+      <div>
+        <h1 class="gh-title" style="margin:0"><%= album.title %></h1>
+        <p class="muted" style="margin:.4rem 0 0">
+          📷 <%= photos.length %> зураг<%= album.event_date_text ? ' · 📅 ' + album.event_date_text : '' %><%= !album.is_public ? ' · 🔒 Зөвхөн төгсөгчдөд' : '' %>
+        </p>
+      </div>
+      <% if (can('manage_gallery')) { %><a class="btn" href="/admin/gallery/<%= album.id %>">✎ Засах, зураг нэмэх</a><% } %>
+    </div>
+    <% if (album.description) { %><p style="margin-top:.75rem;max-width:760px"><%= album.description %></p><% } %>
+  </div>
+
+  <% if (!photos.length) { %>
+    <div class="gallery-empty"><div class="ge-icons">🖼️</div><strong>Энэ альбомд зураг алга</strong></div>
+  <% } else { %>
+    <div class="masonry" data-lightbox-group>
+      <% photos.forEach(function (p, i) { %>
+        <a class="masonry-item c<%= i % 6 %>" href="/gallery/photo/<%= p.id %>" data-lightbox data-caption="<%= p.caption || '' %>">
+          <img src="/gallery/photo/<%= p.id %>?s=t" alt="<%= p.caption || album.title %>" loading="lazy"
+               <% if (p.width && p.height) { %>width="<%= p.width %>" height="<%= p.height %>"<% } %>>
+          <% if (p.caption) { %><span class="masonry-cap"><%= p.caption %></span><% } %>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/lightbox') %>
+<%- include('../partials/foot') %>

@@ -232,3 +232,31 @@ CREATE TABLE IF NOT EXISTS board_documents (
   file_data LONGBLOB NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Фото альбом (нүүр хуудас, /gallery). Зургийг өгөгдлийн санд хадгална (бүтэн + жижиг хувилбар).
+CREATE TABLE IF NOT EXISTS gallery_albums (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(150) NOT NULL,
+  description VARCHAR(500) NULL,
+  event_date DATE NULL,
+  is_public TINYINT(1) NOT NULL DEFAULT 1,
+  cover_photo_id INT NULL,
+  created_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_album_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS gallery_photos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  album_id INT NOT NULL,
+  caption VARCHAR(300) NULL,
+  width INT NULL,
+  height INT NULL,
+  data MEDIUMBLOB NOT NULL,
+  thumb MEDIUMBLOB NOT NULL,
+  uploaded_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_photo_album (album_id, created_at),
+  CONSTRAINT fk_photo_album FOREIGN KEY (album_id) REFERENCES gallery_albums(id) ON DELETE CASCADE,
+  CONSTRAINT fk_gphoto_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

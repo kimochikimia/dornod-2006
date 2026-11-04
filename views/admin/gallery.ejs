@@ -1,0 +1,37 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">📸 Фото альбом</h2>
+    <a class="btn" href="/gallery">Нийтийн хуудас →</a>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <h3 style="margin-top:0">＋ Шинэ альбом</h3>
+    <form method="post" action="/admin/gallery" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="form-grid">
+        <div class="field"><label>Альбомын нэр <span class="req">*</span></label><input type="text" name="title" maxlength="150" required placeholder="ж: 20 жилийн ойн уулзалт"></div>
+        <div class="field"><label>Огноо</label><input type="date" name="event_date"></div>
+      </div>
+      <div class="field"><label>Тайлбар</label><input type="text" name="description" maxlength="500" placeholder="Хаана, ямар арга хэмжээ"></div>
+      <label class="check"><input type="checkbox" name="is_public" value="1" checked> Нийтэд харагдана <span class="small faint">(чагтгүй бол зөвхөн нэвтэрсэн, баталгаажсан төгсөгчид үзнэ)</span></label>
+      <div><button class="btn btn-primary" type="submit">Альбом үүсгээд зураг оруулах →</button></div>
+    </form>
+  </div>
+
+  <% if (!albums.length) { %>
+    <div class="empty">Альбом үүсгээгүй байна.</div>
+  <% } else { %>
+    <div class="album-grid">
+      <% albums.forEach(function (a, i) { %>
+        <div class="admin-album">
+          <%- include('../partials/album-card', { a: { id: a.id, title: a.title, cover_id: a.cover_id, photo_count: a.photo_count, event_date: a.event_date_text, is_public: a.is_public }, i: i }) %>
+          <a class="btn btn-sm btn-primary admin-album-edit" href="/admin/gallery/<%= a.id %>">✎ Засах, зураг нэмэх</a>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

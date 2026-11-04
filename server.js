@@ -30,6 +30,8 @@ app.use(
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: isProd ? '7d' : 0 }));
 // Баримт бичгийн файл (base64) илгээх хэсэгт илүү том хязгаар; бусад хүсэлтэд 1mb.
 app.use('/admin/documents', express.urlencoded({ extended: true, limit: '16mb' }));
+// Фото альбомын зураг (браузер дээр шахсан, нэг удаад нэг зураг)
+app.use('/admin/gallery', express.urlencoded({ extended: true, limit: '12mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' })); // зураг (base64) багтаахаар
 
 if (isProd && !process.env.SESSION_SECRET) {
