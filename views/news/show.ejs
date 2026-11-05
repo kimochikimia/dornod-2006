@@ -5,6 +5,18 @@
     <h1 style="margin-top:.75rem"><%= item.title %></h1>
     <p class="small faint"><%= h.fmtDate(item.created_at) %></p>
   </div>
+  <% if (photos.length) { var shown = Math.min(photos.length, 5); %>
+    <div class="news-photos n<%= shown %>" data-lightbox-group>
+      <% photos.forEach(function (p, i) { %>
+        <a class="np-item<%= i >= shown ? ' np-hidden' : '' %>" href="/news/photo/<%= p.id %>" data-lightbox data-caption="">
+          <% if (i < shown) { %>
+            <img src="/news/photo/<%= p.id %><%= photos.length > 1 ? '?s=t' : '' %>" alt="<%= item.title %>" loading="lazy">
+            <% if (i === shown - 1 && photos.length > shown) { %><span class="np-more">+<%= photos.length - shown %></span><% } %>
+          <% } %>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
   <article class="card prose"><%- h.text(item.body) %></article>
   <div class="news-react"><%- include('../partials/reactions', { type: 'news', id: item.id, r: newsReact, back: '/news/' + item.id, small: false }) %></div>
   <% if (can('manage_news')) { %><p style="margin-top:1rem"><a class="btn btn-sm" href="/admin/news/<%= item.id %>">Засах</a></p><% } %>
@@ -50,4 +62,5 @@
     <% } %>
   </section>
 </div>
+<% if (photos.length) { %><%- include('../partials/lightbox') %><% } %>
 <%- include('../partials/foot') %>

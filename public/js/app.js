@@ -158,6 +158,11 @@
     initHelp();
     initLightbox();
     initGalleryUpload();
+    initNewsPhotos();
+    initTabs();
+    initCoverPicker();
+    initMoneyInputs();
+    initMemberPick();
     initStory();
     initPostKinds();
   });
@@ -380,6 +385,220 @@
     });
   }
 
+  // ---------- Хуудас дотрох таб: [data-tabs] доторх [data-tab] дарахад ижил нэртэй [data-tab-panel]-ийг харуулна ----------
+  function initTabs() {
+    $$('[data-tabs]').forEach(function (tabs) {
+      var scope = tabs.parentNode;
+      var btns = $$('[data-tab]', tabs);
+      btns.forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+          e.preventDefault();
+          var name = btn.getAttribute('data-tab');
+          btns.forEach(function (b) { b.classList.toggle('active', b === btn); });
+          $$('[data-tab-panel]', scope).forEach(function (pn) { pn.hidden = pn.getAttribute('data-tab-panel') !== name; });
+        });
+      });
+    });
+  }
+
+  // ---------- Мөнгөн дүн: бичих явцад орон тусгаарлана (1500000 → 1,500,000) ----------
+  function groupDigits(d) { return d.replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function initMoneyInputs() {
+    $$('input[data-money]').forEach(function (input) {
+      function format(keepCaret) {
+        var v = input.value;
+        var pos = input.selectionStart == null ? v.length : input.selectionStart;
+        var before = v.slice(0, pos).replace(/\D/g, '').length; // курсорын өмнөх цифрийн тоо
+        var digits = v.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 12);
+        var out = groupDigits(digits);
+        if (out === v) return;
+        input.value = out;
+        if (!keepCaret) return;
+        var i = 0, n = 0;
+        while (i < out.length && n < before) { if (/\d/.test(out[i])) n++; i++; }
+        input.setSelectionRange(i, i);
+      }
+      format(false);
+      input.addEventListener('input', function () { format(document.activeElement === input); });
+    });
+  }
+
+  // ---------- Хандивлагч төгсөгчийг жагсаалтаас сонгох: нэрийг тааруулж id-г нуугдмал талбарт хийнэ ----------
+  function initMemberPick() {
+    $$('[data-member-pick]').forEach(function (box) {
+      var input = $('[data-member-input]', box);
+      var hidden = $('[data-member-id]', box);
+      var status = $('[data-member-status]', box);
+      var list = document.getElementById(input.getAttribute('list'));
+      function sync() {
+        var match = null;
+        $$('option', list).forEach(function (o) { if (o.value === input.value) match = o; });
+        hidden.value = match ? match.getAttribute('data-id') : '';
+        status.textContent = match ? '✓ Сонгогдсон' : input.value ? 'Жагсаалтаас сонгоно уу.' : 'Нэрийн эхний үсгүүдийг бичихэд жагсаалт гарна.';
+        box.classList.toggle('picked', !!match);
+      }
+      input.addEventListener('input', sync);
+      input.addEventListener('change', sync);
+    });
+  }
+
+  // ---------- Аяны нүүр зураг: сонгомогц шахаж нуугдмал талбарт хийнэ ----------
+  function initCoverPicker() {
+    $$('[data-cover-picker]').forEach(function (box) {
+      var file = $('[data-cover-file]', box);
+      var data = $('[data-cover-data]', box);
+      var thumb = $('[data-cover-thumb]', box);
+      var preview = $('[data-cover-preview]', box);
+      var status = $('[data-cover-status]', box);
+      var form = box.closest('form');
+      var busy = null;
+      file.addEventListener('change', function () {
+        var f = file.files[0];
+        if (!f) return;
+        status.textContent = 'Шахаж байна…';
+        busy = compressImage(f).then(function (img) {
+          data.value = img.full.url;
+          thumb.value = img.thumb.url;
+          preview.src = img.thumb.url;
+          preview.hidden = false;
+          status.textContent = '✓ Сонгогдлоо (хадгалахад хуулагдана)';
+        }).catch(function (err) {
+          data.value = ''; thumb.value = '';
+          status.textContent = '✕ ' + err.message;
+        }).then(function () { busy = null; });
+      });
+      // Шахаж дуусаагүй байхад илгээвэл түр хүлээнэ
+      if (form) form.addEventListener('submit', function (e) {
+        if (!busy) return;
+        e.preventDefault();
+        busy.then(function () { form.requestSubmit(e.submitter); });
+      });
+    });
+  }
+
+  // Зургийг max px хүртэл багасгаж JPEG data URL болгоно
+  function resize(bitmap, max, quality) {
+    var scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    var c = document.createElement('canvas');
+    c.width = Math.round(bitmap.width * scale);
+    c.height = Math.round(bitmap.height * scale);
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, c.width, c.height);
+    return { url: c.toDataURL('image/jpeg', quality), w: c.width, h: c.height };
+  }
+
+  // Файлыг бүтэн (≤1920px) болон жижиг (≤640px) JPEG болгоно
+  async function compressImage(file) {
+    if (!/^image\//.test(file.type)) throw new Error('Зураг биш файл');
+    var bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    var full = resize(bmp, 1920, 0.85);
+    if (full.url.length > 5.2e6) full = resize(bmp, 1600, 0.75); // ≈4MB-аас том бол дахин шахна
+    var thumb = resize(bmp, 640, 0.8);
+    if (bmp.close) bmp.close();
+    return { full: full, thumb: thumb };
+  }
+
+  async function postPhoto(url, csrf, img) {
+    var body = new URLSearchParams({ _csrf: csrf, data: img.full.url, thumb: img.thumb.url, w: img.full.w, h: img.full.h });
+    var r = await fetch(url, {
+      method: 'POST', body: body, credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok || !j.ok) throw new Error(j.error || ('Алдаа ' + r.status));
+    return j;
+  }
+
+  // ---------- Мэдээний зураг: сонгомогц шахаж урьдчилан харуулна, хадгалахад мэдээг хадгалаад зургуудыг нэг нэгээр хуулна ----------
+  function initNewsPhotos() {
+    var form = $('[data-news-form]');
+    if (!form) return;
+    var grid = $('[data-news-photos]', form);
+    var input = $('[data-files]', form);
+    var drop = $('[data-drop]', form);
+    var list = $('[data-upload-list]', form);
+    var submit = $('[data-submit]', form);
+    var csrf = $('input[name="_csrf"]', form).value;
+    var queue = []; // { ready: Promise<img>, tile, name }
+    var busy = false;
+
+    $$('[data-np-remove]', grid).forEach(function (cb) {
+      cb.addEventListener('change', function () { cb.closest('.np-thumb').classList.toggle('removed', cb.checked); });
+    });
+
+    function add(files) {
+      files.filter(function (f) { return /^image\//.test(f.type); }).forEach(function (file) {
+        var tile = document.createElement('div');
+        tile.className = 'np-thumb pending';
+        tile.innerHTML = '<img alt=""><button type="button" class="np-remove" title="Хасах" aria-label="Хасах">✕</button>';
+        grid.insertBefore(tile, drop);
+        var item = { tile: tile, name: file.name };
+        item.ready = compressImage(file).then(function (img) {
+          $('img', tile).src = img.thumb.url;
+          tile.classList.remove('pending');
+          return img;
+        });
+        item.ready.catch(function () { tile.classList.add('failed'); });
+        $('button', tile).addEventListener('click', function () {
+          queue = queue.filter(function (q) { return q !== item; });
+          grid.removeChild(tile);
+        });
+        queue.push(item);
+      });
+    }
+    input.addEventListener('change', function () { add(Array.prototype.slice.call(input.files)); input.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+    drop.addEventListener('drop', function (e) { add(Array.prototype.slice.call(e.dataTransfer.files)); });
+
+    form.addEventListener('submit', async function (e) {
+      if (!queue.length) return; // шинэ зураггүй бол энгийн илгээлт
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      submit.disabled = true;
+      submit.textContent = 'Хадгалж байна…';
+      try {
+        var r = await fetch(form.action, {
+          method: 'POST', body: new URLSearchParams(new FormData(form)), credentials: 'same-origin',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        var j = await r.json().catch(function () { return {}; });
+        if (!r.ok || !j.ok) throw new Error(j.error || ('Алдаа ' + r.status));
+        var url = '/admin/news/' + j.id + '/photos';
+        var failed = 0;
+        for (var i = 0; i < queue.length; i++) {
+          var row = document.createElement('div');
+          row.className = 'upload-item';
+          row.innerHTML = '<span class="name"></span><span class="state">Хуулж байна…</span><div class="bar"><span style="width:50%"></span></div>';
+          $('.name', row).textContent = queue[i].name;
+          list.appendChild(row);
+          try {
+            await postPhoto(url, csrf, await queue[i].ready);
+            $('.state', row).textContent = '✓ Хуулагдлаа'; row.classList.add('done');
+          } catch (err) {
+            failed++;
+            $('.state', row).textContent = '✕ ' + err.message; row.classList.add('fail');
+          }
+          $('.bar span', row).style.width = '100%';
+        }
+        if (failed) {
+          alert(failed + ' зураг хуулагдсангүй. Мэдээ хадгалагдсан тул засах хуудаснаас дахин оруулна уу.');
+          window.location.href = '/admin/news/' + j.id;
+        } else {
+          window.location.href = '/admin/news';
+        }
+      } catch (err) {
+        alert(err.message);
+        busy = false;
+        submit.disabled = false;
+        submit.textContent = 'Хадгалах';
+      }
+    });
+  }
+
   // ---------- Фото альбом: олон зураг сонгоод браузер дээр шахаж нэг нэгээр нь хуулах ----------
   function initGalleryUpload() {
     var box = $('[data-gallery-upload]');
@@ -391,16 +610,6 @@
     var csrf = $('[data-csrf]', box).value;
     var busy = false;
 
-    function resize(bitmap, max, quality) {
-      var scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-      var c = document.createElement('canvas');
-      c.width = Math.round(bitmap.width * scale);
-      c.height = Math.round(bitmap.height * scale);
-      var ctx = c.getContext('2d');
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(bitmap, 0, 0, c.width, c.height);
-      return { url: c.toDataURL('image/jpeg', quality), w: c.width, h: c.height };
-    }
     function row(name) {
       var el = document.createElement('div');
       el.className = 'upload-item';

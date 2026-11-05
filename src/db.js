@@ -273,6 +273,7 @@ async function init() {
       AND NOT EXISTS (SELECT 1 FROM (SELECT post_id FROM board_units WHERE post_id IS NOT NULL) x WHERE x.post_id = p.id)`);
   await ensureElectionScoping();
   await ensureAppointments();
+  await ensureColumn('campaign_contributions', 'donor_contact', 'VARCHAR(150) NULL AFTER donor_name');
   await syncSchools();
 
   await seedAdmin();

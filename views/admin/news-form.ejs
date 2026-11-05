@@ -3,7 +3,7 @@
   <%- include('_nav') %>
   <div class="card">
     <h2><%= item.id ? 'Мэдээ засах' : 'Шинэ мэдээ' %></h2>
-    <form method="post" action="/admin/news<%= item.id ? '/' + item.id : '' %>" class="form">
+    <form method="post" action="/admin/news<%= item.id ? '/' + item.id : '' %>" class="form" data-news-form>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <div class="field"><label>Гарчиг</label><input type="text" name="title" value="<%= item.title %>" maxlength="200" required></div>
       <div class="field">
@@ -11,9 +11,32 @@
         <textarea name="body" rows="14" required><%= item.body %></textarea>
         <div class="hint">Хоосон мөрөөр догол мөр тусгаарлана.</div>
       </div>
+
+      <div class="field">
+        <label>Зургууд <span class="small faint">(заавал биш)</span></label>
+        <div class="news-photo-grid" data-news-photos>
+          <% photos.forEach(function (p) { %>
+            <div class="np-thumb">
+              <img src="/news/photo/<%= p.id %>?s=t" alt="" loading="lazy">
+              <label class="np-remove" title="Устгах">
+                <input type="checkbox" name="remove_photo" value="<%= p.id %>" hidden data-np-remove>
+                <span aria-hidden="true">✕</span>
+              </label>
+            </div>
+          <% }) %>
+          <label class="np-add" data-drop>
+            <input type="file" accept="image/*" multiple hidden data-files>
+            <span class="dz-icon">🖼️</span>
+            <small>Зураг нэмэх</small>
+          </label>
+        </div>
+        <div class="hint">Олон зураг зэрэг сонгох эсвэл чирж оруулж болно. Эхний зураг нь нүүр зураг болно. Зураг автоматаар шахагдана.</div>
+        <div class="upload-list" data-upload-list></div>
+      </div>
+
       <label class="check"><input type="checkbox" name="pinned" value="1" <%= item.pinned ? 'checked' : '' %>> Онцлох (дээр нь байрлуулах)</label>
       <div class="row">
-        <button class="btn btn-primary" type="submit">Хадгалах</button>
+        <button class="btn btn-primary" type="submit" data-submit>Хадгалах</button>
         <a class="btn btn-ghost" href="/admin/news">Буцах</a>
       </div>
     </form>

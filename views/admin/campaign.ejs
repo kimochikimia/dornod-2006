@@ -1,0 +1,113 @@
+<%- include('../partials/head') %>
+<%
+  var k = campaign;
+  var what = function (c) {
+    if (c.kind === 'money') return cmp.fmtMoney(c.amount);
+    return '🎁 ' + c.item_desc + (c.amount ? ' (≈ ' + cmp.fmtMoney(c.amount) + ')' : '');
+  };
+  var f = form || {};
+%>
+<div class="container">
+  <%- include('_nav') %>
+
+  <div class="row between" style="margin-bottom:1rem">
+    <div>
+      <a href="/admin/campaigns" class="small">← Бүх аян</a>
+      <h2 style="margin:.35rem 0 0"><%= k.title %></h2>
+    </div>
+    <div class="row" style="gap:.5rem">
+      <a class="btn" href="/campaigns/<%= k.id %>">Нийтийн хуудас →</a>
+      <a class="btn" href="/admin/campaigns/<%= k.id %>/edit">✎ Аяныг засах</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem"><%- include('../partials/campaign-progress', { k: k, cmp: cmp }) %></div>
+
+  <%# ---------- Хянагдаж буй ---------- %>
+  <section id="pending" style="margin-bottom:1.5rem">
+    <h3>Хянагдаж буй мэдэгдэл <span class="muted small">(<%= pending.length %>)</span></h3>
+    <% if (!pending.length) { %>
+      <p class="small faint">Шалгах мэдэгдэл алга.</p>
+    <% } else { %>
+      <p class="small muted">Дансны хуулга эсвэл хүлээн авсан зүйлтэй тулгаад баталгаажуулна уу. Баталгаажсан нь нийтэд харагдаж, дүнд нэмэгдэнэ.</p>
+      <%- include('_contrib-table', { rows: pending, k: k, what: what, actions: [['confirmed', '✓ Баталгаажуулах', 'btn-primary'], ['rejected', 'Татгалзах', '']] }) %>
+    <% } %>
+  </section>
+
+  <%# ---------- Баталгаажсан ---------- %>
+  <section id="confirmed" style="margin-bottom:1.5rem">
+    <h3>Баталгаажсан дэмжлэг <span class="muted small">(<%= confirmed.length %>)</span></h3>
+    <% if (!confirmed.length) { %>
+      <p class="small faint">Баталгаажсан дэмжлэг алга.</p>
+    <% } else { %>
+      <%- include('_contrib-table', { rows: confirmed, k: k, what: what, actions: [['pending', 'Буцаах', '']] }) %>
+    <% } %>
+  </section>
+
+  <%# ---------- Гараар бүртгэх ---------- %>
+  <details class="card settings-card" style="margin-bottom:1.5rem" <%= errors.length ? 'open' : '' %>>
+    <summary><h3 style="margin:0">+ Дэмжлэг гараар бүртгэх</h3></summary>
+    <p class="small muted" style="margin-top:.75rem">Бэлнээр өгсөн, эсвэл сайтад бүртгэлгүй хүн / байгууллагын дэмжлэгийг энд бүртгэнэ. Шууд баталгаажна.</p>
+    <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (e) { %><div>• <%= e %></div><% }) %></div><% } %>
+    <form method="post" action="/admin/campaigns/<%= k.id %>/contributions" class="form support-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <%
+        // Төгсөгчийн нэрийн жагсаалт (ижил нэртэй бол дугаар нэмнэ)
+        var seen = {};
+        var opts = members.map(function (m) {
+          var label = (m.surname || '') + ' ' + (m.name || '') + (m.school_name ? ' — ' + m.school_name + (m.class_name ? ', ' + m.class_name : '') : '');
+          label = label.trim();
+          if (seen[label]) label += ' (#' + m.id + ')';
+          seen[label] = 1;
+          return { id: m.id, label: label };
+        });
+        var fType = f.donor_type === 'guest' ? 'guest' : 'member';
+        var picked = opts.filter(function (o) { return String(o.id) === String(f.user_id || ''); })[0];
+      %>
+      <div class="field">
+        <label>Хандивлагч</label>
+        <div class="seg">
+          <label><input type="radio" name="donor_type" value="member" <%= fType === 'member' ? 'checked' : '' %>> 👤 Бүртгэлтэй төгсөгч</label>
+          <label><input type="radio" name="donor_type" value="guest" <%= fType === 'guest' ? 'checked' : '' %>> ✍️ Бүртгэлгүй хандивлагч</label>
+        </div>
+        <div class="only-member" data-member-pick>
+          <input type="text" list="donor-members" value="<%= picked ? picked.label : '' %>" placeholder="Нэрээр хайж сонгоно уу…" autocomplete="off" data-member-input>
+          <input type="hidden" name="user_id" value="<%= picked ? picked.id : '' %>" data-member-id>
+          <datalist id="donor-members">
+            <% opts.forEach(function (o) { %><option value="<%= o.label %>" data-id="<%= o.id %>"></option><% }) %>
+          </datalist>
+          <div class="hint" data-member-status><%= picked ? '✓ Сонгогдсон' : 'Нэрийн эхний үсгүүдийг бичихэд жагсаалт гарна.' %></div>
+        </div>
+        <div class="form-grid only-guest">
+          <input type="text" name="donor_name" value="<%= f.donor_name || '' %>" maxlength="150" placeholder="Нэр эсвэл байгууллагын нэр">
+          <input type="text" name="donor_contact" value="<%= f.donor_contact || '' %>" maxlength="150" placeholder="Утас, и-мэйл (заавал биш, нийтэд харагдахгүй)">
+        </div>
+      </div>
+      <div class="field">
+        <label>Дэмжлэгийн төрөл</label>
+        <div class="seg">
+          <label><input type="radio" name="kind" value="money" <%= f.kind !== 'item' ? 'checked' : '' %>> 💰 Мөнгөн хандив</label>
+          <label><input type="radio" name="kind" value="item" <%= f.kind === 'item' ? 'checked' : '' %>> 🎁 Бусад зүйл</label>
+        </div>
+      </div>
+      <div class="field">
+        <label><span class="only-money">Дүн (₮)</span><span class="only-item">Ойролцоо үнэлгээ (₮, заавал биш)</span></label>
+        <input type="text" name="amount" value="<%= f.amount || '' %>" inputmode="numeric" maxlength="20" placeholder="50,000" data-money>
+      </div>
+      <div class="field only-item"><label>Юугаар дэмжсэн</label><input type="text" name="item_desc" value="<%= f.item_desc || '' %>" maxlength="300"></div>
+      <div class="field"><label>Тэмдэглэл <span class="small faint">(нийтэд харагдана, заавал биш)</span></label><input type="text" name="note" value="<%= f.note || '' %>" maxlength="500"></div>
+      <label class="check"><input type="checkbox" name="anonymous" value="1" <%= f.anonymous ? 'checked' : '' %>> Нэрийг нууцлах</label>
+      <button class="btn btn-primary" type="submit">Бүртгэх</button>
+    </form>
+  </details>
+
+  <% if (rejected.length) { %>
+    <details class="card settings-card" id="rejected">
+      <summary><h3 style="margin:0">Татгалзсан <span class="muted small">(<%= rejected.length %>)</span></h3></summary>
+      <div style="margin-top:1rem">
+        <%- include('_contrib-table', { rows: rejected, k: k, what: what, actions: [['pending', 'Хянагдаж буй руу буцаах', '']] }) %>
+      </div>
+    </details>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

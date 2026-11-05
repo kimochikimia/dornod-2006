@@ -1,0 +1,12 @@
+<%# Цугларсан дүн, зорилт, хандивлагчдын тоо %>
+<div class="cmp-progress">
+  <div class="cmp-figures">
+    <strong class="cmp-raised"><%= cmp.fmtMoney(k.raised) %></strong>
+    <% if (k.goal_amount) { %><span class="muted small">/ <%= cmp.fmtMoney(k.goal_amount) %></span><% } %>
+    <span class="cmp-supporters small muted">🤝 <%= k.supporters %> дэмжигч</span>
+  </div>
+  <% if (k.goal_amount) { %>
+    <div class="cmp-bar" role="progressbar" aria-valuenow="<%= k.percent %>" aria-valuemin="0" aria-valuemax="100"><span style="width:<%= k.percent %>%"></span></div>
+    <div class="small faint"><%= k.percent %>% биелсэн</div>
+  <% } %>
+</div>

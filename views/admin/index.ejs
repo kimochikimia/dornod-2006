@@ -9,6 +9,9 @@
     <% if (can('manage_requests')) { %>
       <a class="card stat card-link" href="/admin/requests"><div class="num grad-text"><%= counts.requests %></div><div class="label">Шийдвэрлээгүй хүсэлт</div></a>
     <% } %>
+    <% if (can('manage_campaigns')) { %>
+      <a class="card stat card-link" href="/admin/campaigns"><div class="num" style="color:<%= counts.campaignPending ? 'var(--warn)' : 'inherit' %>"><%= counts.campaignPending %></div><div class="label">Хянагдаж буй хандив</div></a>
+    <% } %>
     <% if (can('manage_elections')) { %>
       <a class="card stat card-link" href="/admin/elections"><div class="num grad-text"><%= counts.activeElections %></div><div class="label">Идэвхтэй сонгууль</div></a>
     <% } %>

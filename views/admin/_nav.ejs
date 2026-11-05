@@ -26,6 +26,7 @@
   <% if (can('manage_roles')) { %><a href="/admin/roles" class="<%= path.startsWith('/admin/roles') ? 'active' : '' %>">Эрх, төлөв</a><% } %>
   <% if (can('manage_elections') || can('manage_board')) { %><a href="/admin/elections" class="has-sub <%= inBoard ? 'active' : '' %>">Удирдах зөвлөл <span aria-hidden="true">▾</span></a><% } %>
   <% if (can('manage_plans')) { %><a href="/admin/plans" class="<%= path.startsWith('/admin/plans') ? 'active' : '' %>">Төлөвлөгөө</a><% } %>
+  <% if (can('manage_campaigns')) { %><a href="/admin/campaigns" class="<%= path.startsWith('/admin/campaigns') ? 'active' : '' %>">Аян хөтөлбөр</a><% } %>
   <% if (can('manage_gallery')) { %><a href="/admin/gallery" class="<%= path.startsWith('/admin/gallery') ? 'active' : '' %>">Фото альбом</a><% } %>
   <% if (can('manage_news')) { %><a href="/admin/news" class="<%= path.startsWith('/admin/news') ? 'active' : '' %>">Мэдээ</a><% } %>
   <% if (can('manage_requests')) { %><a href="/admin/requests" class="<%= path.startsWith('/admin/requests') ? 'active' : '' %>">Хүсэлтүүд</a><% } %>

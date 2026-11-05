@@ -218,6 +218,89 @@ tbody tr:hover { background: rgba(79, 124, 255, 0.05); }
 /* ---------- News ---------- */
 .news-item .date { font-size: 0.8rem; color: var(--faint); }
 .news-item p.excerpt { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* Картын нүүр зураг */
+.news-item.has-cover, .campaign-card.has-cover { padding-top: 0; overflow: hidden; }
+.news-cover { position: relative; margin: 0 -1.5rem 1rem; aspect-ratio: 16 / 9; background: #0b0d1f; overflow: hidden; }
+.news-cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s; }
+.news-item:hover .news-cover img { transform: scale(1.03); }
+.news-cover-count { position: absolute; right: 0.6rem; bottom: 0.6rem; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.78rem; color: #fff; background: rgba(5, 6, 15, 0.7); }
+/* Мэдээний зургууд (сошиал загвар: 1–5 зураг, илүүг нь +N) */
+.news-photos { display: grid; gap: 6px; max-width: 760px; margin-bottom: 1rem; border-radius: var(--radius); overflow: hidden; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 170px; }
+.np-item { position: relative; display: block; overflow: hidden; background: #0b0d1f; grid-column: span 3; }
+.np-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.25s; }
+.np-item:hover img { transform: scale(1.04); }
+.np-hidden { display: none; }
+.news-photos.n1 { grid-auto-rows: auto; }
+.news-photos.n1 .np-item { grid-column: 1 / -1; }
+.news-photos.n1 img { height: auto; max-height: 560px; object-fit: contain; }
+.news-photos.n2 { grid-auto-rows: 300px; }
+.news-photos.n3 .np-item:first-child { grid-column: 1 / -1; grid-row: span 2; }
+.news-photos.n4 .np-item:first-child { grid-column: 1 / -1; grid-row: span 2; }
+.news-photos.n4 .np-item:not(:first-child) { grid-column: span 2; }
+.news-photos.n5 .np-item:nth-child(n+3) { grid-column: span 2; }
+.news-photos.n5 .np-item:nth-child(-n+2) { grid-row: span 2; }
+.np-more { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2rem; font-weight: 700; color: #fff; background: rgba(5, 6, 15, 0.55); }
+@media (max-width: 560px) { .news-photos { grid-auto-rows: 110px; } .news-photos.n2 { grid-auto-rows: 200px; } }
+/* Админ: мэдээний зураг сонгох */
+.news-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; }
+.np-thumb, .news-photo-grid .np-add { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; }
+.np-thumb { border: 1px solid var(--border); background: #0b0d1f; }
+.np-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-thumb:first-child::after { content: 'Нүүр'; position: absolute; left: 6px; bottom: 6px; padding: 0.05rem 0.45rem; border-radius: 999px; font-size: 0.7rem; color: #fff; background: rgba(5, 6, 15, 0.7); }
+.np-thumb.pending { opacity: 0.5; animation: pulse 1s infinite alternate; }
+.np-thumb.failed { outline: 2px solid #f87171; }
+.np-thumb.removed { opacity: 0.3; }
+.np-thumb.removed img { filter: grayscale(1); }
+.news-photo-grid .np-remove { margin: 0; position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 50%; font-size: 0.8rem; color: #fff; background: rgba(5, 6, 15, 0.75); cursor: pointer; }
+.np-thumb.removed .np-remove { background: #f87171; }
+.news-photo-grid .np-add { margin: 0; display: grid; place-content: center; justify-items: center; gap: 0.2rem; text-align: center; cursor: pointer; border: 2px dashed rgba(167, 139, 250, 0.55); background: linear-gradient(135deg, rgba(255, 107, 157, 0.07), rgba(34, 211, 238, 0.07)); transition: border-color 0.15s; }
+.np-add:hover, .np-add.over { border-color: #fbbf24; }
+.np-add .dz-icon { font-size: 1.6rem; }
+/* ---------- Аян хөтөлбөр ---------- */
+.campaign-card .excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.campaign-card:hover .news-cover img { transform: scale(1.03); }
+.campaign-card.is-closed { opacity: 0.8; }
+.cmp-progress { display: grid; gap: 0.4rem; margin-top: 0.75rem; }
+.cmp-figures { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.5rem; }
+.cmp-raised { font-size: 1.35rem; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cmp-supporters { margin-left: auto; }
+.cmp-bar { height: 10px; border-radius: 10px; background: var(--border); overflow: hidden; }
+.cmp-bar span { display: block; height: 100%; min-width: 4px; border-radius: 10px; background: linear-gradient(90deg, #22c55e, #14b8a6, #4f7cff); transition: width 0.4s; }
+.cmp-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1.5rem; align-items: start; }
+.cmp-main { display: grid; gap: 1.25rem; min-width: 0; }
+.cmp-side { display: grid; gap: 1rem; position: sticky; top: 90px; }
+.cmp-side .card { padding: 1.25rem; }
+.cmp-side h3 { margin: 0 0 0.6rem; }
+.cmp-hero { display: block; border-radius: var(--radius); overflow: hidden; background: #0b0d1f; }
+.cmp-hero img { display: block; width: 100%; max-height: 460px; object-fit: cover; }
+.cmp-summary { font-size: 1.08rem; color: #dfe3ff; margin: 0; }
+.cmp-info { display: grid; gap: 0.75rem; }
+.cmp-info-row > span { display: block; font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 0.2rem; }
+.cmp-info-row p { margin: 0 0 0.3rem; }
+.cmp-bank { padding: 0.6rem 0.75rem; border-radius: var(--radius-sm); border: 1px dashed var(--border-strong); background: var(--panel-2); font-variant-numeric: tabular-nums; user-select: all; }
+.cmp-donors { display: grid; gap: 0.5rem; }
+.cmp-donor { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.7rem 0.9rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--panel); }
+.cmp-donor-icon { font-size: 1.4rem; }
+.cmp-note { color: #dfe3ff; font-style: italic; margin-top: 0.15rem; }
+.cmp-mine { display: grid; gap: 0.6rem; }
+.cmp-mine-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; justify-content: space-between; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+.cmp-mine-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.seg { display: flex; gap: 0.35rem; padding: 0.25rem; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); margin-bottom: 0.9rem; }
+.seg label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.5rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: var(--muted); cursor: pointer; margin: 0; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--grad); color: #fff; }
+.support-form:has(input[name=kind][value=money]:checked) .only-item,
+.support-form:has(input[name=kind][value=item]:checked) .only-money,
+.support-form:has(input[name=donor_type][value=member]:checked) .only-guest,
+.support-form:has(input[name=donor_type][value=guest]:checked) .only-member { display: none; }
+.support-form .seg { margin-bottom: 0.6rem; }
+[data-member-pick].picked [data-member-input] { border-color: rgba(52, 211, 153, 0.6); }
+[data-member-pick].picked [data-member-status] { color: #4ade80; }
+.cmp-cover-pick { display: grid; gap: 0.6rem; }
+.cmp-cover-preview img { display: block; max-width: 320px; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.cmp-cover-pick label.btn { display: inline-flex; margin: 0; }
+.cmp-cover-pick label.check { display: flex; margin: 0; font-weight: 400; }
+@media (max-width: 900px) { .cmp-layout { grid-template-columns: 1fr; } .cmp-side { position: static; } }
 .prose { max-width: 760px; }
 .prose p { color: #dfe3ff; }
 

@@ -18,6 +18,7 @@ router.use(requireManage);
 router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
 router.use('/gallery', requirePerm('manage_gallery'));
+router.use('/campaigns', requirePerm('manage_campaigns'));
 router.use('/requests', requirePerm('manage_requests'));
 // Удирдах зөвлөл = сонгууль бүрийн ажлын орчин. Сонгуулийн шатыг manage_elections,
 // албан тушаал / томилгоо / бүтэц / баримт бичгийг manage_board эрхээр удирдана.
@@ -49,7 +50,8 @@ router.get('/', wrap(async (req, res) => {
       (SELECT COUNT(*) FROM users WHERE status='approved') AS approved,
       (SELECT COUNT(*) FROM change_requests WHERE status='open') AS requests,
       (SELECT COUNT(*) FROM announcements) AS news,
-      (SELECT COUNT(*) FROM elections WHERE phase NOT IN ('draft','closed')) AS activeElections`
+      (SELECT COUNT(*) FROM elections WHERE phase NOT IN ('draft','closed')) AS activeElections,
+      (SELECT COUNT(*) FROM campaign_contributions WHERE status='pending') AS campaignPending`
   );
   let pendingUsers = [];
   if (can(req.user, 'approve_users')) {
@@ -242,39 +244,64 @@ router.get('/news', wrap(async (req, res) => {
 }));
 
 router.get('/news/new', (req, res) => {
-  res.render('admin/news-form', { title: 'Шинэ мэдээ', item: { title: '', body: '', pinned: 0 } });
+  res.render('admin/news-form', { title: 'Шинэ мэдээ', item: { title: '', body: '', pinned: 0 }, photos: [] });
 });
 
 router.get('/news/:id', wrap(async (req, res, next) => {
   const [[item]] = await pool.query('SELECT * FROM announcements WHERE id = ?', [req.params.id]);
   if (!item) return next();
-  res.render('admin/news-form', { title: 'Мэдээ засах', item });
+  const [photos] = await pool.query('SELECT id FROM news_photos WHERE announcement_id = ? ORDER BY id', [item.id]);
+  res.render('admin/news-form', { title: 'Мэдээ засах', item, photos });
 }));
 
-router.post('/news', wrap(async (req, res) => {
+// Мэдээ хадгалах. Шинэ зурагтай бол браузер эхлээд JSON-оор хадгалж (id авна), дараа нь зургуудаа нэг нэгээр хуулна.
+async function saveNews(req, res, id) {
+  const wantsJson = (req.get('Accept') || '').includes('application/json');
   const title = clean(req.body.title, 200);
   const body = clean(req.body.body, 20000);
   if (!title || !body) {
-    flash(req, 'error', 'Гарчиг болон агуулгаа бичнэ үү.');
-    return res.redirect('/admin/news/new');
+    const msg = 'Гарчиг болон агуулгаа бичнэ үү.';
+    if (wantsJson) return res.status(400).json({ error: msg });
+    flash(req, 'error', msg);
+    return res.redirect(id ? `/admin/news/${id}` : '/admin/news/new');
   }
-  await pool.query('INSERT INTO announcements (title, body, pinned, author_id) VALUES (?, ?, ?, ?)',
-    [title, body, req.body.pinned ? 1 : 0, req.user.id]);
-  flash(req, 'success', 'Мэдээ нийтлэгдлээ.');
+  if (id) {
+    await pool.query('UPDATE announcements SET title=?, body=?, pinned=? WHERE id=?',
+      [title, body, req.body.pinned ? 1 : 0, id]);
+    const remove = [].concat(req.body.remove_photo || []).map(Number).filter(Boolean);
+    if (remove.length) await pool.query('DELETE FROM news_photos WHERE announcement_id = ? AND id IN (?)', [id, remove]);
+  } else {
+    const [r] = await pool.query('INSERT INTO announcements (title, body, pinned, author_id) VALUES (?, ?, ?, ?)',
+      [title, body, req.body.pinned ? 1 : 0, req.user.id]);
+    id = r.insertId;
+  }
+  flash(req, 'success', req.params.id ? 'Мэдээ шинэчлэгдлээ.' : 'Мэдээ нийтлэгдлээ.');
+  if (wantsJson) return res.json({ ok: true, id });
   res.redirect('/admin/news');
+}
+
+router.post('/news', wrap((req, res) => saveNews(req, res, null)));
+
+router.post('/news/:id', wrap(async (req, res, next) => {
+  const [[item]] = await pool.query('SELECT id FROM announcements WHERE id = ?', [req.params.id]);
+  if (!item) return next();
+  return saveNews(req, res, item.id);
 }));
 
-router.post('/news/:id', wrap(async (req, res) => {
-  const title = clean(req.body.title, 200);
-  const body = clean(req.body.body, 20000);
-  if (!title || !body) {
-    flash(req, 'error', 'Гарчиг болон агуулгаа бичнэ үү.');
-    return res.redirect(`/admin/news/${req.params.id}`);
-  }
-  await pool.query('UPDATE announcements SET title=?, body=?, pinned=? WHERE id=?',
-    [title, body, req.body.pinned ? 1 : 0, req.params.id]);
-  flash(req, 'success', 'Мэдээ шинэчлэгдлээ.');
-  res.redirect('/admin/news');
+// Мэдээний зураг: браузер дээр шахсан JPEG (бүтэн + жижиг), нэг удаад нэг зураг — JSON буцаана
+router.post('/news/:id/photos', wrap(async (req, res) => {
+  const [[item]] = await pool.query('SELECT id FROM announcements WHERE id = ?', [req.params.id]);
+  if (!item) return res.status(404).json({ error: 'Мэдээ олдсонгүй.' });
+  const data = gallery.parseJpeg(req.body.data, gallery.MAX_PHOTO);
+  const thumb = gallery.parseJpeg(req.body.thumb, gallery.MAX_THUMB);
+  if (!data || !thumb) return res.status(400).json({ error: 'Зураг буруу эсвэл хэт том байна.' });
+  const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM news_photos WHERE announcement_id = ?', [item.id]);
+  if (n >= 30) return res.status(400).json({ error: 'Нэг мэдээнд дээд тал нь 30 зураг.' });
+  const dim = (v) => Math.min(Math.max(parseInt(v, 10) || 0, 0), 20000) || null;
+  const [r] = await pool.query('INSERT INTO news_photos SET ?', [{
+    announcement_id: item.id, data, thumb, width: dim(req.body.w), height: dim(req.body.h), uploaded_by: req.user.id,
+  }]);
+  res.json({ ok: true, id: r.insertId });
 }));
 
 router.post('/news/:id/delete', wrap(async (req, res) => {
@@ -910,6 +937,154 @@ router.post('/gallery/:id/photos/:pid', wrap(async (req, res) => {
     flash(req, 'success', 'Тайлбар хадгалагдлаа.');
   }
   res.redirect(back);
+}));
+
+// ---------- Аян хөтөлбөр ----------
+const cmp = require('../campaigns');
+const isDay = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !Number.isNaN(Date.parse(s));
+
+function campaignFields(body) {
+  const errors = [];
+  const f = {
+    title: clean(body.title, 200),
+    summary: clean(body.summary, 500) || null,
+    body: clean(body.body, 20000) || null,
+    goal_amount: null,
+    needs: clean(body.needs, 1000) || null,
+    bank_info: clean(body.bank_info, 1000) || null,
+    contact: clean(body.contact, 300) || null,
+    start_date: isDay(body.start_date) ? body.start_date : null,
+    end_date: isDay(body.end_date) ? body.end_date : null,
+    status: body.status === 'closed' ? 'closed' : 'active',
+  };
+  if (!f.title) errors.push('Аяны нэрийг бичнэ үү.');
+  if (clean(body.goal_amount, 30)) {
+    f.goal_amount = cmp.parseAmount(body.goal_amount);
+    if (!f.goal_amount) errors.push('Зорилтот дүнг зөв оруулна уу (жишээ нь 5000000).');
+  }
+  if (f.start_date && f.end_date && f.end_date < f.start_date) errors.push('Дуусах огноо эхлэх огнооноос өмнө байж болохгүй.');
+  return { errors, fields: f };
+}
+
+// Браузер дээр шахсан нүүр зураг (заавал биш). Буруу бол алдаа, байхгүй бол null.
+function campaignCover(body) {
+  if (!body.cover) return { cover: null };
+  const cover = gallery.parseJpeg(body.cover, gallery.MAX_PHOTO);
+  const thumb = gallery.parseJpeg(body.cover_thumb, gallery.MAX_THUMB);
+  if (!cover || !thumb) return { error: 'Нүүр зураг буруу эсвэл хэт том байна.' };
+  return { cover: { cover, cover_thumb: thumb, cover_v: Math.floor(Date.now() / 1000) % 2000000000 } };
+}
+
+const blankCampaign = () => ({ title: '', summary: '', body: '', goal_amount: null, needs: '', bank_info: '', contact: '', start_input: '', end_input: '', status: 'active' });
+
+router.get('/campaigns', wrap(async (req, res) => {
+  res.render('admin/campaigns', { title: 'Аян хөтөлбөр — Удирдлага', campaigns: await cmp.list(), cmp });
+}));
+
+router.get('/campaigns/new', (req, res) => {
+  res.render('admin/campaign-form', { title: 'Шинэ аян', item: blankCampaign(), errors: [] });
+});
+
+router.get('/campaigns/:id(\\d+)/edit', wrap(async (req, res, next) => {
+  const item = await cmp.get(req.params.id);
+  if (!item) return next();
+  res.render('admin/campaign-form', { title: 'Аян засах', item, errors: [] });
+}));
+
+// Маягтын алдаатай үед бөглөсөн утгуудыг буцааж харуулна
+const formBack = (fields, id, cover_v) => ({ ...fields, id, cover_v, start_input: fields.start_date || '', end_input: fields.end_date || '' });
+
+router.post('/campaigns', wrap(async (req, res) => {
+  const { errors, fields } = campaignFields(req.body);
+  const c = campaignCover(req.body);
+  if (c.error) errors.push(c.error);
+  if (errors.length) return res.status(400).render('admin/campaign-form', { title: 'Шинэ аян', item: formBack(fields), errors });
+  const [r] = await pool.query('INSERT INTO campaigns SET ?', [{ ...fields, ...(c.cover || {}), created_by: req.user.id }]);
+  flash(req, 'success', 'Аян нийтлэгдлээ.');
+  res.redirect(`/admin/campaigns/${r.insertId}`);
+}));
+
+router.post('/campaigns/:id(\\d+)/edit', wrap(async (req, res, next) => {
+  const item = await cmp.get(req.params.id);
+  if (!item) return next();
+  const { errors, fields } = campaignFields(req.body);
+  const c = campaignCover(req.body);
+  if (c.error) errors.push(c.error);
+  if (errors.length) return res.status(400).render('admin/campaign-form', { title: 'Аян засах', item: formBack(fields, item.id, item.cover_v), errors });
+  const cover = c.cover || (req.body.remove_cover ? { cover: null, cover_thumb: null, cover_v: null } : {});
+  await pool.query('UPDATE campaigns SET ? WHERE id = ?', [{ ...fields, ...cover }, item.id]);
+  flash(req, 'success', 'Хадгалагдлаа.');
+  res.redirect(`/admin/campaigns/${item.id}`);
+}));
+
+router.post('/campaigns/:id(\\d+)/delete', wrap(async (req, res) => {
+  await pool.query('DELETE FROM campaigns WHERE id = ?', [req.params.id]);
+  flash(req, 'success', 'Аян бүх дэмжлэгийн бүртгэлтэйгээ устгагдлаа.');
+  res.redirect('/admin/campaigns');
+}));
+
+// Аяны дэмжлэгийг удирдах: хянагдаж буйг баталгаажуулах, гараар нэмэх
+// Хандивлагчаар сонгох баталгаажсан төгсөгчид
+async function donorMembers() {
+  const [rows] = await pool.query(
+    `SELECT u.id, u.surname, u.name, u.class_name, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+     WHERE u.status = 'approved' ORDER BY u.surname, u.name`
+  );
+  return rows;
+}
+
+async function renderCampaignAdmin(res, campaign, errors = [], form = {}) {
+  const all = await cmp.contributions(campaign.id, ['pending', 'confirmed', 'rejected']);
+  res.status(errors.length ? 400 : 200).render('admin/campaign', {
+    title: `${campaign.title} — Аян хөтөлбөр`, campaign, cmp, errors, form, members: await donorMembers(),
+    pending: all.filter((c) => c.status === 'pending'),
+    confirmed: all.filter((c) => c.status === 'confirmed'),
+    rejected: all.filter((c) => c.status === 'rejected'),
+  });
+}
+
+router.get('/campaigns/:id(\\d+)', wrap(async (req, res, next) => {
+  const campaign = await cmp.get(req.params.id);
+  if (!campaign) return next();
+  await renderCampaignAdmin(res, campaign);
+}));
+
+// Удирдлага гараар бүртгэх — бүртгэлтэй төгсөгчөөс сонгох эсвэл бүртгэлгүй хандивлагчийн мэдээллийг оруулах. Шууд баталгаажна.
+router.post('/campaigns/:id(\\d+)/contributions', wrap(async (req, res, next) => {
+  const campaign = await cmp.get(req.params.id);
+  if (!campaign) return next();
+  const { errors, fields } = cmp.contributionFields(req.body);
+  const donor = { user_id: null, donor_name: null, donor_contact: null };
+  if (req.body.donor_type === 'member') {
+    const [[u]] = await pool.query("SELECT id FROM users WHERE id = ? AND status = 'approved'", [Number(req.body.user_id) || 0]);
+    if (u) donor.user_id = u.id;
+    else errors.push('Хандивлагч төгсөгчийг жагсаалтаас сонгоно уу.');
+  } else {
+    donor.donor_name = clean(req.body.donor_name, 150);
+    donor.donor_contact = clean(req.body.donor_contact, 150) || null;
+    if (!donor.donor_name) errors.push('Хандивлагчийн нэрийг бичнэ үү.');
+  }
+  if (errors.length) return renderCampaignAdmin(res, campaign, errors, req.body);
+  await pool.query('INSERT INTO campaign_contributions SET ?', [{
+    ...fields, ...donor, campaign_id: campaign.id, status: 'confirmed', reviewed_by: req.user.id, reviewed_at: new Date(),
+  }]);
+  flash(req, 'success', 'Дэмжлэг бүртгэгдлээ.');
+  res.redirect(`/admin/campaigns/${campaign.id}#confirmed`);
+}));
+
+router.post('/campaigns/:id(\\d+)/contributions/:cid(\\d+)', wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  const cid = Number(req.params.cid);
+  const action = req.body.action;
+  if (action === 'delete') {
+    await pool.query('DELETE FROM campaign_contributions WHERE id = ? AND campaign_id = ?', [cid, id]);
+    flash(req, 'success', 'Устгагдлаа.');
+  } else if (['confirmed', 'rejected', 'pending'].includes(action)) {
+    await pool.query('UPDATE campaign_contributions SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ? AND campaign_id = ?',
+      [action, req.user.id, new Date(), cid, id]);
+    flash(req, 'success', { confirmed: 'Баталгаажлаа.', rejected: 'Татгалзлаа.', pending: 'Хянагдаж буй руу буцаалаа.' }[action]);
+  }
+  res.redirect(`/admin/campaigns/${id}`);
 }));
 
 // ---------- Сургуулиуд ----------

@@ -32,6 +32,8 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: isProd ? '7d' :
 app.use('/admin/documents', express.urlencoded({ extended: true, limit: '16mb' }));
 // Фото альбомын зураг (браузер дээр шахсан, нэг удаад нэг зураг)
 app.use('/admin/gallery', express.urlencoded({ extended: true, limit: '12mb' }));
+app.use('/admin/news', express.urlencoded({ extended: true, limit: '12mb' })); // мэдээний зураг
+app.use('/admin/campaigns', express.urlencoded({ extended: true, limit: '12mb' })); // аяны нүүр зураг
 app.use(express.urlencoded({ extended: true, limit: '1mb' })); // зураг (base64) багтаахаар
 
 if (isProd && !process.env.SESSION_SECRET) {
@@ -71,6 +73,7 @@ app.use(require('./src/routes/auth'));
 app.use(require('./src/routes/main'));
 app.use('/board', require('./src/routes/board'));
 app.use('/elections', require('./src/routes/elections'));
+app.use('/campaigns', require('./src/routes/campaigns'));
 app.use('/admin', require('./src/routes/admin'));
 
 app.use((req, res) => {

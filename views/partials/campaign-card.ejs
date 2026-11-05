@@ -1,0 +1,13 @@
+<%# Аяны карт: нүүр зураг, төлөв, цугларсан дүн / зорилт %>
+<a class="card card-link campaign-card<%= k.cover_v ? ' has-cover' : '' %><%= k.status === 'closed' ? ' is-closed' : '' %>" href="/campaigns/<%= k.id %>">
+  <% if (k.cover_v) { %>
+    <div class="news-cover"><img src="/campaigns/<%= k.id %>/cover?s=t&v=<%= k.cover_v %>" alt="" loading="lazy"></div>
+  <% } %>
+  <div class="row" style="gap:.5rem">
+    <span class="badge <%= k.status === 'active' ? 'grad' : '' %>"><%= k.status === 'active' ? 'Явагдаж буй' : 'Дууссан' %></span>
+    <% if (k.dates) { %><span class="date small faint">📅 <%= k.dates %></span><% } %>
+  </div>
+  <h3 style="margin-top:.5rem"><%= k.title %></h3>
+  <% if (k.summary) { %><p class="excerpt muted"><%= k.summary %></p><% } %>
+  <%- include('campaign-progress', { k: k, cmp: cmp }) %>
+</a>

@@ -15,6 +15,7 @@ const PERMISSIONS = [
   { key: 'manage_news', group: 'Удирдах', label: 'Мэдээ оруулах, засах, устгах' },
   { key: 'manage_plans', group: 'Удирдах', label: 'Төлөвлөгөө оруулах, засах' },
   { key: 'manage_gallery', group: 'Удирдах', label: 'Фото альбом үүсгэх, зураг оруулах, устгах' },
+  { key: 'manage_campaigns', group: 'Удирдах', label: 'Аян хөтөлбөр оруулах, дэмжлэг баталгаажуулах' },
   { key: 'manage_board', group: 'Удирдах', label: 'Удирдах зөвлөлийн гишүүд, хариуцсан ажлыг засах' },
   { key: 'approve_users', group: 'Удирдах', label: 'Шинэ бүртгэл батлах, татгалзах' },
   { key: 'edit_users', group: 'Удирдах', label: 'Төгсөгчийн мэдээлэл засах, нууц үг шинэчлэх, устгах' },
@@ -51,7 +52,7 @@ async function loadPermissions() {
 // Шинэ төлөв нэмэгдэхэд (жишээ нь Дэд админ) зөвхөн тэр төлөвт анхны эрхийг нэг удаа тавина.
 // Админ эрхийг бүгдийг нь хассан ч дахин сэргээгдэхгүй.
 // Хожим нэмэгдсэн эрхийг одоо байгаа өгөгдлийн санд нэг удаа олгох: { эрх: [төлөвүүд] }
-const ADDED_PERMS = { manage_board: ['subadmin', 'admin'], manage_gallery: ['subadmin', 'admin'] };
+const ADDED_PERMS = { manage_board: ['subadmin', 'admin'], manage_gallery: ['subadmin', 'admin'], manage_campaigns: ['subadmin', 'admin'] };
 const META = '__meta';
 
 async function seedPermissions() {

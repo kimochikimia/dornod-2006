@@ -1,0 +1,17 @@
+<%# Мэдээний карт: зурагтай бол дээр нь нүүр зураг, олон зурагтай бол тоо %>
+<a class="card card-link news-item<%= n.cover_id ? ' has-cover' : '' %>" href="/news/<%= n.id %>">
+  <% if (n.cover_id) { %>
+    <div class="news-cover">
+      <img src="/news/photo/<%= n.cover_id %>?s=t" alt="" loading="lazy">
+      <% if (n.photo_count > 1) { %><span class="news-cover-count">📷 <%= n.photo_count %></span><% } %>
+    </div>
+  <% } %>
+  <div class="row" style="gap:.5rem">
+    <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
+    <span class="date"><%= h.fmtDay(n.created_at) %></span>
+    <% if (n.reaction_count) { %><span class="date">👍 <%= n.reaction_count %></span><% } %>
+    <% if (n.comment_count) { %><span class="date">💬 <%= n.comment_count %></span><% } %>
+  </div>
+  <h3 style="margin-top:.5rem"><%= n.title %></h3>
+  <p class="excerpt"><%= n.body %></p>
+</a>

@@ -65,18 +65,27 @@
   <% } else { %>
     <div class="grid grid-2">
       <% news.forEach(function (n) { %>
-        <a class="card card-link news-item" href="/news/<%= n.id %>">
-          <div class="row" style="gap:.5rem">
-            <% if (n.pinned) { %><span class="badge grad">Онцлох</span><% } %>
-            <span class="date"><%= h.fmtDay(n.created_at) %></span>
-          </div>
-          <h3 style="margin-top:.5rem"><%= n.title %></h3>
-          <p class="excerpt"><%= n.body %></p>
-        </a>
+        <%- include('partials/news-card', { n: n }) %>
       <% }) %>
     </div>
   <% } %>
 </section>
+
+<% if (timeline) { %>
+<div class="container"><hr class="soft-divider"></div>
+<section class="container section">
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Төлөвлөгөө</h2>
+    <a href="/plan">Дэлгэрэнгүй →</a>
+  </div>
+  <div class="tabs" data-tabs>
+    <a class="tab active" href="/plan?view=timeline" data-tab="timeline">📍 Цагийн шугам</a>
+    <a class="tab" href="/plan?view=monthly" data-tab="monthly">🗓️ Сарын хуваарь</a>
+  </div>
+  <div data-tab-panel="timeline"><%- include('partials/plan-timeline', { timeline: timeline }) %></div>
+  <div data-tab-panel="monthly" hidden><%- include('partials/plan-monthly', { monthly: monthly }) %></div>
+</section>
+<% } %>
 
 <div class="container"><hr class="soft-divider"></div>
 <%# ---------- Фото альбом: сошиал загварын давхарласан найруулга ---------- %>

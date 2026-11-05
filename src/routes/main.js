@@ -12,7 +12,10 @@ const router = express.Router();
 
 router.get('/', wrap(async (req, res) => {
   const [news] = await pool.query(
-    'SELECT id, title, body, pinned, created_at FROM announcements ORDER BY pinned DESC, created_at DESC LIMIT 4'
+    `SELECT a.id, a.title, a.body, a.pinned, a.created_at,
+            (SELECT p.id FROM news_photos p WHERE p.announcement_id = a.id ORDER BY p.id LIMIT 1) AS cover_id,
+            (SELECT COUNT(*) FROM news_photos p WHERE p.announcement_id = a.id) AS photo_count
+     FROM announcements a ORDER BY a.pinned DESC, a.created_at DESC LIMIT 4`
   );
   const [[stats]] = await pool.query(
     `SELECT
@@ -27,14 +30,19 @@ router.get('/', wrap(async (req, res) => {
   const photos = await gallery.latestPhotos(req.user, 9);
   const albums = await gallery.visibleAlbums(req.user, 6);
   const galleryCounts = await gallery.visibleCounts(req.user);
-  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null, photos, albums, galleryCounts });
+  const planItems = await plan.loadItems();
+  const timeline = plan.buildTimeline(planItems);
+  const monthly = timeline ? plan.buildMonthly(planItems, plan.defaultYear(planItems)) : null;
+  res.render('index', { title: 'Нүүр', news, stats, election, deadline: election ? sched.nextDeadline(election) : null, photos, albums, galleryCounts, timeline, monthly });
 }));
 
 router.get('/news', wrap(async (req, res) => {
   const [news] = await pool.query(
     `SELECT a.id, a.title, a.body, a.pinned, a.created_at,
             (SELECT COUNT(*) FROM news_comments c WHERE c.announcement_id = a.id) AS comment_count,
-            (SELECT COUNT(*) FROM reactions r WHERE r.target_type = 'news' AND r.target_id = a.id) AS reaction_count
+            (SELECT COUNT(*) FROM reactions r WHERE r.target_type = 'news' AND r.target_id = a.id) AS reaction_count,
+            (SELECT p.id FROM news_photos p WHERE p.announcement_id = a.id ORDER BY p.id LIMIT 1) AS cover_id,
+            (SELECT COUNT(*) FROM news_photos p WHERE p.announcement_id = a.id) AS photo_count
      FROM announcements a ORDER BY a.pinned DESC, a.created_at DESC`
   );
   res.render('news/list', { title: 'Мэдээ, зарлал', news });
@@ -52,7 +60,19 @@ router.get('/news/:id', wrap(async (req, res, next) => {
   const uid = req.user && req.user.id;
   const newsReact = await rx.loadOne('news', item.id, uid);
   const commentReact = await rx.loadReactions('comment', comments.map((c) => c.id), uid);
-  res.render('news/show', { title: item.title, item, comments, newsReact, commentReact });
+  const [photos] = await pool.query('SELECT id, width, height FROM news_photos WHERE announcement_id = ? ORDER BY id', [item.id]);
+  res.render('news/show', { title: item.title, item, comments, newsReact, commentReact, photos });
+}));
+
+// Мэдээний зураг (мэдээ нийтэд нээлттэй): ?s=t бол жижиг хувилбар
+router.get('/news/photo/:id', wrap(async (req, res, next) => {
+  const thumb = req.query.s === 't';
+  const [[p]] = await pool.query(`SELECT ${thumb ? 'thumb' : 'data'} AS img FROM news_photos WHERE id = ?`, [req.params.id]);
+  if (!p) return next();
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=2592000, immutable');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(p.img);
 }));
 
 // Сэтгэгдэл бичих: нэвтэрсэн хэрэглэгч (татгалзсан бүртгэлээс бусад)

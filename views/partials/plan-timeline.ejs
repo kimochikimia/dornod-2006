@@ -1,0 +1,40 @@
+<%# Төлөвлөгөөний цагийн шугам (timeline = plan.buildTimeline(items)) %>
+<% var ROW = 52; %>
+  <div class="card tl-card">
+    <div class="tl-scroll">
+      <div class="tl">
+        <div class="tl-top">
+          <% timeline.milestones.forEach(function (m) { %>
+            <div class="tl-ms lvl-<%= m.level %>" style="left:<%= m.left.toFixed(3) %>%" title="<%= m.description || '' %>">
+              <div class="tl-ms-label"><strong><%= m.title %></strong><small><%= m.shortRange %></small></div>
+              <div class="tl-diamond" style="background:<%= m.color %>"></div>
+              <div class="tl-ms-stem"></div>
+            </div>
+          <% }) %>
+        </div>
+        <div class="tl-axis">
+          <% timeline.ticks.forEach(function (t) { %>
+            <div class="tl-tick" style="left:<%= t.left.toFixed(3) %>%"><span><%= t.label %></span></div>
+          <% }) %>
+        </div>
+        <div class="tl-rows" style="height:<%= Math.max(timeline.tasks.length, 1) * ROW + 10 %>px">
+          <% timeline.tasks.forEach(function (t, i) { %>
+            <div class="tl-conn" style="left:<%= t.left.toFixed(3) %>%;height:<%= 40 + i * ROW + ROW / 2 %>px"></div>
+            <div class="tl-row" style="top:<%= i * ROW %>px;height:<%= ROW %>px">
+              <div class="tl-bar" style="left:<%= t.left.toFixed(3) %>%;width:<%= t.width.toFixed(3) %>%;background:<%= t.color %>" title="<%= t.title %> · <%= t.range %><%= t.responsible ? ' · ' + t.responsible : '' %>">
+                <% if (t.labelSide === 'inside') { %><span class="tl-inlabel"><%= t.title %> · <%= t.shortRange %></span><% } %>
+              </div>
+              <% if (t.labelSide === 'left') { %>
+                <div class="tl-label left" style="right:<%= (100 - t.left).toFixed(3) %>%"><strong><%= t.title %></strong><small><%= t.shortRange %></small></div>
+              <% } else if (t.labelSide === 'right') { %>
+                <div class="tl-label right" style="left:<%= (t.left + t.width).toFixed(3) %>%"><strong><%= t.title %></strong><small><%= t.shortRange %></small></div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+        <% if (timeline.today !== null) { %>
+          <div class="tl-today" style="left:<%= timeline.today.toFixed(3) %>%"><span>Өнөөдөр</span></div>
+        <% } %>
+      </div>
+    </div>
+  </div>

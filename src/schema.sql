@@ -260,3 +260,63 @@ CREATE TABLE IF NOT EXISTS gallery_photos (
   CONSTRAINT fk_photo_album FOREIGN KEY (album_id) REFERENCES gallery_albums(id) ON DELETE CASCADE,
   CONSTRAINT fk_gphoto_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Мэдээний зургууд (нэг мэдээнд олон зураг; эхнийх нь нүүр зураг)
+CREATE TABLE IF NOT EXISTS news_photos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  announcement_id INT NOT NULL,
+  width INT NULL,
+  height INT NULL,
+  data MEDIUMBLOB NOT NULL,
+  thumb MEDIUMBLOB NOT NULL,
+  uploaded_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_nphoto_news (announcement_id, id),
+  CONSTRAINT fk_nphoto_news FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+  CONSTRAINT fk_nphoto_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Сайн үйлсийн аян хөтөлбөр
+CREATE TABLE IF NOT EXISTS campaigns (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  summary VARCHAR(500) NULL,
+  body TEXT NULL,
+  goal_amount BIGINT NULL,
+  needs VARCHAR(1000) NULL,
+  bank_info VARCHAR(1000) NULL,
+  contact VARCHAR(300) NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
+  status ENUM('active','closed') NOT NULL DEFAULT 'active',
+  cover MEDIUMBLOB NULL,
+  cover_thumb MEDIUMBLOB NULL,
+  cover_v INT NULL,
+  created_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_campaign_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Аянд үзүүлсэн дэмжлэг: мөнгө эсвэл бусад зүйл. Төгсөгч мэдэгдвэл хянагдана (pending), удирдлага баталгаажуулна.
+CREATE TABLE IF NOT EXISTS campaign_contributions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  campaign_id INT NOT NULL,
+  user_id INT NULL,
+  donor_name VARCHAR(150) NULL,
+  donor_contact VARCHAR(150) NULL,
+  kind ENUM('money','item') NOT NULL DEFAULT 'money',
+  amount BIGINT NULL,
+  item_desc VARCHAR(300) NULL,
+  note VARCHAR(500) NULL,
+  anonymous TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('pending','confirmed','rejected') NOT NULL DEFAULT 'pending',
+  reviewed_by INT NULL,
+  reviewed_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_contrib_campaign (campaign_id, status, created_at),
+  INDEX idx_contrib_user (user_id),
+  CONSTRAINT fk_contrib_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+  CONSTRAINT fk_contrib_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_contrib_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

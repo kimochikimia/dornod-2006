@@ -1,0 +1,21 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head row between">
+    <div>
+      <h1>Аян хөтөлбөр</h1>
+      <p style="margin:0">Төгсөгчдийн холбооноос зохион байгуулж буй сайн үйлсийн аянууд. Мөнгөн хандив болон бусад зүйлээр дэмжиж болно.</p>
+    </div>
+    <% if (can('manage_campaigns')) { %><a class="btn btn-primary" href="/admin/campaigns/new">+ Аян нэмэх</a><% } %>
+  </div>
+
+  <% if (!campaigns.length) { %>
+    <div class="empty">Одоогоор аян хөтөлбөр нийтлэгдээгүй байна.</div>
+  <% } else { %>
+    <div class="grid grid-2">
+      <% campaigns.forEach(function (k) { %>
+        <%- include('../partials/campaign-card', { k: k, cmp: cmp }) %>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

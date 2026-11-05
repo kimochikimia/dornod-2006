@@ -1,0 +1,70 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card">
+    <h2><%= item.id ? 'Аян засах' : 'Шинэ аян' %></h2>
+    <% if (errors.length) { %>
+      <div class="flash error"><% errors.forEach(function (e) { %><div>• <%= e %></div><% }) %></div>
+    <% } %>
+    <form method="post" action="/admin/campaigns<%= item.id ? '/' + item.id + '/edit' : '' %>" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="field"><label>Аяны нэр</label><input type="text" name="title" value="<%= item.title %>" maxlength="200" required placeholder="Жишээ нь: Сургуульдаа ном бэлэглэе"></div>
+      <div class="field"><label>Товч тайлбар</label><input type="text" name="summary" value="<%= item.summary || '' %>" maxlength="500" placeholder="Карт дээр харагдах 1–2 өгүүлбэр"></div>
+      <div class="field">
+        <label>Дэлгэрэнгүй</label>
+        <textarea name="body" rows="8"><%= item.body || '' %></textarea>
+        <div class="hint">Аяны зорилго, хэнд, юунд зориулах, хэрхэн зарцуулах. Хоосон мөрөөр догол мөр тусгаарлана.</div>
+      </div>
+
+      <div class="field">
+        <label>Нүүр зураг <span class="small faint">(заавал биш)</span></label>
+        <div class="cmp-cover-pick" data-cover-picker>
+          <input type="hidden" name="cover" data-cover-data>
+          <input type="hidden" name="cover_thumb" data-cover-thumb>
+          <div class="cmp-cover-preview">
+            <img data-cover-preview <%- item.cover_v ? 'src="/campaigns/' + item.id + '/cover?s=t&v=' + item.cover_v + '"' : 'hidden' %> alt="">
+          </div>
+          <div class="row" style="gap:.5rem">
+            <label class="btn btn-sm" style="margin:0">🖼️ Зураг сонгох<input type="file" accept="image/*" hidden data-cover-file></label>
+            <% if (item.cover_v) { %><label class="check small" style="margin:0"><input type="checkbox" name="remove_cover" value="1"> Зургийг устгах</label><% } %>
+            <span class="small faint" data-cover-status></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>Зорилтот дүн (₮) <span class="small faint">(заавал биш)</span></label><input type="text" name="goal_amount" value="<%= item.goal_amount || '' %>" inputmode="numeric" maxlength="20" placeholder="5,000,000" data-money></div>
+        <div class="field">
+          <label>Төлөв</label>
+          <select name="status">
+            <option value="active" <%= item.status !== 'closed' ? 'selected' : '' %>>Явагдаж буй (дэмжлэг хүлээн авна)</option>
+            <option value="closed" <%= item.status === 'closed' ? 'selected' : '' %>>Дууссан</option>
+          </select>
+        </div>
+        <div class="field"><label>Эхлэх огноо</label><input type="date" name="start_date" value="<%= item.start_input || '' %>"></div>
+        <div class="field"><label>Дуусах огноо</label><input type="date" name="end_date" value="<%= item.end_input || '' %>"></div>
+      </div>
+      <div class="field">
+        <label>Шаардлагатай зүйлс <span class="small faint">(мөнгөөс гадна)</span></label>
+        <textarea name="needs" rows="3" maxlength="1000" placeholder="Жишээ нь: хүүхдийн ном, бичгийн хэрэгсэл, өвлийн хувцас"><%= item.needs || '' %></textarea>
+      </div>
+      <div class="field">
+        <label>Дансны мэдээлэл</label>
+        <textarea name="bank_info" rows="3" maxlength="1000" placeholder="Банк, дансны дугаар, хүлээн авагчийн нэр, гүйлгээний утга"><%= item.bank_info || '' %></textarea>
+      </div>
+      <div class="field"><label>Холбоо барих</label><input type="text" name="contact" value="<%= item.contact || '' %>" maxlength="300" placeholder="Хариуцагчийн нэр, утас"></div>
+
+      <div class="row between">
+        <div class="row">
+          <button class="btn btn-primary" type="submit"><%= item.id ? 'Хадгалах' : 'Нийтлэх' %></button>
+          <a class="btn btn-ghost" href="/admin/campaigns<%= item.id ? '/' + item.id : '' %>">Буцах</a>
+        </div>
+        <% if (item.id) { %>
+          <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/campaigns/<%= item.id %>/delete" formnovalidate
+                  data-confirm="&quot;<%= item.title %>&quot; аяныг бүх дэмжлэгийн бүртгэлтэй нь устгах уу? Буцаах боломжгүй.">Аян устгах</button>
+        <% } %>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include('../partials/foot') %>

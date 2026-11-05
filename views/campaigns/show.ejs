@@ -1,0 +1,128 @@
+<%- include('../partials/head') %>
+<%
+  var k = campaign;
+  var what = function (c) {
+    if (c.kind === 'money') return cmp.fmtMoney(c.amount);
+    return c.item_desc + (c.amount ? ' (≈ ' + cmp.fmtMoney(c.amount) + ')' : '');
+  };
+  var f = form || {};
+  var fKind = f.kind === 'item' ? 'item' : 'money';
+%>
+<div class="container">
+  <div class="page-head">
+    <a href="/campaigns" class="small">← Бүх аян</a>
+    <div class="row between" style="margin-top:.75rem;align-items:flex-end">
+      <div>
+        <h1 style="margin:0"><%= k.title %></h1>
+        <p class="muted" style="margin:.4rem 0 0">
+          <span class="badge <%= k.status === 'active' ? 'grad' : '' %>"><%= k.status === 'active' ? 'Явагдаж буй' : 'Дууссан' %></span>
+          <% if (k.dates) { %>&nbsp;📅 <%= k.dates %><% } %>
+        </p>
+      </div>
+      <% if (can('manage_campaigns')) { %><a class="btn" href="/admin/campaigns/<%= k.id %>">✎ Удирдах<%= k.pending ? ' (' + k.pending + ' хүлээгдэж буй)' : '' %></a><% } %>
+    </div>
+  </div>
+
+  <div class="cmp-layout">
+    <div class="cmp-main">
+      <% if (k.cover_v) { %>
+        <a class="cmp-hero" href="/campaigns/<%= k.id %>/cover?v=<%= k.cover_v %>" data-lightbox data-caption="<%= k.title %>">
+          <img src="/campaigns/<%= k.id %>/cover?v=<%= k.cover_v %>" alt="<%= k.title %>">
+        </a>
+      <% } %>
+      <% if (k.summary) { %><p class="cmp-summary"><%= k.summary %></p><% } %>
+      <% if (k.body) { %><article class="card prose"><%- h.text(k.body) %></article><% } %>
+
+      <section class="cmp-supporters-list" id="supporters">
+        <h2>Дэмжсэн хүмүүс <span class="muted small">(<%= supporters.length %>)</span></h2>
+        <% if (!supporters.length) { %>
+          <p class="small faint">Одоогоор баталгаажсан дэмжлэг алга. Анхны дэмжигч нь та болоорой!</p>
+        <% } else { %>
+          <div class="cmp-donors">
+            <% supporters.forEach(function (c) { %>
+              <div class="cmp-donor">
+                <div class="cmp-donor-icon"><%= c.kind === 'money' ? '💰' : '🎁' %></div>
+                <div class="cmp-donor-main">
+                  <strong><%= c.anonymous ? 'Нэрээ нууцалсан дэмжигч' : c.display %></strong>
+                  <div class="small muted"><%= what(c) %></div>
+                  <% if (c.note) { %><div class="small cmp-note">“<%= c.note %>”</div><% } %>
+                </div>
+                <span class="small faint"><%= h.fmtDay(c.created_at) %></span>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+    </div>
+
+    <aside class="cmp-side">
+      <div class="card">
+        <%- include('../partials/campaign-progress', { k: k, cmp: cmp }) %>
+      </div>
+
+      <% if (k.needs || k.bank_info || k.contact) { %>
+        <div class="card cmp-info">
+          <h3>Хэрхэн дэмжих вэ?</h3>
+          <% if (k.needs) { %><div class="cmp-info-row"><span>🎁 Шаардлагатай зүйлс</span><div><%- h.text(k.needs) %></div></div><% } %>
+          <% if (k.bank_info) { %><div class="cmp-info-row"><span>🏦 Дансны мэдээлэл</span><div class="cmp-bank"><%- h.text(k.bank_info) %></div></div><% } %>
+          <% if (k.contact) { %><div class="cmp-info-row"><span>📞 Холбоо барих</span><div><%= k.contact %></div></div><% } %>
+        </div>
+      <% } %>
+
+      <div class="card" id="support">
+        <h3>Дэмжлэгээ мэдэгдэх</h3>
+        <% if (k.status !== 'active') { %>
+          <p class="small muted" style="margin:0">Энэ аян дууссан. Дэмжсэн бүх хүмүүст баярлалаа! 🙏</p>
+        <% } else if (!me) { %>
+          <p class="small muted">Хандив өгсөн бол нэвтэрч мэдэгдээрэй — удирдлага шалгаад жагсаалтад нэмнэ.</p>
+          <a class="btn btn-primary btn-sm" href="/login?next=<%= encodeURIComponent('/campaigns/' + k.id + '#support') %>">Нэвтрэх</a>
+        <% } else if (me.status !== 'approved') { %>
+          <p class="small muted" style="margin:0">Таны бүртгэл баталгаажсаны дараа дэмжлэгээ мэдэгдэх боломжтой.</p>
+        <% } else { %>
+          <p class="small muted">Данс руу шилжүүлсэн эсвэл бусад зүйлээр дэмжсэн бол энд бүртгүүлнэ үү. Удирдлага баталгаажуулсны дараа нийтэд харагдана.</p>
+          <% if (errors.length) { %><div class="flash error small"><% errors.forEach(function (e) { %><div><%= e %></div><% }) %></div><% } %>
+          <form method="post" action="/campaigns/<%= k.id %>/support" class="form support-form">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <div class="seg">
+              <label><input type="radio" name="kind" value="money" <%= fKind === 'money' ? 'checked' : '' %>> 💰 Мөнгөн хандив</label>
+              <label><input type="radio" name="kind" value="item" <%= fKind === 'item' ? 'checked' : '' %>> 🎁 Бусад зүйл</label>
+            </div>
+            <div class="field only-item"><label>Юугаар дэмжих вэ?</label><input type="text" name="item_desc" value="<%= f.item_desc || '' %>" maxlength="300" placeholder="Жишээ нь: 20 ширхэг ном, хувцас, тээвэр…"></div>
+            <div class="field">
+              <label><span class="only-money">Дүн (₮)</span><span class="only-item">Ойролцоо үнэлгээ (₮, заавал биш)</span></label>
+              <input type="text" name="amount" value="<%= f.amount || '' %>" inputmode="numeric" maxlength="20" placeholder="50,000" data-money>
+            </div>
+            <div class="field"><label>Сэтгэгдэл <span class="small faint">(заавал биш)</span></label><input type="text" name="note" value="<%= f.note || '' %>" maxlength="500" placeholder="Жишээ нь: Амжилт хүсье!"></div>
+            <label class="check"><input type="checkbox" name="anonymous" value="1" <%= f.anonymous ? 'checked' : '' %>> Нэрээ нууцлах <span class="small faint">(жагсаалтад нэргүй харагдана)</span></label>
+            <button class="btn btn-primary" type="submit">Мэдэгдэх</button>
+          </form>
+        <% } %>
+      </div>
+
+      <% if (mine.length) { %>
+        <div class="card" id="mine">
+          <h3>Миний дэмжлэг</h3>
+          <div class="cmp-mine">
+            <% mine.forEach(function (c) { %>
+              <div class="cmp-mine-row">
+                <div>
+                  <strong><%= what(c) %></strong>
+                  <div class="small faint"><%= h.fmtDay(c.created_at) %><%= c.anonymous ? ' · нэрээ нууцалсан' : '' %></div>
+                </div>
+                <span class="badge <%= c.status === 'confirmed' ? 'success' : c.status === 'rejected' ? 'danger' : 'pending' %>"><%= cmp.STATUS_LABELS[c.status] %></span>
+                <% if (c.status === 'pending') { %>
+                  <form method="post" action="/campaigns/<%= k.id %>/support/<%= c.id %>/delete" class="inline" data-confirm="Энэ мэдэгдлийг цуцлах уу?">
+                    <input type="hidden" name="_csrf" value="<%= csrf %>">
+                    <button class="link-btn small" type="submit">Цуцлах</button>
+                  </form>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+    </aside>
+  </div>
+</div>
+<% if (k.cover_v) { %><%- include('../partials/lightbox') %><% } %>
+<%- include('../partials/foot') %>
