@@ -19,7 +19,7 @@ router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
 router.use('/gallery', requirePerm('manage_gallery'));
 router.use('/campaigns', requirePerm('manage_campaigns'));
-router.use('/tickets', requirePerm('manage_tickets', 'sell_tickets', 'confirm_tickets'), require('./adminTickets'));
+router.use('/tickets', requirePerm('manage_tickets', 'sell_tickets', 'confirm_tickets', 'checkin_tickets'), require('./adminTickets'));
 router.use('/requests', requirePerm('manage_requests'));
 // Удирдах зөвлөл = сонгууль бүрийн ажлын орчин. Сонгуулийн шатыг manage_elections,
 // албан тушаал / томилгоо / бүтэц / баримт бичгийг manage_board эрхээр удирдана.

@@ -285,6 +285,9 @@ async function init() {
   await ensureColumn('ticket_events', 'plan_bg_v', 'INT NULL');
   // Удирдлага гараар түгжсэн захиалга (status = 'pending', хугацаагүй) — план дээр "Түгжсэн" гэж харагдана
   await ensureColumn('ticket_orders', 'held', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status');
+  // QR тасалбар: таах боломжгүй токен (QR-д орно), орсон хүний тоо (quantity хүрвэл QR ажиллахаа болино)
+  await ensureColumn('ticket_orders', 'checkin_token', 'VARCHAR(32) NULL UNIQUE AFTER code');
+  await ensureColumn('ticket_orders', 'checked_in', 'INT NOT NULL DEFAULT 0 AFTER held');
   await ensureColumn('ticket_events', 'venue_url', 'VARCHAR(500) NULL AFTER venue'); // Google Maps линк
   await syncSchools();
 

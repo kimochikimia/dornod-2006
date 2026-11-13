@@ -25,7 +25,7 @@ async function renderEvent(req, res, event, errors = [], form = {}) {
   const userId = req.user ? req.user.id : null;
   if (event.status === 'draft' && !staff(req.user)) return false;
   const states = event.seating === 'seated' ? await tk.seatStates(event.id, userId) : {};
-  const mine = userId ? await tk.userOrders(event.id, userId) : [];
+  const mine = userId ? await tk.attachQr(req, await tk.userOrders(event.id, userId)) : [];
   res.status(errors.length ? 400 : 200).render('tickets/show', {
     title: event.title, event, mine, tk, errors, form,
     mapJson: event.seating === 'seated' ? safeJson({ layout: event.layoutObj, price: event.price, states, max: event.max_per_order, bg: event.planBgUrl }) : null,
@@ -91,6 +91,7 @@ router.get('/order/:code([A-Za-z0-9]{4,12})', requireLogin, wrap(async (req, res
   const order = await ownOrder(req);
   if (!order) return next();
   const event = await tk.get(order.event_id);
+  await tk.attachQr(req, [order]);
   res.render('tickets/order', { title: `Захиалга ${order.code}`, order, event, tk });
 }));
 

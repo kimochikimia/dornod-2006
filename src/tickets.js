@@ -7,6 +7,7 @@ const { pool } = require('./db');
 const { clean, fromUbInput, ubInput, fmtDate } = require('./helpers');
 const { fmtMoney, parseAmount } = require('./campaigns');
 const SeatMap = require('../public/js/seatmap');
+const QRCode = require('qrcode');
 
 const STATUS_LABELS = { pending: 'Төлбөр хүлээгдэж буй', paid: 'Төлсөн', cancelled: 'Цуцлагдсан', held: 'Түгжсэн' };
 const CANCEL_LABELS = { expired: 'Төлөх хугацаа дууссан', user: 'Захиалагч цуцалсан', admin: 'Удирдлага цуцалсан' };
@@ -22,6 +23,9 @@ function newCode() {
   for (const b of bytes) s += CODE_CHARS[b % CODE_CHARS.length];
   return s;
 }
+
+// QR тасалбарын токен (таах боломжгүй, 22 тэмдэгт)
+function newToken() { return crypto.randomBytes(16).toString('base64url'); }
 
 // Төлөх хугацаа нь өнгөрсөн захиалгыг цуцалж түгжээг чөлөөлнө.
 async function expireStale(db = pool) {
@@ -99,6 +103,8 @@ function decorateOrder(o) {
   o.amount = Number(o.amount);
   o.held = !!o.held && o.status === 'pending';
   o.statusKey = o.held ? 'held' : o.status;
+  o.checked_in = Number(o.checked_in || 0);
+  o.remaining = Math.max(0, o.quantity - o.checked_in);
   o.seatArr = parseSeats(o);
   o.seatText = o.seatArr.map((s) => s.label).join(', ');
   return o;
@@ -211,6 +217,7 @@ async function placeOrder(eventId, opts) {
       seats: seatRows.length ? JSON.stringify(seatRows.map((s) => ({ key: s.key, label: s.label, group: s.group, price: s.price }))) : null,
       status: paid ? 'paid' : 'pending',
       held: held ? 1 : 0,
+      checkin_token: newToken(),
       expires_at: paid || held ? null : new Date(Date.now() + e.hold_hours * 3600 * 1000),
       reviewed_by: opts.paid ? opts.reviewerId || null : null,
       reviewed_at: opts.paid ? new Date() : null,
@@ -306,6 +313,69 @@ function parseMapUrl(v) {
   return u.toString();
 }
 
+// ---------- QR тасалбар, хаалган дээр шалгаж оруулах ----------
+// Хуучин (токенгүй) захиалгад токен үүсгэнэ
+async function ensureToken(o) {
+  if (o.checkin_token) return o.checkin_token;
+  await pool.query('UPDATE ticket_orders SET checkin_token = ? WHERE id = ? AND checkin_token IS NULL', [newToken(), o.id]);
+  const [[r]] = await pool.query('SELECT checkin_token FROM ticket_orders WHERE id = ?', [o.id]);
+  o.checkin_token = r.checkin_token;
+  return o.checkin_token;
+}
+
+function checkinUrl(req, token) {
+  return `${req.protocol}://${req.get('host')}/admin/tickets/checkin/${token}`;
+}
+
+// Төлсөн захиалгуудад QR (SVG) нэмнэ
+async function attachQr(req, orders) {
+  for (const o of orders) {
+    if (o.status !== 'paid') continue;
+    const url = checkinUrl(req, await ensureToken(o));
+    o.qrSvg = await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b1020', light: '#ffffff' } });
+  }
+  return orders;
+}
+
+async function getByToken(token) {
+  if (!/^[A-Za-z0-9_-]{16,40}$/.test(String(token || ''))) return null;
+  const [[o]] = await pool.query(
+    `SELECT o.*, e.title, e.event_at, e.venue FROM ticket_orders o JOIN ticket_events e ON e.id = o.event_id WHERE o.checkin_token = ?`, [token]
+  );
+  return o ? decorateOrder(o) : null;
+}
+
+async function checkinLog(orderId) {
+  const [rows] = await pool.query(
+    `SELECT c.count, c.created_at, u.surname, u.name FROM ticket_checkins c LEFT JOIN users u ON u.id = c.checked_by
+     WHERE c.order_id = ? ORDER BY c.created_at DESC, c.id DESC`, [orderId]
+  );
+  return rows;
+}
+
+// count хүнийг оруулна. Төлсөн, үлдэгдэлтэй байх ёстой; давхар дарахад ч хэтрэхгүй (мөрийг түгжинэ).
+async function checkIn(orderId, count, byUserId) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[o]] = await conn.query('SELECT id, status, quantity, checked_in FROM ticket_orders WHERE id = ? FOR UPDATE', [orderId]);
+    if (!o) throw new OrderError('Захиалга олдсонгүй.');
+    if (o.status !== 'paid') throw new OrderError('Төлбөр төлөгдөөгүй тасалбар — оруулах боломжгүй.');
+    const left = o.quantity - o.checked_in;
+    if (left <= 0) throw new OrderError('Энэ QR-ийн бүх тасалбар аль хэдийн ашиглагдсан.');
+    const n = Math.min(left, Math.max(1, parseInt(count, 10) || 1));
+    await conn.query('UPDATE ticket_orders SET checked_in = checked_in + ? WHERE id = ?', [n, o.id]);
+    await conn.query('INSERT INTO ticket_checkins (order_id, count, checked_by) VALUES (?, ?, ?)', [o.id, n, byUserId || null]);
+    await conn.commit();
+    return { n, checked_in: o.checked_in + n, quantity: o.quantity };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 // Удирдлагын маягт → { errors, fields }
 function eventFields(body, { lockedKeys = [], hasOrders = false, current = null } = {}) {
   const errors = [];
@@ -379,5 +449,6 @@ function formValues(e) {
 
 module.exports = {
   STATUS_LABELS, CANCEL_LABELS, EVENT_STATUS, PHASE_LABELS, MAX_PENDING_PER_USER, OrderError,
+  attachQr, getByToken, checkinLog, checkIn,
   fmtMoney, list, get, seatStates, orders, userOrders, allUserOrders, getOrder, placeOrder, setOrderStatus, eventFields, formValues, expireStale,
 };

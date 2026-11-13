@@ -1485,3 +1485,31 @@ dialog.tk-pay-dialog { width: min(480px, calc(100% - 2rem)); }
 .tk-mine-foot { flex-wrap: nowrap; gap: 0.5rem; }
 .tk-mine-foot .badge { font-size: 0.72rem; }
 .tk-mine-foot .tk-expire { font-size: 0.85rem; white-space: nowrap; }
+
+/* ---------- Тасалбар шалгах (QR уншуулсны дараа, утсан дээр) ---------- */
+.ci-wrap { max-width: 560px; padding-top: 1rem; padding-bottom: 2rem; display: grid; gap: 1rem; }
+.ci-status { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.2rem; border-radius: var(--radius); border: 2px solid; }
+.ci-status strong { font-size: 1.25rem; display: block; }
+.ci-icon { flex: none; width: 3.2rem; height: 3.2rem; border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; font-weight: 800; color: #fff; }
+.ci-count { font-size: 1rem; margin-top: 0.15rem; }
+.ci-count b { font-size: 1.3rem; }
+.ci-ok { border-color: #34d399; background: rgba(52, 211, 153, 0.12); }
+.ci-ok .ci-icon { background: #059669; }
+.ci-used { border-color: #f59e0b; background: rgba(245, 158, 11, 0.12); }
+.ci-used .ci-icon { background: #b45309; }
+.ci-bad { border-color: #f87171; background: rgba(248, 113, 113, 0.12); }
+.ci-bad .ci-icon { background: #dc2626; }
+.ci-card { display: grid; gap: 0.5rem; }
+.ci-event { font-size: 1.15rem; font-weight: 700; }
+.ci-dl { margin-top: 0.5rem; font-size: 0.95rem; }
+.ci-actions { display: grid; gap: 0.6rem; margin-top: 0.75rem; }
+.ci-btn { width: 100%; padding: 0.95rem; font-size: 1.1rem; justify-content: center; }
+.ci-log { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.75rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+.ci-log:last-child { border-bottom: 0; }
+/* Хэрэглэгчийн QR тасалбар */
+.tk-qr { width: 100%; max-width: 260px; margin: 0 auto; padding: 0.6rem; background: #fff; border-radius: 14px; }
+.tk-qr svg { display: block; width: 100%; height: auto; }
+.tk-qr.used { opacity: 0.35; filter: grayscale(1); }
+.tk-qr-meta { text-align: center; margin-top: 0.6rem; }
+dialog.tk-qr-dialog { width: min(380px, calc(100% - 2rem)); }
+.ticket-stub .tk-qr { max-width: 170px; margin: 0.5rem 0; }

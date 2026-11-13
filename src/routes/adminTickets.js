@@ -13,6 +13,7 @@ const router = express.Router();
 const manage = requirePerm('manage_tickets');
 const confirm = requirePerm('confirm_tickets');
 const sell = requirePerm('sell_tickets');
+const checkin = requirePerm('checkin_tickets');
 
 // Браузер дээр шахсан постер (заавал биш). Буруу бол алдаа, байхгүй бол null.
 function posterFields(body) {
@@ -54,6 +55,26 @@ function renderForm(res, item, errors = [], locked = [], body = {}) {
 
 router.get('/', wrap(async (req, res) => {
   res.render('admin/tickets', { title: 'Тасалбар — Удирдлага', events: await tk.list({ includeDrafts: true }), tk });
+}));
+
+// QR уншуулахад нээгдэх шалгах хуудас
+router.get('/checkin/:token', checkin, wrap(async (req, res, next) => {
+  const order = await tk.getByToken(req.params.token);
+  if (!order) return res.status(404).render('admin/ticket-checkin', { title: 'Тасалбар шалгах', order: null, log: [], tk });
+  res.render('admin/ticket-checkin', { title: `Тасалбар ${order.code}`, order, log: await tk.checkinLog(order.id), tk });
+}));
+
+router.post('/checkin/:token', checkin, wrap(async (req, res) => {
+  const order = await tk.getByToken(req.params.token);
+  if (!order) return res.redirect(`/admin/tickets/checkin/${encodeURIComponent(req.params.token)}`);
+  try {
+    const r = await tk.checkIn(order.id, req.body.count === 'all' ? order.quantity : 1, req.user.id);
+    flash(req, 'success', `✓ ${r.n} хүн орлоо (${r.checked_in} / ${r.quantity}).`);
+  } catch (err) {
+    if (!(err instanceof tk.OrderError)) throw err;
+    flash(req, 'error', err.message);
+  }
+  res.redirect(`/admin/tickets/checkin/${order.checkin_token}`);
 }));
 
 router.get('/new', manage, (req, res) => renderForm(res, blank()));

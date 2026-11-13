@@ -184,8 +184,26 @@
                   <span class="badge <%= o.status === 'paid' ? 'success' : o.status === 'pending' ? 'pending' : 'danger' %>"><%= tk.STATUS_LABELS[o.statusKey] %></span>
                   <% if (o.status === 'pending' && o.expires_at) { %><span class="tk-expire" title="<%= h.fmtDate(o.expires_at) %> хүртэл төлнө">⏳ <strong data-countdown="<%= new Date(o.expires_at).toISOString() %>">—</strong></span><% } %>
                   <% if (o.status === 'pending' && o.amount > 0) { %><button type="button" class="btn btn-sm btn-primary tk-pay-btn" data-open-dialog="pay-<%= o.code %>">💳 Төлөх</button><% } %>
+                  <% if (o.qrSvg) { %>
+                    <% if (o.checked_in) { %><span class="small muted">Орсон <%= o.checked_in %>/<%= o.quantity %></span><% } %>
+                    <button type="button" class="btn btn-sm btn-primary tk-pay-btn" data-open-dialog="qr-<%= o.code %>">🎫 QR тасалбар</button>
+                  <% } %>
                 </div>
               </div>
+              <% if (o.qrSvg) { %>
+                <dialog id="qr-<%= o.code %>" class="dialog tk-qr-dialog">
+                  <div class="dialog-body">
+                    <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
+                    <h3>QR тасалбар</h3>
+                    <div class="tk-qr<%= o.remaining ? '' : ' used' %>"><%- o.qrSvg %></div>
+                    <div class="tk-qr-meta">
+                      <strong class="mono"><%= o.code %></strong>
+                      <div class="small muted"><%= o.quantity %> хүн орно<%= o.checked_in ? ' · орсон ' + o.checked_in + '/' + o.quantity : '' %></div>
+                      <% if (!o.remaining) { %><div class="small" style="color:var(--warn)">Бүх тасалбар ашиглагдсан.</div><% } %>
+                    </div>
+                  </div>
+                </dialog>
+              <% } %>
               <% if (o.status === 'pending' && o.amount > 0) { %>
                 <dialog id="pay-<%= o.code %>" class="dialog tk-pay-dialog">
                   <div class="dialog-body">

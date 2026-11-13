@@ -399,3 +399,15 @@ CREATE TABLE IF NOT EXISTS ticket_seat_locks (
   CONSTRAINT fk_tlock_event FOREIGN KEY (event_id) REFERENCES ticket_events(id) ON DELETE CASCADE,
   CONSTRAINT fk_tlock_order FOREIGN KEY (order_id) REFERENCES ticket_orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Тасалбар шалгаж оруулсан түүх (QR уншуулж "Орсон" дарах бүрт нэг мөр). count — тэр удаад орсон хүний тоо.
+CREATE TABLE IF NOT EXISTS ticket_checkins (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  count INT NOT NULL DEFAULT 1,
+  checked_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_tcheck_order (order_id),
+  CONSTRAINT fk_tcheck_order FOREIGN KEY (order_id) REFERENCES ticket_orders(id) ON DELETE CASCADE,
+  CONSTRAINT fk_tcheck_user FOREIGN KEY (checked_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

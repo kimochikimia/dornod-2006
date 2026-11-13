@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+<%
+  var o = order;
+  // Төлөв: ok — оруулж болно, used — бүгд ашиглагдсан, bad — төлөгдөөгүй/цуцлагдсан
+  var state = !o ? 'none' : o.status !== 'paid' ? 'bad' : o.remaining > 0 ? 'ok' : 'used';
+%>
+<div class="container ci-wrap">
+  <% if (!o) { %>
+    <div class="ci-status ci-bad">
+      <div class="ci-icon">✕</div>
+      <div><strong>QR хүчингүй</strong><div class="small">Ийм тасалбар олдсонгүй.</div></div>
+    </div>
+  <% } else { %>
+    <div class="ci-status ci-<%= state %>">
+      <div class="ci-icon"><%= state === 'ok' ? '✓' : state === 'used' ? '⛔' : '✕' %></div>
+      <div>
+        <strong><%= state === 'ok' ? 'Хүчинтэй тасалбар' : state === 'used' ? 'Бүх тасалбар ашиглагдсан' : (o.status === 'cancelled' ? 'Цуцлагдсан захиалга' : 'Төлбөр төлөгдөөгүй') %></strong>
+        <div class="ci-count">Орсон <b><%= o.checked_in %></b> / <%= o.quantity %></div>
+      </div>
+    </div>
+
+    <div class="card ci-card">
+      <div class="ci-event"><%= o.title %></div>
+      <div class="small muted">📅 <%= h.fmtDate(o.event_at) %><% if (o.venue) { %> · 📍 <%= o.venue %><% } %></div>
+      <dl class="tk-mine-dl ci-dl">
+        <dt>Захиалгын дугаар</dt><dd><strong class="mono"><%= o.code %></strong></dd>
+        <dt>Захиалагч</dt><dd><strong><%= o.buyer_name %></strong><% if (o.buyer_phone) { %> · <a href="tel:<%= o.buyer_phone %>"><%= o.buyer_phone %></a><% } %></dd>
+        <dt><%= o.seatArr.length ? 'Суудал' : 'Тасалбар' %></dt>
+        <dd><% if (o.seatArr.length) { %><% o.seatArr.forEach(function (s) { %><div><%= s.label %></div><% }) %><% } else { %><%= o.quantity %> ширхэг<% } %></dd>
+        <dt>Дүн</dt><dd><%= tk.fmtMoney(o.amount) %> · <%= tk.STATUS_LABELS[o.statusKey] %></dd>
+      </dl>
+
+      <% if (state === 'ok') { %>
+        <form method="post" action="/admin/tickets/checkin/<%= o.checkin_token %>" class="ci-actions">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-primary ci-btn" name="count" value="1">✓ Орсон<%= o.remaining > 1 ? ' (1 хүн)' : '' %></button>
+          <% if (o.remaining > 1) { %>
+            <button class="btn ci-btn" name="count" value="all" data-confirm="Үлдсэн <%= o.remaining %> хүнийг бүгдийг нь оруулах уу?">✓ Бүгд орсон (<%= o.remaining %>)</button>
+          <% } %>
+        </form>
+      <% } %>
+    </div>
+
+    <% if (log.length) { %>
+      <div class="card ci-card">
+        <h3 style="margin:0 0 .5rem">Орсон түүх</h3>
+        <% log.forEach(function (l) { %>
+          <div class="ci-log small"><span><%= h.fmtDate(l.created_at) %></span><span><%= l.count %> хүн</span><span class="muted"><%= l.name || '—' %></span></div>
+        <% }) %>
+      </div>
+    <% } %>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

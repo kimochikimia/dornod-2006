@@ -19,6 +19,7 @@ const PERMISSIONS = [
   { key: 'manage_tickets', group: 'Удирдах', label: 'Тасалбартай арга хэмжээ үүсгэх' },
   { key: 'sell_tickets', group: 'Удирдах', label: 'Тасалбар гараар бичих' },
   { key: 'confirm_tickets', group: 'Удирдах', label: 'Тасалбартай арга хэмжээний төлбөр баталгаажуулах' },
+  { key: 'checkin_tickets', group: 'Удирдах', label: 'Тасалбарын QR уншуулж оруулах' },
   { key: 'manage_board', group: 'Удирдах', label: 'Удирдах зөвлөлийн гишүүд, хариуцсан ажлыг засах' },
   { key: 'approve_users', group: 'Удирдах', label: 'Шинэ бүртгэл батлах, татгалзах' },
   { key: 'edit_users', group: 'Удирдах', label: 'Төгсөгчийн мэдээлэл засах, нууц үг шинэчлэх, устгах' },
@@ -69,7 +70,7 @@ async function loadUserPermissions() {
 // Шинэ төлөв нэмэгдэхэд (жишээ нь Дэд админ) зөвхөн тэр төлөвт анхны эрхийг нэг удаа тавина.
 // Админ эрхийг бүгдийг нь хассан ч дахин сэргээгдэхгүй.
 // Хожим нэмэгдсэн эрхийг одоо байгаа өгөгдлийн санд нэг удаа олгох: { эрх: [төлөвүүд] }
-const ADDED_PERMS = { manage_board: ['subadmin', 'admin'], manage_gallery: ['subadmin', 'admin'], manage_campaigns: ['subadmin', 'admin'], manage_tickets: ['subadmin', 'admin'], confirm_tickets: ['subadmin', 'admin'] };
+const ADDED_PERMS = { manage_board: ['subadmin', 'admin'], manage_gallery: ['subadmin', 'admin'], manage_campaigns: ['subadmin', 'admin'], manage_tickets: ['subadmin', 'admin'], confirm_tickets: ['subadmin', 'admin'], checkin_tickets: ['subadmin', 'admin'] };
 // Хуучин эрхээс салгасан шинэ эрх: тухайн үед хуучин эрхтэй байсан төлөв, бүлгийн гишүүдэд нэг удаа олгоно { шинэ: хуучин }
 const SPLIT_PERMS = { sell_tickets: 'manage_tickets' };
 const META = '__meta';

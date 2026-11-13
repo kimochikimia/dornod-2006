@@ -35,7 +35,8 @@
     <div class="ticket-stub">
       <span class="small muted">Захиалгын код</span>
       <strong class="ticket-code"><%= o.code %></strong>
-      <% if (o.status === 'paid') { %><span class="small" style="color:var(--success)">✓ Орох хаалган дээр энэ кодыг үзүүлнэ</span><% } else if (o.status === 'pending') { %><span class="small muted">Гүйлгээний утгад энэ кодыг бичнэ</span><% } %>
+      <% if (o.qrSvg) { %><div class="tk-qr<%= o.remaining ? '' : ' used' %>"><%- o.qrSvg %></div><span class="small">Орсон <%= o.checked_in %> / <%= o.quantity %></span><% } %>
+      <% if (o.status === 'paid') { %><span class="small" style="color:var(--success)">✓ Орох хаалган дээр энэ QR-ийг уншуулна</span><% } else if (o.status === 'pending') { %><span class="small muted">Гүйлгээний утгад энэ кодыг бичнэ</span><% } %>
     </div>
   </div>
 
