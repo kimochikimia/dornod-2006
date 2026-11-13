@@ -116,7 +116,7 @@
         <% if (me) { %><a class="card card-link member-card" href="/members/<%= m.id %>"><% } else { %><div class="card member-card"><% } %>
           <%- avatar(m, m.id) %>
           <div style="min-width:0">
-            <div style="font-weight:700"><%= m.surname %> <%= m.name %> <% if (m.role !== 'member') { %><span class="badge grad"><%= ROLE_LABELS[m.role] %></span><% } %></div>
+            <div style="font-weight:700"><%= m.surname %> <%= m.name %><% if (m.short_name) { %> <span style="font-weight:400" class="muted">(<%= m.short_name %>)</span><% } %> <% if (m.role !== 'member') { %><span class="badge grad"><%= ROLE_LABELS[m.role] %></span><% } %></div>
             <div class="meta"><%= m.school_name || '—' %><%= m.class_name ? ' · ' + m.class_name : '' %></div>
             <% if (me) { var work = [m.occupation, m.workplace].filter(Boolean).join(', '); %>
               <% if (m.employment) { %><div class="meta">💼 <%= h.EMPLOYMENT_LABELS[m.employment] %></div><% } %>

@@ -7,7 +7,7 @@
   <% } else { %>
     <div class="stack">
       <% requests.forEach(function (r) { %>
-        <div class="card">
+        <div class="card" id="r<%= r.id %>">
           <div class="row between">
             <div><a href="/admin/users/<%= r.user_id %>"><strong><%= r.surname %> <%= r.name %></strong></a> <span class="small muted">· <%= r.phone %> · <%= h.fmtDate(r.created_at) %></span></div>
             <span class="badge <%= r.status %>"><%= h.STATUS_LABELS[r.status] %></span>
@@ -16,6 +16,7 @@
           <form method="post" action="/admin/requests/<%= r.id %>" class="row">
             <input type="hidden" name="_csrf" value="<%= csrf %>">
             <input type="text" name="admin_note" value="<%= r.admin_note || '' %>" maxlength="500" placeholder="Тайлбар (төгсөгчид харагдана)" style="flex:1;min-width:200px">
+            <% if (can('edit_users')) { %><a class="btn btn-sm" href="/admin/users/<%= r.user_id %>?req=<%= r.id %>">✏️ Бүртгэл засах</a><% } %>
             <% if (r.status === 'open') { %>
               <button class="btn btn-success btn-sm" name="status" value="done">✓ Шийдвэрлэсэн</button>
             <% } else { %>

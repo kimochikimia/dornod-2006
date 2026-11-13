@@ -173,7 +173,14 @@ router.get('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next) 
   if (user === false) return;
   if (!user) return next();
   const [schools] = await pool.query('SELECT * FROM schools ORDER BY sort_order, name');
-  res.render('admin/user-edit', { title: 'Төгсөгч засах', user, schools });
+  // Засварын хүсэлтээс ирсэн бол хүсэлтийн текстийг харуулна.
+  let request = null;
+  const reqId = Number(req.query.req) || 0;
+  if (reqId && can(req.user, 'manage_requests')) {
+    const [[row]] = await pool.query('SELECT id, message, status, created_at FROM change_requests WHERE id = ? AND user_id = ?', [reqId, user.id]);
+    request = row || null;
+  }
+  res.render('admin/user-edit', { title: 'Төгсөгч засах', user, schools, request });
 }));
 
 router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next) => {
@@ -181,25 +188,27 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
   if (target === false) return;
   if (!target) return next();
   const id = target.id;
+  const fromReq = Number(req.body.from_request) || 0;
+  const back = fromReq ? `/admin/users/${id}?req=${fromReq}` : `/admin/users/${id}`;
   const phone = String(req.body.phone || '').replace(/[\s-]/g, '').slice(0, 20);
   if (!/^\+?\d{8,15}$/.test(phone)) {
     flash(req, 'error', 'Утасны дугаар буруу байна.');
-    return res.redirect(`/admin/users/${id}`);
+    return res.redirect(back);
   }
   const [dup] = await pool.query('SELECT id FROM users WHERE phone = ? AND id <> ?', [phone, id]);
   if (dup.length) {
     flash(req, 'error', 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.');
-    return res.redirect(`/admin/users/${id}`);
+    return res.redirect(back);
   }
   const place = parsePlaceForm(req.body, target.city);
   if (place.error) {
     flash(req, 'error', place.error);
-    return res.redirect(`/admin/users/${id}`);
+    return res.redirect(back);
   }
   const facebook = normalizeFacebook(req.body.facebook);
   if (facebook === false) {
     flash(req, 'error', 'Facebook линк буруу байна (ж: facebook.com/нэр).');
-    return res.redirect(`/admin/users/${id}`);
+    return res.redirect(back);
   }
   // Өөрийн төлөв, бүртгэлийн төлөвийг өөрөө өөрчлөхгүй; эрхгүй бол хуучнаар нь үлдээнэ.
   const self = id === req.user.id;
@@ -218,6 +227,10 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
       h.positionKey(req.body.position_level), clean(req.body.position, 150) || null,
       place.city, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
+  if (fromReq && can(req.user, 'manage_requests')) {
+    flash(req, 'success', 'Мэдээлэл хадгалагдлаа. Хүсэлтийг «Шийдвэрлэсэн» болгоно уу.');
+    return res.redirect(`/admin/requests#r${fromReq}`);
+  }
   flash(req, 'success', 'Мэдээлэл хадгалагдлаа.');
   res.redirect(`/admin/users/${id}`);
 }));

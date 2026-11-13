@@ -1,6 +1,16 @@
 <%- include('../partials/head') %>
 <div class="container">
   <%- include('_nav') %>
+  <% if (typeof request !== 'undefined' && request) { %>
+    <div class="card" style="margin-bottom:1.25rem;border-color:#6c7bff">
+      <div class="row between">
+        <strong>📨 Засварын хүсэлт</strong>
+        <a class="btn btn-sm btn-ghost" href="/admin/requests#r<%= request.id %>">← Хүсэлтүүд рүү буцах</a>
+      </div>
+      <div class="small muted" style="margin-top:.25rem"><%= h.fmtDate(request.created_at) %></div>
+      <div class="prose" style="margin-top:.5rem"><%- h.text(request.message) %></div>
+    </div>
+  <% } %>
   <div class="card" style="margin-bottom:1.25rem">
     <div class="row between">
       <h2 style="margin:0"><%= user.surname %> <%= user.name %></h2>
@@ -22,6 +32,7 @@
     </form>
     <form method="post" action="/admin/users/<%= user.id %>" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% if (typeof request !== 'undefined' && request) { %><input type="hidden" name="from_request" value="<%= request.id %>"><% } %>
       <div class="form-grid">
         <div class="field"><label>Овог</label><input type="text" name="surname" value="<%= user.surname %>" maxlength="80" required></div>
         <div class="field"><label>Нэр</label><input type="text" name="name" value="<%= user.name %>" maxlength="80" required></div>

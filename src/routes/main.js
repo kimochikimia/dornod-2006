@@ -288,7 +288,7 @@ router.get('/members', wrap(async (req, res) => {
     params.push(employment);
   }
   const [members] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.class_name, u.role, u.photo_v, s.name AS school_name
+    `SELECT u.id, u.surname, u.name, u.short_name, u.class_name, u.role, u.photo_v, s.name AS school_name
             ${guest ? '' : ', u.occupation, u.employment, u.workplace, u.city'}
      FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE ${where.join(' AND ')} ORDER BY s.sort_order, u.name`,
