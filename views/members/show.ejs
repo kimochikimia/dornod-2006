@@ -9,6 +9,7 @@
       <%- avatar(member, member.id, 'lg') %>
       <div>
         <h1 class="member-title<%= canEdit ? ' has-edit' : '' %>" style="margin:0"><%= member.surname %> <%= member.name %></h1>
+        <% if (member.short_name) { %><div class="muted">“<%= member.short_name %>”</div><% } %>
         <div class="muted"><%= member.school_name || '—' %><%= member.class_name ? ' · ' + member.class_name + ' анги' : '' %></div>
         <% if (member.role !== 'member') { %><span class="badge grad" style="margin-top:.4rem"><%= ROLE_LABELS[member.role] %></span><% } %>
       </div>

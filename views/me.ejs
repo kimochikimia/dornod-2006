@@ -13,7 +13,7 @@
     <div class="card">
       <div class="row" style="gap:1rem;margin-bottom:1rem"><%- avatar(me, me.id, 'lg') %><h2 style="margin:0">Миний мэдээлэл</h2></div>
       <dl class="dl">
-        <dt>Овог, нэр</dt><dd><%= me.surname %> <%= me.name %></dd>
+        <dt>Овог, нэр</dt><dd><%= me.surname %> <%= me.name %><%= me.short_name ? ' (' + me.short_name + ')' : '' %></dd>
         <dt>Хүйс</dt><dd><%= me.gender ? h.GENDER_LABELS[me.gender] : '—' %></dd>
         <dt>Утас</dt><dd><%= me.phone %></dd>
         <dt>И-мэйл</dt><dd><%= me.email || '—' %></dd>

@@ -31,6 +31,11 @@
           <input id="name" type="text" name="name" value="<%= form.name || '' %>" maxlength="80" required>
         </div>
         <div class="field">
+          <label for="short_name">Товч нэр</label>
+          <input id="short_name" type="text" name="short_name" value="<%= form.short_name || '' %>" maxlength="40" placeholder="ж: Бат, Сараа">
+          <div class="hint">Найз нөхөд тань таныг ингэж дууддаг бол.</div>
+        </div>
+        <div class="field">
           <label>Хүйс <span class="req">*</span></label>
           <div class="seg">
             <label><input type="radio" name="gender" value="male" <%= form.gender === 'male' ? 'checked' : '' %> required> 👨 Эрэгтэй</label>

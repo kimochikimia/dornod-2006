@@ -25,6 +25,7 @@
       <div class="form-grid">
         <div class="field"><label>Овог</label><input type="text" name="surname" value="<%= user.surname %>" maxlength="80" required></div>
         <div class="field"><label>Нэр</label><input type="text" name="name" value="<%= user.name %>" maxlength="80" required></div>
+        <div class="field"><label>Товч нэр</label><input type="text" name="short_name" value="<%= user.short_name || '' %>" maxlength="40"></div>
         <div class="field"><label>Хүйс</label>
           <select name="gender">
             <option value="">—</option>

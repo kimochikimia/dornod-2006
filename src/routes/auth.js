@@ -47,6 +47,7 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   const form = {
     surname: clean(req.body.surname, 80),
     name: clean(req.body.name, 80),
+    short_name: clean(req.body.short_name, 40),
     gender: h.genderKey(req.body.gender),
     phone: normalizePhone(req.body.phone).slice(0, 20),
     email: clean(req.body.email, 120),
@@ -91,9 +92,9 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const [result] = await pool.query(
-    `INSERT INTO users (surname, name, gender, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, position_level, position, city, facebook)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [form.surname, form.name, form.gender, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
+    `INSERT INTO users (surname, name, short_name, gender, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, position_level, position, city, facebook)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [form.surname, form.name, form.short_name || null, form.gender, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
       h.professionsText(form.professions) || null, form.professions.length ? JSON.stringify(form.professions) : null, form.employment, form.workplace || null,
       form.position_level, form.position || null, form.city || null, facebook || null]
   );

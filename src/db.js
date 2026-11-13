@@ -248,6 +248,7 @@ async function init() {
   await ensureElectionSchedule();
   await ensureColumn('users', 'facebook', 'VARCHAR(255) NULL AFTER city');
   await ensureColumn('users', 'gender', "ENUM('male','female') NULL AFTER name");
+  await ensureColumn('users', 'short_name', 'VARCHAR(40) NULL AFTER name');
   await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
   await ensureColumn('users', 'employment', 'VARCHAR(20) NULL AFTER class_name');
   await ensureColumn('users', 'workplace', 'VARCHAR(150) NULL AFTER employment');
