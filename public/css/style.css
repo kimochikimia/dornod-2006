@@ -1385,3 +1385,8 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
 .dfill .dsb-track { height: 5px; }
 .dash-cards { padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
 .dash-tiles { padding-bottom: 0; border-bottom: 0; margin-bottom: 1rem; }
+.member-edit-btn { position: absolute; top: 0.85rem; right: calc(0.85rem + 36px + 0.5rem); height: 36px; display: inline-flex; align-items: center; }
+@media (max-width: 560px) { .member-edit-btn { position: static; margin-bottom: 0.75rem; } }
+.member-title { padding-right: 2.5rem; }
+.member-title.has-edit { padding-right: 10rem; }
+@media (max-width: 560px) { .member-title.has-edit { padding-right: 0; } }

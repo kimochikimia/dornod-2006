@@ -3,10 +3,12 @@
   <div class="page-head"><a href="/members" class="small">← Төгсөгчид</a></div>
   <div class="card glow" style="position:relative">
     <a class="modal-close" href="/members" data-modal-close aria-label="Хаах" title="Хаах">&times;</a>
+    <% var canEdit = can('edit_users') && canTouch(member); %>
+    <% if (canEdit) { %><a class="btn btn-sm member-edit-btn" href="/admin/users/<%= member.id %>">✎ Мэдээлэл засах</a><% } %>
     <div class="row" style="gap:1.25rem;margin-bottom:1.5rem">
       <%- avatar(member, member.id, 'lg') %>
       <div>
-        <h1 style="margin:0;padding-right:2.5rem"><%= member.surname %> <%= member.name %></h1>
+        <h1 class="member-title<%= canEdit ? ' has-edit' : '' %>" style="margin:0"><%= member.surname %> <%= member.name %></h1>
         <div class="muted"><%= member.school_name || '—' %><%= member.class_name ? ' · ' + member.class_name + ' анги' : '' %></div>
         <% if (member.role !== 'member') { %><span class="badge grad" style="margin-top:.4rem"><%= ROLE_LABELS[member.role] %></span><% } %>
       </div>
@@ -26,7 +28,6 @@
       <dt>Бүртгүүлсэн</dt><dd><%= h.fmtDay(member.created_at) %></dd>
     </dl>
     <% if (member.bio) { %><hr class="sep"><div class="prose"><%- h.text(member.bio) %></div><% } %>
-    <% if (can('edit_users') && canTouch(member)) { %><hr class="sep"><a class="btn btn-sm" href="/admin/users/<%= member.id %>">Мэдээлэл засах</a><% } %>
   </div>
 </div>
 <%- include('../partials/foot') %>
