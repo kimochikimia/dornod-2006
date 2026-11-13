@@ -8,7 +8,6 @@
       <a class="btn btn-primary" href="<%= eb %>/documents/new">＋ Баримт бичиг нэмэх</a>
     </div>
   </div>
-  <p class="small muted">Энэ сонгуулийн зөвлөлийн баримт бичиг (шинэ сонгууль үүсэхэд өмнөхийн жагсаалт «Батлагдаагүй» төлөвтэй хуулагдана). Зөвлөл баталсан баримт бичиг бүр дээр "Засах" дарж агуулга эсвэл файлаа оруулаад төлөвийг "Батлагдсан" болгоно. Батлагдаагүй баримт нийтэд зөвхөн нэр, зориулалтаараа харагдана.</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>№</th><th>Баримт бичиг</th><th>Төлөв</th><th>Дугаар / огноо</th><th>Агуулга</th><th></th></tr></thead>
@@ -45,7 +44,7 @@
       <div class="dialog-body">
         <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
         <h3>Баримт бичгийн төсөл</h3>
-        <p class="small muted"><strong><%= d.title %></strong><br>Төслийг баталгаажсан бүх төгсөгч татаж аваад санал өгөх боломжтой. Батлагдсаны дараа нийтэд зөвхөн эцсийн хувилбар харагдана.</p>
+        <p class="small muted"><strong><%= d.title %></strong></p>
         <%- include('_draft-box', { d: d, back: 'list' }) %>
       </div>
     </dialog>

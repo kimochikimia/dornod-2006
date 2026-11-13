@@ -459,7 +459,7 @@
         var match = null;
         $$('option', list).forEach(function (o) { if (o.value === input.value) match = o; });
         hidden.value = match ? match.getAttribute('data-id') : '';
-        status.textContent = match ? '✓ Сонгогдсон' : input.value ? 'Жагсаалтаас сонгоно уу.' : 'Нэрийн эхний үсгүүдийг бичихэд жагсаалт гарна.';
+        status.textContent = match ? '✓ Сонгогдсон' : input.value ? 'Жагсаалтаас сонгоно уу.' : '';
         box.classList.toggle('picked', !!match);
       }
       input.addEventListener('input', sync);

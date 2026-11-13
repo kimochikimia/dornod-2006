@@ -7,10 +7,38 @@
   <div class="page-head row between">
     <div>
       <h1>Төлөвлөгөө</h1>
-      <p style="margin:0">Төгсөгчдийн холбооны төлөвлөсөн ажил, чухал үйл явдлууд.</p>
     </div>
     <% if (can('manage_plans')) { %><a class="btn btn-primary" href="/admin/plans/new">+ Ажил нэмэх</a><% } %>
   </div>
+
+  <% if (items.length) { %>
+    <div class="plan-stats">
+      <div class="card plan-stat">
+        <div class="plan-stat-top"><span class="plan-stat-ic">📋</span><span class="label">Нийт ажил</span></div>
+        <div class="num"><%= stats.total %></div>
+        <div class="plan-bar" title="<%= stats.pct %>% дууссан">
+          <i class="b-done" style="width:<%= stats.done / stats.total * 100 %>%"></i><i class="b-active" style="width:<%= stats.active / stats.total * 100 %>%"></i>
+        </div>
+        <div class="small muted"><%= stats.pct %>% гүйцэтгэл<% if (stats.milestones) { %> · <%= stats.milestones %> чухал үйл явдал<% } %></div>
+      </div>
+      <div class="card plan-stat is-done">
+        <div class="plan-stat-top"><span class="plan-stat-ic">✅</span><span class="label">Дууссан</span></div>
+        <div class="num"><%= stats.done %></div>
+      </div>
+      <div class="card plan-stat is-active">
+        <div class="plan-stat-top"><span class="plan-stat-ic">⏳</span><span class="label">Явагдаж буй</span></div>
+        <div class="num"><%= stats.active %></div>
+      </div>
+      <div class="card plan-stat is-upcoming">
+        <div class="plan-stat-top"><span class="plan-stat-ic">🗓️</span><span class="label">Эхлээгүй</span></div>
+        <div class="num"><%= stats.upcoming %></div>
+        <% if (stats.next) { %>
+          <div class="small muted plan-next" title="<%= stats.next.title %>">Дараагийнх: <strong><%= stats.next.title %></strong></div>
+          <div class="small faint">📅 <%= stats.next.start_date.replace(/-/g, '.') %> · <%= stats.nextDays === 1 ? 'маргааш' : stats.nextDays + ' хоногийн дараа' %></div>
+        <% } %>
+      </div>
+    </div>
+  <% } %>
 
   <div class="tabs">
     <a class="tab <%= view === 'timeline' ? 'active' : '' %>" href="/plan?view=timeline">📍 Цагийн шугам</a>

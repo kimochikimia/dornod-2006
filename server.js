@@ -22,6 +22,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         'img-src': ["'self'", 'data:', 'https:'],
+        'frame-src': ["'self'", 'https://maps.google.com', 'https://www.google.com'], // арга хэмжээний байршлын газрын зураг
         'upgrade-insecure-requests': isProd ? [] : null,
       },
     },
@@ -34,7 +35,7 @@ app.use('/admin/documents', express.urlencoded({ extended: true, limit: '16mb' }
 app.use('/admin/gallery', express.urlencoded({ extended: true, limit: '12mb' }));
 app.use('/admin/news', express.urlencoded({ extended: true, limit: '12mb' })); // мэдээний зураг
 app.use('/admin/campaigns', express.urlencoded({ extended: true, limit: '12mb' })); // аяны нүүр зураг
-app.use('/admin/tickets', express.urlencoded({ extended: true, limit: '12mb' })); // арга хэмжээний постер
+app.use('/admin/tickets', express.urlencoded({ extended: true, limit: '20mb' })); // арга хэмжээний постер, планы зураг
 app.use(express.urlencoded({ extended: true, limit: '1mb' })); // зураг (base64) багтаахаар
 
 if (isProd && !process.env.SESSION_SECRET) {

@@ -1,13 +1,14 @@
 // Тасалбартай арга хэмжээ: арга хэмжээ, захиалга, суудлын түгжээ.
 // Захиалга "pending" төлөвтэй үүсч гүйлгээний утга (code)-аар данс руу шилжүүлнэ; удирдлага баталгаажуулахад "paid" болно.
 // Хугацаандаа (hold_hours) төлөгдөөгүй захиалга автоматаар цуцлагдаж суудал/тоо чөлөөлөгдөнө.
+// held = 1: удирдлага гараар түгжсэн (status 'pending', expires_at NULL) — хугацаа дуусахгүй, "Түгжсэн" гэж харагдана.
 const crypto = require('crypto');
 const { pool } = require('./db');
 const { clean, fromUbInput, ubInput, fmtDate } = require('./helpers');
 const { fmtMoney, parseAmount } = require('./campaigns');
 const SeatMap = require('../public/js/seatmap');
 
-const STATUS_LABELS = { pending: 'Төлбөр хүлээгдэж буй', paid: 'Төлсөн', cancelled: 'Цуцлагдсан' };
+const STATUS_LABELS = { pending: 'Төлбөр хүлээгдэж буй', paid: 'Төлсөн', cancelled: 'Цуцлагдсан', held: 'Түгжсэн' };
 const CANCEL_LABELS = { expired: 'Төлөх хугацаа дууссан', user: 'Захиалагч цуцалсан', admin: 'Удирдлага цуцалсан' };
 const EVENT_STATUS = { draft: 'Ноорог', open: 'Нийтлэгдсэн', closed: 'Хаагдсан' };
 const PHASE_LABELS = { draft: 'Ноорог', soon: 'Удахгүй', onsale: 'Худалдаалж байна', soldout: 'Дууссан', ended: 'Худалдаа хаагдсан' };
@@ -31,27 +32,29 @@ async function expireStale(db = pool) {
 }
 
 // Постерын BLOB-оос бусад багана (жагсаалт, захиалгад зураг татахгүй)
-const EV = `e.id, e.title, e.summary, e.body, e.venue, e.event_at, e.sale_start, e.sale_end, e.seating, e.price, e.capacity,
-  e.max_per_order, e.hold_hours, e.layout, e.bank_name, e.bank_account, e.bank_holder, e.contact, e.status, e.poster_v,
+const EV = `e.id, e.title, e.summary, e.body, e.venue, e.venue_url, e.event_at, e.sale_start, e.sale_end, e.seating, e.price, e.capacity,
+  e.max_per_order, e.hold_hours, e.layout, e.bank_name, e.bank_account, e.bank_holder, e.contact, e.status, e.poster_v, e.plan_bg_v,
   e.created_by, e.created_at, e.updated_at`;
 
 const STATS = `
   (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'paid') AS paid_qty,
   (SELECT COALESCE(SUM(o.amount), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'paid') AS paid_amount,
-  (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending') AS pending_qty,
-  (SELECT COUNT(*) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending') AS pending_orders`;
+  (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending' AND o.held = 0) AS pending_qty,
+  (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending' AND o.held = 1) AS held_qty,
+  (SELECT COUNT(*) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending' AND o.held = 0) AS pending_orders`;
 
 function decorate(e) {
-  for (const k of ['price', 'paid_qty', 'paid_amount', 'pending_qty', 'pending_orders']) e[k] = Number(e[k] || 0);
+  for (const k of ['price', 'paid_qty', 'paid_amount', 'pending_qty', 'held_qty', 'pending_orders']) e[k] = Number(e[k] || 0);
   e.capacity = e.capacity == null ? null : Number(e.capacity);
   let layout = null;
   if (e.layout) {
     try { layout = SeatMap.normalize(e.layout).layout || null; } catch (err) { layout = null; }
   }
   e.layoutObj = layout || { w: 1000, h: 700, items: [] };
+  e.planBgUrl = e.plan_bg_v ? `/tickets/${e.id}/plan-bg?v=${e.plan_bg_v}` : null;
   e.seatList = e.seating === 'seated' ? SeatMap.seats(e.layoutObj, e.price) : [];
   e.total = e.seating === 'seated' ? e.seatList.length : e.capacity;
-  e.sold = e.paid_qty + e.pending_qty; // түгжигдсэн (төлсөн + хүлээгдэж буй)
+  e.sold = e.paid_qty + e.pending_qty + e.held_qty; // эзэлсэн (төлсөн + хүлээгдэж буй + түгжсэн)
   e.left = e.total == null ? null : Math.max(0, e.total - e.sold);
   if (e.seating === 'seated' && e.seatList.length) {
     const prices = e.seatList.map((s) => s.price);
@@ -94,19 +97,21 @@ function parseSeats(o) {
 
 function decorateOrder(o) {
   o.amount = Number(o.amount);
+  o.held = !!o.held && o.status === 'pending';
+  o.statusKey = o.held ? 'held' : o.status;
   o.seatArr = parseSeats(o);
   o.seatText = o.seatArr.map((s) => s.label).join(', ');
   return o;
 }
 
-// Суудал бүрийн төлөв: { key: 'paid' | 'pending' }; мөн тухайн хэрэглэгчийнх бол mine.
+// Суудал бүрийн төлөв: { key: 'paid' | 'pending' | 'held' }; мөн тухайн хэрэглэгчийнх бол mine.
 async function seatStates(eventId, userId) {
   const [rows] = await pool.query(
-    `SELECT l.seat_key, o.status, o.user_id FROM ticket_seat_locks l JOIN ticket_orders o ON o.id = l.order_id WHERE l.event_id = ?`,
+    `SELECT l.seat_key, o.status, o.held, o.user_id FROM ticket_seat_locks l JOIN ticket_orders o ON o.id = l.order_id WHERE l.event_id = ?`,
     [eventId]
   );
   const out = {};
-  for (const r of rows) out[r.seat_key] = userId && r.user_id === userId ? 'mine' : r.status;
+  for (const r of rows) out[r.seat_key] = userId && r.user_id === userId ? 'mine' : r.status === 'pending' && r.held ? 'held' : r.status;
   return out;
 }
 
@@ -147,7 +152,7 @@ async function getOrder(code) {
 
 class OrderError extends Error {}
 
-// Захиалга үүсгэх. opts: { userId, buyerName, buyerPhone, note, quantity, seatKeys, admin, paid }
+// Захиалга үүсгэх. opts: { userId, buyerName, buyerPhone, note, quantity, seatKeys, admin, paid, held }
 // Арга хэмжээний мөрийг FOR UPDATE-ээр түгжиж тоо/суудлыг давхардуулахгүй шалгана.
 async function placeOrder(eventId, opts) {
   await expireStale();
@@ -193,7 +198,8 @@ async function placeOrder(eventId, opts) {
       }
       amount = quantity * e.price;
     }
-    const paid = opts.paid || amount === 0;
+    const held = !!(opts.admin && opts.held && !opts.paid);
+    const paid = !held && (opts.paid || amount === 0);
     const row = {
       event_id: e.id,
       user_id: opts.userId || null,
@@ -204,7 +210,8 @@ async function placeOrder(eventId, opts) {
       amount,
       seats: seatRows.length ? JSON.stringify(seatRows.map((s) => ({ key: s.key, label: s.label, group: s.group, price: s.price }))) : null,
       status: paid ? 'paid' : 'pending',
-      expires_at: paid ? null : new Date(Date.now() + e.hold_hours * 3600 * 1000),
+      held: held ? 1 : 0,
+      expires_at: paid || held ? null : new Date(Date.now() + e.hold_hours * 3600 * 1000),
       reviewed_by: opts.paid ? opts.reviewerId || null : null,
       reviewed_at: opts.paid ? new Date() : null,
     };
@@ -229,7 +236,7 @@ async function placeOrder(eventId, opts) {
       }
     }
     await conn.commit();
-    return { code, orderId, status: row.status };
+    return { code, orderId, status: row.status, held };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -266,12 +273,12 @@ async function setOrderStatus(orderId, status, { reviewerId, reason } = {}) {
         }
       }
       await conn.query(
-        "UPDATE ticket_orders SET status = 'paid', cancel_reason = NULL, expires_at = NULL, reviewed_by = ?, reviewed_at = ? WHERE id = ?",
+        "UPDATE ticket_orders SET status = 'paid', held = 0, cancel_reason = NULL, expires_at = NULL, reviewed_by = ?, reviewed_at = ? WHERE id = ?",
         [reviewerId || null, new Date(), o.id]
       );
     } else if (status === 'cancelled') {
       await conn.query(
-        "UPDATE ticket_orders SET status = 'cancelled', cancel_reason = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?",
+        "UPDATE ticket_orders SET status = 'cancelled', held = 0, cancel_reason = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?",
         [reason || 'admin', reviewerId || null, new Date(), o.id]
       );
       await conn.query('DELETE FROM ticket_seat_locks WHERE order_id = ?', [o.id]);
@@ -285,6 +292,20 @@ async function setOrderStatus(orderId, status, { reviewerId, reason } = {}) {
   }
 }
 
+// Google Maps линк: зөвхөн https, Google-ийн газрын зургийн домэйн. Хоосон → null, буруу → false.
+const MAP_HOSTS = /^(maps\.app\.goo\.gl|goo\.gl|maps\.google\.[a-z.]+|(www\.)?google\.[a-z.]+)$/i;
+function parseMapUrl(v) {
+  const raw = clean(v, 500);
+  if (!raw) return null;
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`); } catch (e) { return false; }
+  if (!MAP_HOSTS.test(u.hostname)) return false;
+  if (/^(www\.)?google\./i.test(u.hostname) && !u.pathname.startsWith('/maps')) return false;
+  if (u.hostname.toLowerCase() === 'goo.gl' && !u.pathname.startsWith('/maps')) return false;
+  u.protocol = 'https:';
+  return u.toString();
+}
+
 // Удирдлагын маягт → { errors, fields }
 function eventFields(body, { lockedKeys = [], hasOrders = false, current = null } = {}) {
   const errors = [];
@@ -293,6 +314,7 @@ function eventFields(body, { lockedKeys = [], hasOrders = false, current = null 
     summary: clean(body.summary, 500) || null,
     body: clean(body.body, 20000) || null,
     venue: clean(body.venue, 300) || null,
+    venue_url: parseMapUrl(body.venue_url),
     event_at: fromUbInput(body.event_at),
     sale_start: fromUbInput(body.sale_start),
     sale_end: fromUbInput(body.sale_end),
@@ -309,6 +331,10 @@ function eventFields(body, { lockedKeys = [], hasOrders = false, current = null 
     status: ['draft', 'open', 'closed'].includes(body.status) ? body.status : 'draft',
   };
   if (!f.title) errors.push('Арга хэмжээний нэрийг бичнэ үү.');
+  if (f.venue_url === false) {
+    errors.push('Google Maps линк буруу байна (жишээ нь: https://maps.app.goo.gl/...).');
+    f.venue_url = clean(body.venue_url, 500); // маягтад буцааж харуулна
+  }
   if (!f.event_at) errors.push('Арга хэмжээ болох огноо, цагийг оруулна уу.');
   if (!f.sale_end) errors.push('Тасалбар худалдаалах эцсийн хугацааг оруулна уу.');
   if (f.sale_start && f.sale_end && f.sale_end <= f.sale_start) errors.push('Худалдаа дуусах хугацаа эхлэхээсээ хойно байх ёстой.');

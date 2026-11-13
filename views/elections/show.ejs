@@ -82,7 +82,6 @@
           <input type="hidden" name="_csrf" value="<%= csrf %>">
           <button type="button" class="modal-close" data-close-dialog aria-label="Хаах" title="Хаах (Esc)">&times;</button>
           <h3>Нэр дэвшүүлэх</h3>
-          <p class="small muted">Удирдах зөвлөлд тохиромжтой төгсөгчөө эсвэл өөрийгөө сонгоно уу.</p>
           <input type="search" placeholder="🔍 Нэрээр хайх" data-filter-select="nominee" autocomplete="off">
           <select id="nominee" name="nominee_id" size="8" class="nominee-list" required>
             <option value="<%= me.id %>">⭐ Өөрийгөө (<%= me.surname %> <%= me.name %>)</option>
@@ -166,7 +165,7 @@
         <h2>Саналын хуудас</h2>
         <% var single = e.max_choices === 1 || accepted.length === 1; %>
         <% if (single) { %>
-          <p class="muted">Удирдах зөвлөлд сонгох нэр дэвшигчийнхээ хажууд байгаа <strong>"Санал өгөх"</strong> товчийг дарна уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
+          <p class="muted">Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
           <form method="post" action="/elections/<%= e.id %>/vote" class="stack" data-confirm="Саналаа баталгаажуулах уу? Өгсний дараа өөрчлөх боломжгүй.">
             <input type="hidden" name="_csrf" value="<%= csrf %>">
             <% accepted.forEach(function (c) { %>
@@ -183,7 +182,7 @@
             <% }) %>
           </form>
         <% } else { %>
-          <p class="muted">Удирдах зөвлөлд <strong><%= e.max_choices %></strong> хүртэл нэр дэвшигчийг "Сонгох" товчоор сонгоод, доорх "Санал өгөх" товчийг дарна уу. Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
+          <p class="muted">Санал нууц бөгөөд нэг удаа өгнө — өгсний дараа өөрчлөх боломжгүй.</p>
           <form method="post" action="/elections/<%= e.id %>/vote" class="stack" data-ballot data-max="<%= e.max_choices %>" data-confirm="Саналаа баталгаажуулах уу? Өгсний дараа өөрчлөх боломжгүй.">
             <input type="hidden" name="_csrf" value="<%= csrf %>">
             <% accepted.forEach(function (c) { %>

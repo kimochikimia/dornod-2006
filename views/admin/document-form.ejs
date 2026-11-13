@@ -31,9 +31,6 @@
       <div class="field">
         <label>Агуулга</label>
         <textarea name="content" rows="18" class="doc-editor" placeholder="# Нэгдүгээр бүлэг. Ерөнхий зүйл&#10;&#10;1.1. Энэхүү дүрмийн зорилго нь ...&#10;&#10;## Зөвлөлийн бүрэн эрх&#10;- Хурал зарлах&#10;- Шийдвэр гаргах"><%= d.content || '' %></textarea>
-        <div class="hint">
-          Бичих заавар: <code># Гарчиг</code>, <code>## Дэд гарчиг</code>, <code>- жагсаалт</code>, <code>1. дугаарласан</code>, хоосон мөр = шинэ догол мөр.
-        </div>
       </div>
 
       <div class="field">
@@ -67,7 +64,6 @@
   <% if (d.id) { %>
     <div class="card" style="margin-top:1.25rem">
       <h3>📄 Хэлэлцүүлгийн төсөл</h3>
-      <p class="small muted">Батлагдахаас өмнө төгсөгчдөд танилцуулах төслийн файл. Баталгаажсан төгсөгчид татаж авах боломжтой.</p>
       <%- include('_draft-box', { d: d, back: 'form' }) %>
     </div>
   <% } %>

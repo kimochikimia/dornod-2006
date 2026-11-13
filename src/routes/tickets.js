@@ -28,7 +28,7 @@ async function renderEvent(req, res, event, errors = [], form = {}) {
   const mine = userId ? await tk.userOrders(event.id, userId) : [];
   res.status(errors.length ? 400 : 200).render('tickets/show', {
     title: event.title, event, mine, tk, errors, form,
-    mapJson: event.seating === 'seated' ? safeJson({ layout: event.layoutObj, price: event.price, states, max: event.max_per_order }) : null,
+    mapJson: event.seating === 'seated' ? safeJson({ layout: event.layoutObj, price: event.price, states, max: event.max_per_order, bg: event.planBgUrl }) : null,
   });
   return true;
 }
@@ -42,6 +42,16 @@ router.get('/:id(\\d+)', wrap(async (req, res, next) => {
 router.get('/:id(\\d+)/poster', wrap(async (req, res, next) => {
   const col = req.query.s === 't' ? 'poster_thumb' : 'poster';
   const [[e]] = await pool.query(`SELECT ${col} AS img, status FROM ticket_events WHERE id = ?`, [req.params.id]);
+  if (!e || !e.img || (e.status === 'draft' && !staff(req.user))) return next();
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=2592000, immutable');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.send(e.img);
+}));
+
+// Суудлын планы арын зураг
+router.get('/:id(\\d+)/plan-bg', wrap(async (req, res, next) => {
+  const [[e]] = await pool.query('SELECT plan_bg AS img, status FROM ticket_events WHERE id = ?', [req.params.id]);
   if (!e || !e.img || (e.status === 'draft' && !staff(req.user))) return next();
   res.set('Content-Type', 'image/jpeg');
   res.set('Cache-Control', 'public, max-age=2592000, immutable');

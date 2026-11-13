@@ -171,7 +171,6 @@
           <input type="hidden" name="_csrf" value="<%= csrf %>">
           <button type="button" class="modal-close" data-close-dialog aria-label="Хаах">&times;</button>
           <h3>Зөвлөлд гишүүн нэмэх</h3>
-          <p class="small muted" style="margin:0">Энэ сонгуулиар сонгогдоогүй хүнийг нэмбэл «✋ Гараар нэмсэн» гэж тэмдэглэгдэнэ (ж: сонгогдсон гишүүн татгалзаж, оронд нь орсон).</p>
           <input type="search" placeholder="🔍 Нэрээр хайх" data-filter-select="board-user" autocomplete="off">
           <select id="board-user" name="user_id" size="6" class="nominee-list" required>
             <% candidates.forEach(function (u) { %><option value="<%= u.id %>"><%= u.name %> <%= u.surname %><%= u.school_name ? ' — ' + u.school_name : '' %></option><% }) %>

@@ -4,11 +4,13 @@
   var f = form || {};
   var seated = e.seating === 'seated';
   var phaseClass = { onsale: 'grad', soon: 'pending', soldout: 'danger', ended: '', draft: '' };
+  // Борлуулалтын задаргаа: хүлээгдэж буй, түгжсэн, төлсөн — нэг жагсаалтад (шинэ нь эхэндээ), цуцлагдсан нь доор тусдаа
   var sections = [
-    ['pending', 'Төлбөр хүлээгдэж буй', pending, 'Дансны хуулгаас гүйлгээний утга (код) болон дүнг тулгаад баталгаажуулна уу.'],
-    ['paid', 'Төлсөн', paid, ''],
-    ['cancelled', 'Цуцлагдсан', cancelled, 'Төлөх хугацаа нь дууссан эсвэл цуцлагдсан захиалга. Хожим төлсөн бол "Төлсөн" болгож сэргээнэ (суудал сул байвал).'],
+    ['sales', 'Борлуулалтын задаргаа', active, 'Төлбөр хүлээгдэж буй захиалгыг дансны хуулгын гүйлгээний утга (код), дүнтэй тулгаад "Төлсөн" болгоно. Түгжсэн суудал хугацаа дуусахгүй — төлбөр хийгдвэл "Төлсөн", чөлөөлөх бол "Цуцлах".', true],
+    ['cancelled', 'Цуцлагдсан', cancelled, 'Төлөх хугацаа нь дууссан эсвэл цуцлагдсан захиалга. Хожим төлсөн бол "Төлсөн" болгож сэргээнэ (суудал сул байвал).', false],
   ];
+  var stBadge = { pending: 'pending', held: 'held', paid: 'success', cancelled: 'danger' };
+  var stLabel = { pending: 'Төлбөр хүлээгдэж буй', held: '🔒 Түгжсэн', paid: '✓ Төлсөн', cancelled: 'Цуцлагдсан' };
 %>
 <div class="container">
   <%- include('_nav') %>
@@ -39,7 +41,7 @@
   <div class="grid grid-4" style="margin-bottom:1.25rem">
     <div class="card stat"><div class="num grad-text"><%= tk.fmtMoney(e.paid_amount) %></div><div class="label">Төлөгдсөн орлого</div></div>
     <div class="card stat"><div class="num"><%= e.paid_qty %><% if (e.total != null) { %><span class="small muted"> / <%= e.total %></span><% } %></div><div class="label">Зарагдсан тасалбар</div></div>
-    <div class="card stat"><div class="num" style="color:<%= e.pending_qty ? 'var(--warn)' : 'inherit' %>"><%= e.pending_qty %></div><div class="label">Төлбөр хүлээгдэж буй</div></div>
+    <div class="card stat"><div class="num" style="color:<%= e.pending_qty ? 'var(--warn)' : 'inherit' %>"><%= e.pending_qty %></div><div class="label">Төлбөр хүлээгдэж буй<% if (e.held_qty) { %> · 🔒 <%= e.held_qty %> түгжсэн<% } %></div></div>
     <div class="card stat"><div class="num"><%= e.left == null ? '∞' : e.left %></div><div class="label">Сул үлдсэн</div></div>
   </div>
 
@@ -54,10 +56,10 @@
         <% if (!rows.length) { %>
           <p class="small faint">Алга.</p>
         <% } else { %>
-          <% if (sec[3]) { %><p class="small muted"><%= sec[3] %></p><% } %>
+          <% if (!sec[4]) { %><details class="tk-cancelled"><summary class="small">Цуцлагдсан захиалгуудыг харах</summary><% } %>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Код</th><th>Захиалагч</th><th><%= seated ? 'Суудал' : 'Тоо' %></th><th>Дүн</th><th>Огноо</th><th></th></tr></thead>
+              <thead><tr><th>Код</th><th>Захиалагч</th><th><%= seated ? 'Суудал' : 'Тоо' %></th><th>Дүн</th><th>Огноо</th><th>Төлөв</th><th></th></tr></thead>
               <tbody>
                 <% rows.forEach(function (o) { %>
                   <tr data-order-row="<%= [o.code, o.buyer_name, o.buyer_phone || ''].join(' ').toLowerCase() %>">
@@ -76,6 +78,7 @@
                       <% if (o.status === 'cancelled' && o.cancel_reason) { %><div class="faint"><%= tk.CANCEL_LABELS[o.cancel_reason] %></div><% } %>
                       <% if (o.reviewed_at && o.r_name) { %><div class="faint">✓ <%= o.r_name %></div><% } %>
                     </td>
+                    <td><span class="badge <%= stBadge[o.statusKey] %>" style="white-space:nowrap"><%= stLabel[o.statusKey] %></span></td>
                     <td>
                       <form method="post" action="/admin/tickets/<%= e.id %>/orders/<%= o.id %>" class="row" style="gap:.35rem;flex-wrap:nowrap">
                         <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -89,6 +92,7 @@
               </tbody>
             </table>
           </div>
+          <% if (!sec[4]) { %></details><% } %>
         <% } %>
       </section>
     <% }) %>
@@ -101,7 +105,7 @@
               <h3 style="margin:0">Суудлын байдал</h3>
               <div class="seat-legend small">
                 <span><i class="sw free"></i>Сул</span><span><i class="sw sel"></i>Сонгосон</span>
-                <span><i class="sw pending"></i>Хүлээгдэж буй</span><span><i class="sw paid"></i>Төлсөн</span>
+                <span><i class="sw pending"></i>Хүлээгдэж буй</span><span><i class="sw held"></i>Түгжсэн</span><span><i class="sw paid"></i>Төлсөн</span>
               </div>
             </div>
             <div class="seat-map-wrap" data-seat-map data-mode="pick" data-form="sell-form">
@@ -117,11 +121,29 @@
         </div>
       <div class="card">
         <h3>Гараар тасалбар бичих</h3>
-        <p class="small muted">Бэлнээр төлсөн эсвэл сайтад бүртгэлгүй хүнд.<%= seated ? ' Суудлыг план дээрээс сонгоно.' : '' %></p>
         <form method="post" action="/admin/tickets/<%= e.id %>/orders" class="form support-form" id="sell-form" data-price="<%= e.price %>">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
-          <div class="field"><label>Нэр</label><input type="text" name="buyer_name" value="<%= f.buyer_name || '' %>" maxlength="150" required></div>
-          <div class="field"><label>Утас</label><input type="tel" name="buyer_phone" value="<%= f.buyer_phone || '' %>" maxlength="40"></div>
+          <%
+            // Төгсөгчийн жагсаалт (ижил нэртэй бол дугаар нэмнэ)
+            var seen = {};
+            var opts = members.map(function (m) {
+              var label = ((m.surname || '') + ' ' + (m.name || '')).trim() +
+                (m.school_name ? ' — ' + m.school_name + (m.class_name ? ', ' + m.class_name : '') : '') + (m.phone ? ' · ' + m.phone : '');
+              if (seen[label]) label += ' (#' + m.id + ')';
+              seen[label] = 1;
+              return { id: m.id, label: label };
+            });
+            var picked = opts.filter(function (o) { return String(o.id) === String(f.user_id || ''); })[0];
+          %>
+          <div class="field" data-member-pick>
+            <label>Төгсөгч</label>
+            <input type="text" list="sell-members" value="<%= picked ? picked.label : '' %>" placeholder="Нэр эсвэл утсаар хайж сонгоно уу…" autocomplete="off" required data-member-input>
+            <input type="hidden" name="user_id" value="<%= picked ? picked.id : '' %>" data-member-id>
+            <datalist id="sell-members">
+              <% opts.forEach(function (o) { %><option value="<%= o.label %>" data-id="<%= o.id %>"></option><% }) %>
+            </datalist>
+            <div class="hint" data-member-status><%= picked ? '✓ Сонгогдсон' : '' %></div>
+          </div>
           <% if (seated) { %>
             <input type="hidden" name="seats" value="" data-pick-input>
             <div class="tk-picked" data-pick-list><span class="small faint">Суудал сонгоогүй байна.</span></div>
@@ -137,7 +159,10 @@
           <% } %>
           <div class="tk-total"><span>Нийт дүн</span><strong data-pick-total><%= seated ? '0₮' : tk.fmtMoney(e.price) %></strong></div>
           <div class="field"><label>Тэмдэглэл</label><input type="text" name="note" value="<%= f.note || '' %>" maxlength="500"></div>
-          <label class="check"><input type="checkbox" name="paid" value="1" <%= f.buyer_name && !f.paid ? '' : 'checked' %>> Төлбөр төлөгдсөн</label>
+          <div class="seg tk-sell-mode">
+            <label><input type="radio" name="mode" value="paid" <%= f.mode === 'held' ? '' : 'checked' %>> 💵 Бэлнээр төлсөн</label>
+            <label><input type="radio" name="mode" value="held" <%= f.mode === 'held' ? 'checked' : '' %>> 🔒 Түгжүүлэх</label>
+          </div>
           <button class="btn btn-primary" type="submit" <%= seated ? 'disabled' : '' %> data-pick-submit>Бүртгэх</button>
         </form>
       </div>

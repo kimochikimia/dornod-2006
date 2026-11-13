@@ -6,13 +6,17 @@
 %>
 <div class="container tk-order">
   <div class="page-head">
-    <a href="/tickets/<%= e.id %>" class="small">← <%= e.title %></a>
+    <% if (can('sell_tickets') && o.user_id !== me.id) { %>
+      <a href="/admin/tickets/<%= e.id %>/sell" class="small">← Гараар тасалбар бичих рүү буцах</a>
+    <% } else { %>
+      <a href="/tickets/<%= e.id %>" class="small">← <%= e.title %></a>
+    <% } %>
   </div>
 
   <div class="ticket <%= o.status %>">
     <div class="ticket-main">
       <div class="row" style="gap:.5rem">
-        <span class="badge <%= badge %>"><%= tk.STATUS_LABELS[o.status] %></span>
+        <span class="badge <%= badge %>"><%= tk.STATUS_LABELS[o.statusKey] %></span>
         <% if (o.status === 'cancelled' && o.cancel_reason) { %><span class="small faint"><%= tk.CANCEL_LABELS[o.cancel_reason] %></span><% } %>
       </div>
       <h2 style="margin:.6rem 0 .25rem"><%= e.title %></h2>
@@ -31,7 +35,7 @@
     <div class="ticket-stub">
       <span class="small muted">Захиалгын код</span>
       <strong class="ticket-code"><%= o.code %></strong>
-      <% if (o.status === 'paid') { %><span class="small" style="color:var(--success)">✓ Орох хаалган дээр энэ кодыг үзүүлнэ</span><% } %>
+      <% if (o.status === 'paid') { %><span class="small" style="color:var(--success)">✓ Орох хаалган дээр энэ кодыг үзүүлнэ</span><% } else if (o.status === 'pending') { %><span class="small muted">Гүйлгээний утгад энэ кодыг бичнэ</span><% } %>
     </div>
   </div>
 
@@ -47,9 +51,9 @@
         <div class="tk-pay-row hl"><span>Гүйлгээний утга</span><strong><%= o.code %></strong><button class="btn btn-sm" type="button" data-copy="<%= o.code %>">Хуулах</button></div>
       </div>
       <% if (o.expires_at) { %>
-        <p class="small" style="margin:.9rem 0 0">⏳ <strong><%= h.fmtDate(o.expires_at) %></strong>-аас өмнө төлнө үү. Төлөөгүй бол захиалга автоматаар цуцлагдана.</p>
+        <p class="small" style="margin:.9rem 0 0">⏳ <strong><%= h.fmtDate(o.expires_at) %></strong>-аас өмнө төлнө үү (үлдсэн <strong class="tk-expire-cd" data-countdown="<%= new Date(o.expires_at).toISOString() %>" data-reload>—</strong>). Төлөөгүй бол захиалга автоматаар цуцлагдана.</p>
       <% } %>
-      <% if (o.user_id === me.id) { %>
+      <% if (o.user_id && o.user_id === me.id) { %>
         <form method="post" action="/tickets/order/<%= o.code %>/cancel" style="margin-top:.75rem" data-confirm="Энэ захиалгыг цуцлах уу?">
           <input type="hidden" name="_csrf" value="<%= csrf %>">
           <button class="link-btn small" type="submit">Захиалга цуцлах</button>

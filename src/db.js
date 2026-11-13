@@ -280,6 +280,12 @@ async function init() {
   await ensureColumn('ticket_events', 'poster', 'MEDIUMBLOB NULL');
   await ensureColumn('ticket_events', 'poster_thumb', 'MEDIUMBLOB NULL');
   await ensureColumn('ticket_events', 'poster_v', 'INT NULL');
+  // Суудлын планы арын зураг (заалны зураг) — суудлуудыг дээр нь байрлуулна
+  await ensureColumn('ticket_events', 'plan_bg', 'MEDIUMBLOB NULL');
+  await ensureColumn('ticket_events', 'plan_bg_v', 'INT NULL');
+  // Удирдлага гараар түгжсэн захиалга (status = 'pending', хугацаагүй) — план дээр "Түгжсэн" гэж харагдана
+  await ensureColumn('ticket_orders', 'held', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status');
+  await ensureColumn('ticket_events', 'venue_url', 'VARCHAR(500) NULL AFTER venue'); // Google Maps линк
   await syncSchools();
 
   await seedAdmin();

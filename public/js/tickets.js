@@ -50,6 +50,11 @@
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     svg.setAttribute('viewBox', '0 0 ' + layout.w + ' ' + layout.h);
     el('rect', { x: 0, y: 0, width: layout.w, height: layout.h, rx: 14, class: 'seat-bg' }, svg);
+    if (opts.bg) {
+      // Заалны план зураг — суудлуудыг дээр нь байрлуулна (харьцааг нь хадгалж төвд нь)
+      var img = el('image', { x: 0, y: 0, width: layout.w, height: layout.h, preserveAspectRatio: 'xMidYMid meet', opacity: (layout.bgOp || 70) / 100, class: 'seat-bg-img' }, svg);
+      img.setAttribute('href', opts.bg);
+    }
     if (opts.grid) {
       // Бүдэг тор: 25 нэгж тутам нарийн, 100 тутам арай тод шугам
       var defs = el('defs', {}, svg);
@@ -64,12 +69,15 @@
     layout.items.forEach(function (it) {
       var g = el('g', { class: 'seat-item t-' + it.t, 'data-id': it.id }, svg);
       if (it.t === 'zone') {
-        el('rect', { x: it.x, y: it.y, width: it.w, height: it.h, rx: 8, class: 'zone' }, g);
+        if (it.shape === 'ellipse') el('ellipse', { cx: it.x + it.w / 2, cy: it.y + it.h / 2, rx: it.w / 2, ry: it.h / 2, class: 'zone' }, g);
+        else el('rect', { x: it.x, y: it.y, width: it.w, height: it.h, rx: 8, class: it.shape === 'text' ? 'zone zone-text' : 'zone' }, g);
         var tz = el('text', { x: it.x + it.w / 2, y: it.y + it.h / 2, class: 'zone-label' }, g);
+        tz.style.fontSize = Math.max(10, Math.min(it.shape === 'text' ? 28 : 18, Math.round(it.h * 0.45))) + 'px';
         tz.textContent = it.text || '';
         return;
       }
       var seats = SeatMap.seatsOfItem(it, opts.price);
+      if (it.t === 'block') { drawBlock(g, it, seats, opts); return; }
       if (it.t === 'table') {
         el('circle', { cx: it.x, cy: it.y, r: SeatMap.tableRadius(it.n), class: 'table' }, g);
         var tt = el('text', { x: it.x, y: it.price != null && opts.editing ? it.y - 6 : it.y, class: 'table-label' }, g);
@@ -81,10 +89,20 @@
         }
       } else {
         var rad = ((it.rot || 0) * Math.PI) / 180;
-        var tr = el('text', { x: it.x - Math.cos(rad) * (R + 14), y: it.y - Math.sin(rad) * (R + 14), class: 'row-label' }, g);
-        tr.textContent = it.name;
+        var lp = SeatMap.pos(it, 'lp');
+        var off = R + 14, last = seats[seats.length - 1] || { x: it.x, y: it.y };
+        var ends = [];
+        if (lp === 'start' || lp === 'both') ends.push({ x: it.x - Math.cos(rad) * off, y: it.y - Math.sin(rad) * off });
+        if (lp === 'end' || lp === 'both') ends.push({ x: last.x + Math.cos(rad) * off, y: last.y + Math.sin(rad) * off });
+        if (lp === 'top' || lp === 'bottom') {
+          // Эгнээний голд, эгнээнд перпендикуляр чиглэлд (эргэлтийг дагана)
+          var sgn = lp === 'top' ? -1 : 1, mx = (it.x + last.x) / 2, my = (it.y + last.y) / 2, d = R + 11;
+          ends.push({ x: mx - Math.sin(rad) * d * sgn, y: my + Math.cos(rad) * d * sgn });
+        }
+        ends.forEach(function (q) { el('text', { x: q.x, y: q.y, class: 'row-label' }, g).textContent = it.name; });
         if (it.price != null && opts.editing) {
-          var rp = el('text', { x: it.x - Math.cos(rad) * (R + 14), y: it.y - Math.sin(rad) * (R + 14) + 15, class: 'table-price' }, g);
+          var q0 = ends[0] || { x: it.x - Math.cos(rad) * off, y: it.y - Math.sin(rad) * off };
+          var rp = el('text', { x: q0.x, y: q0.y + 15, class: 'table-price' }, g);
           rp.textContent = money(it.price);
         }
       }
@@ -97,6 +115,39 @@
         var title = el('title', {}, sg);
         title.textContent = s.group + ' · ' + s.label + ' · ' + money(s.price);
       });
+    });
+  }
+
+  // Сектор: дөрвөлжин суудлууд, зүүн талд эгнээний дугаар, дээд талд суудлын дугаар, дээр нь секторын нэр
+  function drawBlock(g, it, seats, opts) {
+    var size = SeatMap.blockSeatSize(it), half = size / 2;
+    var fs = Math.max(7, Math.min(12, Math.round(it.gap * 0.45)));
+    var rot = it.rot || 0;
+    var lbl = function (r, c, text, cls) {
+      var p = SeatMap.blockPoint(it, r, c);
+      var t = el('text', { x: p.x, y: p.y, class: cls }, g);
+      t.style.fontSize = fs + 'px';
+      t.textContent = text;
+    };
+    var L = SeatMap.blockLabels(it);
+    var priceText = opts.editing && it.price != null ? money(it.price) : '';
+    if (L.name) {
+      var name = SeatMap.blockPoint(it, L.name.r, L.name.c);
+      var tn = el('text', { x: name.x, y: name.y, class: 'block-label', transform: rot ? 'rotate(' + rot + ' ' + name.x + ' ' + name.y + ')' : null }, g);
+      tn.style.fontSize = Math.max(11, Math.min(18, Math.round(it.gap * 0.7))) + 'px';
+      tn.textContent = it.name + (priceText && (L.name.r < 0 || L.name.r > it.rows - 1) ? ' · ' + priceText : '');
+    }
+    L.seatNumR.forEach(function (rr) { for (var c = 0; c < it.cols; c++) lbl(rr, c, SeatMap.blockSeatNo(it, c), 'block-num'); });
+    L.rowNumC.forEach(function (cc) { for (var r = 0; r < it.rows; r++) lbl(r, cc, SeatMap.blockRowNo(it, r), 'block-num'); });
+    var showNo = it.gap >= 26;
+    seats.forEach(function (s) {
+      var cls = opts.seatClass ? opts.seatClass(s) : 'free';
+      var sg = el('g', { class: 'seat sq ' + cls, 'data-key': s.key }, g);
+      el('rect', { x: s.x - half, y: s.y - half, width: size, height: size, rx: Math.max(2, size * 0.18),
+        transform: rot ? 'rotate(' + rot + ' ' + s.x + ' ' + s.y + ')' : null }, sg);
+      if (showNo) { var t = el('text', { x: s.x, y: s.y }, sg); t.style.fontSize = fs + 'px'; t.textContent = s.seat; }
+      var title = el('title', {}, sg);
+      title.textContent = s.label + ' · ' + money(s.price);
     });
   }
 
@@ -120,6 +171,7 @@
       var form = pick ? document.getElementById(wrap.getAttribute('data-form')) : null;
       var selected = [];
       var svg = makeSvg(wrap, layout);
+      addZoom(wrap, svg, layout, all.length);
       if (!all.length) {
         wrap.insertAdjacentHTML('beforeend', '<p class="small faint" style="margin:.5rem 0 0">Суудлын план хараахан бэлэн болоогүй байна.</p>');
       }
@@ -127,6 +179,7 @@
       function render() {
         draw(svg, layout, {
           price: data.price || 0,
+          bg: data.bg || null,
           seatClass: function (s) {
             if (states[s.key]) return states[s.key];
             return selected.indexOf(s.key) >= 0 ? 'sel' : pick ? 'free can' : 'free';
@@ -145,6 +198,12 @@
         list.innerHTML = selected.length ? selected.map(function (k) {
           var s = byKey[k];
           sum += s.price;
+          if (s.sec != null) {
+            return '<div class="tk-pick-card"><div class="tk-pick-sec"><strong>' + esc(s.sec) + '</strong><span>сектор</span></div>' +
+              '<div class="tk-pick-info"><strong>' + esc(s.seat) + ' суудал</strong><span>' + esc(s.row) + ' эгнээ</span></div>' +
+              '<div class="tk-pick-price">' + money(s.price) + '</div>' +
+              '<button type="button" class="btn btn-sm" data-unpick="' + esc(k) + '">Устгах</button></div>';
+          }
           return '<button type="button" class="tk-chip" data-unpick="' + esc(k) + '" title="Хасах">' + esc(s.group) + ' · <strong>' + esc(s.label) + '</strong> <span class="faint">' + money(s.price) + '</span> ×</button>';
         }).join('') : '<span class="small faint">Суудал сонгоогүй байна.</span>';
         total.textContent = money(sum);
@@ -178,6 +237,85 @@
       render();
       sync();
     });
+  }
+
+  // Томруулах: −, +, бүтэн харах товч; Ctrl + хулганы дугуй (зөөврийн компьютерын touchpad-ын чимхэлт);
+  // утсан дээр хоёр хуруугаар чимхэх; захиалагчийн план дээр хулганаар чирж гүйлгэх.
+  // SVG-ийн өргөнийг өөрчилж, wrap доторх гүйлгэлтээр шилжинэ. mount өгвөл (план зурагч) товчийг тэнд байрлуулна.
+  function addZoom(wrap, svg, layout, seatCount, mount) {
+    // Товч зөвхөн план зурагч дээр; захиалагч чимхэж/дугуйгаар томруулна
+    var bar = document.createElement('div');
+    bar.className = 'seat-zoom inline';
+    bar.innerHTML = '<button type="button" class="btn btn-sm" data-z="-1" aria-label="Жижигрүүлэх">−</button>' +
+      '<button type="button" class="btn btn-sm" data-z="1" aria-label="Томруулах">+</button>' +
+      '<button type="button" class="btn btn-sm" data-z="0">Бүтэн харах</button>';
+    if (mount) mount.appendChild(bar);
+    var MAX = 6;
+    var scale = 1;
+    // (ax, ay) — wrap доторх цэг (px), томруулахад тэр цэг байрандаа үлдэнэ. Өгөхгүй бол төв.
+    function setScale(next, ax, ay) {
+      next = Math.max(1, Math.min(MAX, next));
+      if (Math.abs(next - scale) < 0.001) return;
+      if (ax == null) { ax = wrap.clientWidth / 2; ay = wrap.clientHeight / 2; }
+      var fx = (wrap.scrollLeft + ax) / (wrap.scrollWidth || 1);
+      var fy = (wrap.scrollTop + ay) / (wrap.scrollHeight || 1);
+      scale = next;
+      svg.style.width = scale * 100 + '%';
+      wrap.classList.toggle('zoomed', scale > 1);
+      wrap.scrollLeft = fx * wrap.scrollWidth - ax;
+      wrap.scrollTop = fy * wrap.scrollHeight - ay;
+    }
+    function local(cx, cy) { var r = wrap.getBoundingClientRect(); return [cx - r.left, cy - r.top]; }
+    bar.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-z]');
+      if (!b) return;
+      var d = Number(b.getAttribute('data-z'));
+      setScale(d === 0 ? 1 : d > 0 ? scale * 1.5 : scale / 1.5);
+    });
+    wrap.addEventListener('wheel', function (ev) {
+      if (!ev.ctrlKey) return; // энгийн дугуй — хуудсыг гүйлгэнэ
+      ev.preventDefault();
+      var p = local(ev.clientX, ev.clientY);
+      setScale(scale * Math.exp(-ev.deltaY * 0.01), p[0], p[1]);
+    }, { passive: false });
+
+    // Хоёр хуруугаар чимхэх
+    var pinch = null;
+    function dist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+    wrap.addEventListener('touchstart', function (ev) {
+      if (ev.touches.length === 2) pinch = { d: dist(ev.touches), s: scale };
+    }, { passive: true });
+    wrap.addEventListener('touchmove', function (ev) {
+      if (!pinch || ev.touches.length !== 2) return;
+      ev.preventDefault();
+      var p = local((ev.touches[0].clientX + ev.touches[1].clientX) / 2, (ev.touches[0].clientY + ev.touches[1].clientY) / 2);
+      setScale(pinch.s * dist(ev.touches) / pinch.d, p[0], p[1]);
+    }, { passive: false });
+    wrap.addEventListener('touchend', function (ev) { if (ev.touches.length < 2) pinch = null; });
+
+    // Хулганаар чирж гүйлгэх (план зурагч дээр элемент чирдэг тул зөвхөн захиалагчийн план дээр)
+    if (!mount) {
+      var pan = null, moved = false;
+      wrap.addEventListener('pointerdown', function (ev) {
+        if (ev.pointerType !== 'mouse' || ev.button !== 0 || scale === 1) return;
+        pan = { x: ev.clientX, y: ev.clientY, l: wrap.scrollLeft, t: wrap.scrollTop };
+        moved = false;
+      });
+      window.addEventListener('pointermove', function (ev) {
+        if (!pan) return;
+        var dx = ev.clientX - pan.x, dy = ev.clientY - pan.y;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+        moved = true;
+        wrap.classList.add('panning');
+        wrap.scrollLeft = pan.l - dx;
+        wrap.scrollTop = pan.t - dy;
+      });
+      window.addEventListener('pointerup', function () { pan = null; wrap.classList.remove('panning'); });
+      // Чирсний дараах "click"-ээр суудал сонгогдохгүй
+      wrap.addEventListener('click', function (ev) { if (moved) { ev.stopPropagation(); moved = false; } }, true);
+    }
+    // Бүтэн харагдацаас эхэлнэ (жижиг дэлгэцэнд ч бүх план багтана)
+    svg.style.minWidth = '0';
   }
 
   // ---------- Тоо сонгогч (суудалгүй) ----------
@@ -228,12 +366,63 @@
     var stats = $('[data-editor-stats]', root);
     var priceInput = $('[data-base-price]');
     var svg = makeSvg(wrap, layout);
+    addZoom(wrap, svg, layout, Infinity, $('.seat-toolbar', root));
     var selId = null;
+    var bgUrl = data.bg || null;
+    initPlanBg();
+
+    // Арын план зураг: сонгомогц JPEG болгож шахаад нуугдмал талбарт хийнэ. Талбайн өндрийг зургийн харьцаагаар тааруулна.
+    function initPlanBg() {
+      var box = $('[data-plan-bg]', root);
+      if (!box) return;
+      var file = $('[data-plan-file]', box), hidden = $('[data-plan-data]', box), remove = $('[data-plan-remove-input]', box);
+      var rmBtn = $('[data-plan-remove]', box), status = $('[data-plan-status]', box), op = $('[data-plan-op]', box);
+      if (bgUrl && bgUrl.indexOf('data:') === 0) hidden.value = bgUrl; // алдаатай буцсан үед
+      function paint() { rmBtn.hidden = !bgUrl; op.parentNode.hidden = !bgUrl; }
+      op.value = layout.bgOp || 70;
+      op.addEventListener('input', function () { layout.bgOp = Number(op.value); render(); });
+      file.addEventListener('change', function () {
+        var f = file.files[0];
+        if (!f) return;
+        if (!/^image\//.test(f.type)) { status.textContent = '✕ Зураг биш файл'; return; }
+        status.textContent = 'Боловсруулж байна…';
+        createImageBitmap(f, { imageOrientation: 'from-image' }).then(function (bmp) {
+          var url, q = 0.85, max = 2400;
+          for (var i = 0; i < 4; i++) {
+            var sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+            var c = document.createElement('canvas');
+            c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); // ил тод PNG-г цагаан дэвсгэртэй
+            ctx.drawImage(bmp, 0, 0, c.width, c.height);
+            url = c.toDataURL('image/jpeg', q);
+            if (url.length < 5.2e6) break;
+            max = Math.round(max * 0.8); q -= 0.08;
+          }
+          // Талбайн өндрийг зургийн харьцаанд тааруулна (өргөн хэвээр)
+          var nh = Math.round(layout.w * bmp.height / bmp.width);
+          var lim = SeatMap.LIMITS.h;
+          layout.h = Math.max(lim[0], Math.min(lim[1], nh));
+          layout.items.forEach(clampXY);
+          if (bmp.close) bmp.close();
+          bgUrl = url; hidden.value = url; remove.value = '';
+          status.textContent = '✓ Сонгогдлоо (хадгалахад хуулагдана)';
+          syncCanvasInputs(); paint(); render();
+        }).catch(function () { status.textContent = '✕ Зургийг уншиж чадсангүй'; });
+      });
+      rmBtn.addEventListener('click', function () {
+        bgUrl = null; hidden.value = ''; remove.value = '1'; file.value = '';
+        status.textContent = 'Хадгалахад зураг устгагдана.';
+        paint(); render();
+      });
+      paint();
+    }
 
     function basePrice() { return Number(String(priceInput ? priceInput.value : '').replace(/\D/g, '')) || 0; }
     function find(id) { for (var i = 0; i < layout.items.length; i++) if (layout.items[i].id === id) return layout.items[i]; return null; }
     function newId() { var id; do { id = Math.random().toString(36).slice(2, 9).replace(/[^a-z0-9]/g, 'x'); } while (find(id)); return id; }
     function hasLocked(it) { return SeatMap.seatsOfItem(it, 0).some(function (s) { return locked[s.key]; }); }
+    function seatCount(it) { return it.t === 'table' || it.t === 'row' ? it.n : it.t === 'block' ? it.rows * it.cols : 0; }
     function snap(v) { return Math.round(v / 5) * 5; }
     function clampXY(it) {
       var mw = it.t === 'zone' ? layout.w - it.w : layout.w;
@@ -244,14 +433,18 @@
 
     function save() {
       input.value = JSON.stringify(layout);
-      var t = 0, r = 0, n = 0;
-      layout.items.forEach(function (it) { if (it.t === 'table') { t++; n += it.n; } else if (it.t === 'row') { r++; n += it.n; } });
-      stats.textContent = t + ' ширээ · ' + r + ' эгнээ · нийт ' + n + ' суудал';
+      var t = 0, r = 0, b = 0, n = 0;
+      layout.items.forEach(function (it) {
+        if (it.t === 'table') t++; else if (it.t === 'row') r++; else if (it.t === 'block') b++;
+        n += seatCount(it);
+      });
+      stats.textContent = [b ? b + ' сектор' : '', t ? t + ' ширээ' : '', r ? r + ' эгнээ' : '', 'нийт ' + n + ' суудал'].filter(Boolean).join(' · ');
     }
 
     function render() {
       draw(svg, layout, {
         price: basePrice(),
+        bg: bgUrl,
         editing: true,
         grid: true,
         seatClass: function (s) { return locked[s.key] ? 'paid' : 'free'; },
@@ -266,7 +459,7 @@
     function nextName(type) {
       var used = {};
       layout.items.forEach(function (it) { if (it.t === type) used[it.name] = true; });
-      if (type === 'table') { var i = 1; while (used[String(i)]) i++; return String(i); }
+      if (type === 'table' || type === 'block') { var i = 1; while (used[String(i)]) i++; return String(i); }
       for (var j = 0; j < ROW_LETTERS.length; j++) if (!used[ROW_LETTERS[j]]) return ROW_LETTERS[j];
       var k = 1; while (used['Р' + k]) k++; return 'Р' + k;
     }
@@ -282,7 +475,9 @@
       var it;
       if (type === 'table') it = { id: newId(), t: 'table', x: p.x, y: p.y, n: 8, name: nextName('table'), price: null };
       else if (type === 'row') it = { id: newId(), t: 'row', x: snap(p.x - 150), y: p.y, n: 10, name: nextName('row'), gap: 34, rot: 0, start: 1, price: null };
-      else it = { id: newId(), t: 'zone', x: snap(layout.w / 2 - 150), y: 20, w: 300, h: 60, text: 'ТАЙЗ' };
+      else if (type === 'block') it = { id: newId(), t: 'block', x: snap(p.x - 100), y: snap(p.y - 80), rows: 8, cols: 10, name: nextName('block'), gap: 22, rot: 0, rowStart: 1, seatStart: 1, rowDir: 'down', seatDir: 'ltr', price: null };
+      else if (type === 'label') it = { id: newId(), t: 'zone', x: snap(p.x - 50), y: snap(p.y - 20), w: 100, h: 40, text: 'Gate 1', shape: 'text' };
+      else it = { id: newId(), t: 'zone', x: snap(layout.w / 2 - 150), y: 20, w: 300, h: 60, text: 'ТАЙЗ', shape: 'rect' };
       clampXY(it);
       layout.items.push(it);
       select(it.id);
@@ -299,8 +494,8 @@
       layout.items.forEach(function (o) { bottom = Math.max(bottom, bbox(o).y2); });
       var y0 = layout.items.length ? snap(bottom + 20 + r) : Math.max(r + 80, snap(layout.h / 2 - ((rows - 1) * step) / 2));
       var needW = x0 + (cols - 1) * step + r, needH = y0 + (rows - 1) * step + r;
-      if (needW > layout.w) layout.w = Math.min(4000, Math.ceil(needW / 50) * 50);
-      if (needH > layout.h) layout.h = Math.min(4000, Math.ceil(needH / 50) * 50);
+      if (needW > layout.w) layout.w = Math.min(SeatMap.LIMITS.w[1], Math.ceil(needW / 50) * 50);
+      if (needH > layout.h) layout.h = Math.min(SeatMap.LIMITS.h[1], Math.ceil(needH / 50) * 50);
       for (var i = 0; i < count; i++) {
         layout.items.push({ id: newId(), t: 'table', x: Math.round(x0 + (i % cols) * step), y: Math.round(y0 + Math.floor(i / cols) * step), n: seatsPer, name: nextName('table'), price: price });
       }
@@ -323,12 +518,17 @@
       c.id = newId();
       if (c.t !== 'zone') c.name = nextName(c.t);
       if (c.t === 'table') c.x += SeatMap.tableRadius(c.n) * 2 + 50;
-      else c.y += c.t === 'row' ? 40 : c.h + 20;
+      else if (c.t === 'block') { var bb = bbox(it); c.x += Math.round(bb.x2 - bb.x1 + 20); }
+      else if (c.t !== 'block') c.y += c.t === 'row' ? 40 : c.h + 20;
       clampXY(c);
       layout.items.push(c);
       select(c.id);
     }
 
+    function select2(label, key, opts) {
+      return '<div class="field"><label>' + label + '</label><select data-prop="' + key + '">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select></div>';
+    }
     function field(label, key, type, attrs) {
       return '<div class="field"><label>' + label + '</label><input type="' + type + '" data-prop="' + key + '" ' + (attrs || '') + '></div>';
     }
@@ -345,8 +545,7 @@
           field('Суудал / ширээ', 'g-seats', 'number', 'min="1" max="24" value="10"') +
           field('Нэг эгнээнд', 'g-cols', 'number', 'min="1" max="20" value="5"') +
           '</div>' + field('Суудлын үнэ (₮)', 'g-price', 'text', 'inputmode="numeric" placeholder="Үндсэн үнэ"') +
-          '<button type="button" class="btn btn-sm btn-primary" data-grid>Нэмэх</button>' +
-          '<p class="small faint" style="margin:.75rem 0 0">Эсвэл дээрх товчоор нэг нэгээр нэмээд план дээр сонгож тохируулна.</p>';
+          '<button type="button" class="btn btn-sm btn-primary" data-grid>Нэмэх</button>';
         $('[data-grid]', props).addEventListener('click', function () {
           var v = function (k) { return Number($('[data-prop="' + k + '"]', props).value) || 0; };
           var pd = digits($('[data-prop="g-price"]', props).value);
@@ -357,16 +556,33 @@
         return;
       }
       var lockedNote = hasLocked(it) ? '<p class="small" style="color:var(--warn);margin:0">Захиалагдсан суудалтай — устгах, суудал хасах боломжгүй.</p>' : '';
-      var html = '<h4>' + (it.t === 'table' ? '◯ Ширээ' : it.t === 'row' ? '▭▭ Эгнээ' : '▢ Талбай') + '</h4>' + lockedNote;
-      if (it.t === 'zone') {
+      var html = '<h4>' + ({ table: '◯ Ширээ', row: '▭▭ Эгнээ', block: '▦ Сектор', zone: '▢ Талбай' })[it.t] + '</h4>' + lockedNote;
+      if (it.t === 'block') {
+        html += '<div class="form-grid tight">' + field('Секторын нэр', 'name', 'text', 'maxlength="10"') +
+          field('Үнэ (₮)', 'price', 'text', 'inputmode="numeric" placeholder="Үндсэн үнэ"') + '</div>' +
+          '<div class="form-grid tight">' + field('Эгнээний тоо', 'rows', 'number', 'min="1" max="60"') +
+          field('Эгнээнд суудал', 'cols', 'number', 'min="1" max="80"') + '</div>' +
+          '<div class="form-grid tight">' + field('Эхний эгнээ №', 'rowStart', 'number', 'min="1" max="999"') +
+          field('Эхний суудал №', 'seatStart', 'number', 'min="1" max="999"') + '</div>' +
+          '<div class="form-grid tight">' + select2('1-р эгнээ', 'rowDir', [['down', 'Дээд талд'], ['up', 'Доод талд']]) +
+          select2('Суудлын дугаар', 'seatDir', [['ltr', 'Зүүнээс →'], ['rtl', '← Баруунаас']]) + '</div>' +
+          '<div class="form-grid tight">' + field('Суудлын зай', 'gap', 'number', 'min="14" max="60"') +
+          field('Эргэлт (°)', 'rot', 'number', 'min="-180" max="180" step="5"') + '</div>' +
+          '<h5 class="seat-props-sub">Шошгоны байрлал</h5>' +
+          select2('Секторын нэр', 'np', [['top', 'Дээр'], ['bottom', 'Доор'], ['left', 'Зүүн талд'], ['right', 'Баруун талд'], ['none', 'Харуулахгүй']]) +
+          '<div class="form-grid tight">' + select2('Эгнээний дугаар', 'rp', [['left', 'Зүүн талд'], ['right', 'Баруун талд'], ['both', 'Хоёр талд'], ['none', 'Харуулахгүй']]) +
+          select2('Суудлын дугаар', 'sp', [['top', 'Дээр'], ['bottom', 'Доор'], ['both', 'Дээр, доор'], ['none', 'Харуулахгүй']]) + '</div>';
+      } else if (it.t === 'zone') {
         html += field('Бичвэр', 'text', 'text', 'maxlength="40"') +
+          select2('Хэлбэр', 'shape', [['rect', '▢ Тэгш өнцөгт'], ['ellipse', '◯ Зууван'], ['text', 'Т Зөвхөн бичвэр']]) +
           '<div class="form-grid tight">' + field('Өргөн', 'w', 'number', 'min="20" max="4000" step="10"') + field('Өндөр', 'h', 'number', 'min="20" max="4000" step="10"') + '</div>';
       } else {
         html += '<div class="form-grid tight">' + field(it.t === 'table' ? 'Ширээний дугаар' : 'Эгнээний нэр', 'name', 'text', 'maxlength="10"') +
           field('Суудлын тоо', 'n', 'number', 'min="1" max="' + (it.t === 'table' ? 24 : 60) + '"') + '</div>';
         if (it.t === 'row') {
           html += '<div class="form-grid tight">' + field('Эхний дугаар', 'start', 'number', 'min="1" max="999"') +
-            field('Зай', 'gap', 'number', 'min="28" max="80"') + field('Эргэлт (°)', 'rot', 'number', 'min="-180" max="180" step="5"') + '</div>';
+            field('Зай', 'gap', 'number', 'min="28" max="80"') + field('Эргэлт (°)', 'rot', 'number', 'min="-180" max="180" step="5"') + '</div>' +
+            select2('Эгнээний нэрийн байрлал', 'lp', [['start', 'Эхэнд (1-р суудлын өмнө)'], ['end', 'Төгсгөлд'], ['both', 'Хоёр талд'], ['top', 'Дээр (голд)'], ['bottom', 'Доор (голд)'], ['none', 'Харуулахгүй']]);
         }
         html += field('Үнэ (₮)', 'price', 'text', 'inputmode="numeric" placeholder="Үндсэн үнэ"');
       }
@@ -375,22 +591,23 @@
       props.innerHTML = html;
       $$('[data-prop]', props).forEach(function (inp) {
         var k = inp.getAttribute('data-prop');
-        inp.value = it[k] == null ? '' : it[k];
+        inp.value = it[k] == null ? (inp.tagName === 'SELECT' ? inp.options[0].value : '') : it[k];
         if (k === 'price') moneyInput(inp);
-        inp.addEventListener('input', function () {
+        inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', function () {
           var v = inp.value;
-          if (k === 'name' || k === 'text') it[k] = v.slice(0, k === 'text' ? 40 : 10);
+          if (inp.tagName === 'SELECT') it[k] = v;
+          else if (k === 'name' || k === 'text') it[k] = v.slice(0, k === 'text' ? 40 : 10);
           else if (k === 'price') { var d = digits(v); it.price = d == null ? null : Math.min(1000000000, d); }
           else {
             var num = Number(v);
             if (!isFinite(num) || v === '') return;
             var min = Number(inp.min), max = Number(inp.max);
             if (num < min || num > max) return;
-            if (k === 'n' && num < it.n) {
-              var test = JSON.parse(JSON.stringify(it)); test.n = num;
+            if ((k === 'n' || k === 'rows' || k === 'cols') && num < it[k]) {
+              var test = JSON.parse(JSON.stringify(it)); test[k] = num;
               var keep = {}; SeatMap.seatsOfItem(test, 0).forEach(function (s) { keep[s.key] = true; });
               var lost = SeatMap.seatsOfItem(it, 0).some(function (s) { return locked[s.key] && !keep[s.key]; });
-              if (lost) { inp.value = it.n; window.alert('Захиалагдсан суудлыг хасах боломжгүй.'); return; }
+              if (lost) { inp.value = it[k]; window.alert('Захиалагдсан суудлыг хасах боломжгүй.'); return; }
             }
             it[k] = Math.round(num);
           }
@@ -414,6 +631,16 @@
       if (it.t === 'table') {
         var r = SeatMap.tableRadius(it.n) + SeatMap.SEAT_R * 2 + 6;
         return { x1: it.x - r, x2: it.x + r, y1: it.y - r, y2: it.y + r };
+      }
+      if (it.t === 'block') {
+        // Шошгыг оруулаад: зүүн талд эгнээний дугаар, дээр нь суудлын дугаар, секторын нэр
+        var L = SeatMap.blockLabels(it);
+        var r1 = -0.5, r2 = it.rows - 0.5, c1 = -0.5, c2 = it.cols - 0.5;
+        L.seatNumR.concat(L.name ? [L.name.r] : []).forEach(function (r) { r1 = Math.min(r1, r - 0.5); r2 = Math.max(r2, r + 0.5); });
+        L.rowNumC.concat(L.name ? [L.name.c] : []).forEach(function (c) { c1 = Math.min(c1, c - 0.6); c2 = Math.max(c2, c + 0.6); });
+        var pts = [[r1, c1], [r1, c2], [r2, c1], [r2, c2]].map(function (q) { return SeatMap.blockPoint(it, q[0], q[1]); });
+        var px = pts.map(function (q) { return q.x; }), py = pts.map(function (q) { return q.y; });
+        return { x1: Math.min.apply(null, px), x2: Math.max.apply(null, px), y1: Math.min.apply(null, py), y2: Math.max.apply(null, py) };
       }
       var s = SeatMap.seatsOfItem(it, 0), R = SeatMap.SEAT_R;
       var xs = s.map(function (q) { return q.x; }), ys = s.map(function (q) { return q.y; });

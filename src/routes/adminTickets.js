@@ -4,7 +4,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { flash, wrap, requirePerm, can } = require('../middleware');
-const { clean } = require('../helpers');
+const { clean, fullName } = require('../helpers');
 const tk = require('../tickets');
 
 const gallery = require('../gallery');
@@ -22,10 +22,17 @@ function posterFields(body) {
   if (!poster || !thumb) return { error: 'Постер зураг буруу эсвэл хэт том байна.' };
   return { poster: { poster, poster_thumb: thumb, poster_v: Math.floor(Date.now() / 1000) % 2000000000 } };
 }
+// Суудлын планы арын зураг (заавал биш)
+function planBgFields(body) {
+  if (!body.plan_bg) return { bg: body.remove_plan_bg ? { plan_bg: null, plan_bg_v: null } : null };
+  const img = gallery.parseJpeg(body.plan_bg, gallery.MAX_PHOTO);
+  if (!img) return { error: 'Планы зураг буруу эсвэл хэт том байна.' };
+  return { bg: { plan_bg: img, plan_bg_v: Math.floor(Date.now() / 1000) % 2000000000 } };
+}
 const safeJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 const blank = () => tk.formValues({
-  title: '', summary: '', body: '', venue: '', event_at: null, sale_start: null, sale_end: null, seating: 'none', price: 0,
+  title: '', summary: '', body: '', venue: '', venue_url: '', event_at: null, sale_start: null, sale_end: null, seating: 'none', price: 0,
   capacity: null, max_per_order: 10, hold_hours: 24, layout: null, bank_name: '', bank_account: '', bank_holder: '', contact: '', status: 'draft',
 });
 
@@ -34,10 +41,14 @@ async function lockedKeys(eventId) {
   return rows.map((r) => r.seat_key);
 }
 
-function renderForm(res, item, errors = [], locked = []) {
+// bg: алдаатай буцахад шинээр сонгосон зургийг (data URL) алдахгүйн тулд
+function renderForm(res, item, errors = [], locked = [], body = {}) {
+  let bg = item.plan_bg_v ? `/tickets/${item.id}/plan-bg?v=${item.plan_bg_v}` : null;
+  if (body.remove_plan_bg) bg = null;
+  if (body.plan_bg && /^data:image\/jpeg;base64,/.test(body.plan_bg)) bg = body.plan_bg;
   res.status(errors.length ? 400 : 200).render('admin/ticket-form', {
     title: item.id ? 'Арга хэмжээ засах' : 'Шинэ арга хэмжээ', item, errors, tk,
-    editorJson: safeJson({ layout: JSON.parse(item.layout || '{}'), price: Number(item.price) || 0, locked }),
+    editorJson: safeJson({ layout: JSON.parse(item.layout || '{}'), price: Number(item.price) || 0, locked, bg }),
   });
 }
 
@@ -51,8 +62,10 @@ router.post('/', manage, wrap(async (req, res) => {
   const { errors, fields } = tk.eventFields(req.body);
   const p = posterFields(req.body);
   if (p.error) errors.push(p.error);
-  if (errors.length) return renderForm(res, tk.formValues({ ...fields, layout: req.body.layout }), errors);
-  const [r] = await pool.query('INSERT INTO ticket_events SET ?', [{ ...fields, ...(p.poster || {}), created_by: req.user.id }]);
+  const b = planBgFields(req.body);
+  if (b.error) errors.push(b.error);
+  if (errors.length) return renderForm(res, tk.formValues({ ...fields, layout: req.body.layout }), errors, [], req.body);
+  const [r] = await pool.query('INSERT INTO ticket_events SET ?', [{ ...fields, ...(p.poster || {}), ...(b.bg || {}), created_by: req.user.id }]);
   flash(req, 'success', fields.status === 'open' ? 'Арга хэмжээ нийтлэгдлээ.' : 'Ноорог хадгалагдлаа.');
   res.redirect(`/admin/tickets/${r.insertId}`);
 }));
@@ -67,12 +80,16 @@ router.post('/:id(\\d+)/edit', manage, wrap(async (req, res, next) => {
   const item = await tk.get(req.params.id);
   if (!item) return next();
   const locked = await lockedKeys(item.id);
-  const hasOrders = item.paid_qty + item.pending_qty > 0;
+  const hasOrders = item.paid_qty + item.pending_qty + item.held_qty > 0;
   const { errors, fields } = tk.eventFields(req.body, { lockedKeys: locked, hasOrders, current: item });
   const p = posterFields(req.body);
   if (p.error) errors.push(p.error);
-  if (errors.length) return renderForm(res, tk.formValues({ ...fields, id: item.id, poster_v: item.poster_v, layout: req.body.layout || item.layout }), errors, locked);
-  await pool.query('UPDATE ticket_events SET ? WHERE id = ?', [{ ...fields, ...(p.poster || {}) }, item.id]);
+  const b = planBgFields(req.body);
+  if (b.error) errors.push(b.error);
+  if (errors.length) {
+    return renderForm(res, tk.formValues({ ...fields, id: item.id, poster_v: item.poster_v, plan_bg_v: item.plan_bg_v, layout: req.body.layout || item.layout }), errors, locked, req.body);
+  }
+  await pool.query('UPDATE ticket_events SET ? WHERE id = ?', [{ ...fields, ...(p.poster || {}), ...(b.bg || {}) }, item.id]);
   flash(req, 'success', 'Хадгалагдлаа.');
   res.redirect(`/admin/tickets/${item.id}`);
 }));
@@ -83,15 +100,27 @@ router.post('/:id(\\d+)/delete', manage, wrap(async (req, res) => {
   res.redirect('/admin/tickets');
 }));
 
+// Гараар тасалбар бичихэд сонгох бүртгэлтэй (батлагдсан) төгсөгчид
+async function memberOptions() {
+  const [rows] = await pool.query(
+    `SELECT u.id, u.surname, u.name, u.phone, u.class_name, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
+     WHERE u.status = 'approved' ORDER BY u.surname, u.name`
+  );
+  return rows;
+}
+
 async function renderManage(res, event, tab, errors = [], form = {}) {
   const all = await tk.orders(event.id);
   const states = event.seating === 'seated' ? await tk.seatStates(event.id, null) : {};
   res.status(errors.length ? 400 : 200).render('admin/ticket', {
     title: `${event.title} — Тасалбар`, event, tk, errors, form, tab,
-    pending: all.filter((o) => o.status === 'pending'),
+    members: tab === 'sell' ? await memberOptions() : [],
+    active: all.filter((o) => o.status !== 'cancelled'),
+    pending: all.filter((o) => o.status === 'pending' && !o.held),
+    held: all.filter((o) => o.held),
     paid: all.filter((o) => o.status === 'paid'),
     cancelled: all.filter((o) => o.status === 'cancelled'),
-    mapJson: event.seating === 'seated' ? safeJson({ layout: event.layoutObj, price: event.price, states, max: 100 }) : null,
+    mapJson: event.seating === 'seated' ? safeJson({ layout: event.layoutObj, price: event.price, states, max: 100, bg: event.planBgUrl }) : null,
   });
 }
 
@@ -113,21 +142,27 @@ router.get('/:id(\\d+)/sell', sell, wrap(async (req, res, next) => {
 router.post('/:id(\\d+)/orders', sell, wrap(async (req, res, next) => {
   const event = await tk.get(req.params.id);
   if (!event) return next();
-  const name = clean(req.body.buyer_name, 150);
-  if (!name) return renderManage(res, event, 'sell', ['Худалдан авагчийн нэрийг бичнэ үү.'], req.body);
+  // Зөвхөн бүртгэлтэй (батлагдсан) төгсөгчид тасалбар бичнэ
+  const [[buyer]] = await pool.query("SELECT id, surname, name, phone FROM users WHERE id = ? AND status = 'approved'", [Number(req.body.user_id) || 0]);
+  if (!buyer) return renderManage(res, event, 'sell', ['Тасалбар авах төгсөгчийг жагсаалтаас сонгоно уу.'], req.body);
   try {
     const r = await tk.placeOrder(event.id, {
       admin: true,
-      paid: req.body.paid === '1',
+      paid: req.body.mode !== 'held',
+      held: req.body.mode === 'held',
       reviewerId: req.user.id,
-      buyerName: name,
-      buyerPhone: req.body.buyer_phone,
+      userId: buyer.id,
+      buyerName: fullName(buyer),
+      buyerPhone: buyer.phone,
       note: req.body.note,
       quantity: Number(req.body.quantity),
       seatKeys: String(req.body.seats || '').split(',').filter(Boolean).slice(0, 200),
     });
-    flash(req, 'success', `Тасалбар бүртгэгдлээ (код ${r.code}).`);
-    res.redirect(`/admin/tickets/${event.id}/sell`);
+    flash(req, 'success', r.held
+      ? `Түгжигдлээ (код ${r.code}). Энэ кодыг гүйлгээний утгад бичиж төлнө; төлбөр орвол борлуулалтаас "Төлсөн" болгоно.`
+      : `Тасалбар бүртгэгдлээ (код ${r.code}).`);
+    // Онлайн захиалгатай адил: захиалгын хуудас (код, төлбөрийн мэдээлэл) руу
+    res.redirect(`/tickets/order/${r.code}`);
   } catch (err) {
     if (!(err instanceof tk.OrderError)) throw err;
     await renderManage(res, event, 'sell', [err.message], req.body);

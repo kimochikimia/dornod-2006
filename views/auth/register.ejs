@@ -3,7 +3,6 @@
   <div class="card auth-card wide glow modal">
     <a href="/" class="modal-close" data-modal-close aria-label="Хаах" title="Хаах (Esc)">&times;</a>
     <h1>Бүртгүүлэх</h1>
-    <p class="muted">Дорнод аймгийн сургуулиудыг 2006 онд төгссөн бол бүртгүүлээрэй. Админ таны мэдээллийг шалгаж баталгаажуулна.</p>
     <% if (errors.length) { %>
       <div class="flash error"><% errors.forEach(function (e) { %><div>• <%= e %></div><% }) %></div>
     <% } %>
@@ -17,7 +16,6 @@
           <label class="btn btn-sm" for="photo_file">Зураг сонгох</label>
           <input id="photo_file" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file hidden>
           <button type="button" class="btn btn-sm btn-ghost" data-photo-clear <%= form.photo_data ? '' : 'hidden' %>>Арилгах</button>
-          <div class="hint">Нүүр царай тод харагдах зураг. Автоматаар дөрвөлжин болж багасна.</div>
           <input type="hidden" name="photo_data" value="<%= form.photo_data || '' %>" data-photo-data>
         </div>
       </div>
@@ -33,7 +31,6 @@
         <div class="field">
           <label for="short_name">Товч нэр</label>
           <input id="short_name" type="text" name="short_name" value="<%= form.short_name || '' %>" maxlength="40" placeholder="ж: Бат, Сараа">
-          <div class="hint">Найз нөхөд тань таныг ингэж дууддаг бол.</div>
         </div>
         <div class="field">
           <label>Хүйс <span class="req">*</span></label>
@@ -45,7 +42,6 @@
         <div class="field">
           <label for="phone">Утасны дугаар <span class="req">*</span></label>
           <input id="phone" type="tel" name="phone" value="<%= form.phone || '' %>" maxlength="20" autocomplete="username" required>
-          <div class="hint">Нэвтрэхдээ энэ дугаарыг ашиглана.</div>
         </div>
         <div class="field">
           <label for="email">И-мэйл</label>
@@ -99,7 +95,6 @@
         <div class="field">
           <label for="password">Нууц үг <span class="req">*</span></label>
           <input id="password" type="password" name="password" minlength="8" autocomplete="new-password" required>
-          <div class="hint">Дор хаяж 8 тэмдэгт.</div>
         </div>
         <div class="field">
           <label for="password2">Нууц үг давтах <span class="req">*</span></label>

@@ -27,14 +27,14 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; font-size: 15px; } /* бүх rem хэмжээний суурь (100% томруулалтад тохирсон) */
 body {
   margin: 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   font-family: var(--font);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.6;
   color: var(--text);
   background:
@@ -47,9 +47,9 @@ main { flex: 1; }
 a { color: #a5b8ff; text-decoration: none; }
 a:hover { color: #fff; }
 h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 0.5em; font-weight: 700; letter-spacing: -0.01em; }
-h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.15rem; }
+h1 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.1rem; }
 p { margin: 0 0 1em; }
 .muted { color: var(--muted); }
 .faint { color: var(--faint); }
@@ -151,15 +151,15 @@ form.inline { display: inline; }
   display: inline-flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0.85rem; border-radius: 999px;
   border: 1px solid var(--border-strong); background: var(--grad-soft); color: #dbe2ff; font-size: 0.85rem; font-weight: 600;
 }
-.hero h1 { font-size: clamp(2.2rem, 6vw, 3.8rem); margin: 0 0 0.75rem; }
-.hero p.lead { font-size: 1.15rem; color: var(--muted); max-width: 640px; }
+.hero h1 { font-size: clamp(2rem, 4.2vw, 3rem); margin: 0 0 0.75rem; }
+.hero p.lead { font-size: 1.05rem; color: var(--muted); max-width: 640px; }
 .hero .actions { margin-top: 1.75rem; }
 .page-head { padding: 2.5rem 0 1rem; }
 .page-head p { color: var(--muted); }
 
 /* ---------- Stat tiles ---------- */
 .stat { padding: 1.25rem 1.5rem; }
-.stat .num { font-size: 2.2rem; font-weight: 800; line-height: 1.1; }
+.stat .num { font-size: 1.9rem; font-weight: 800; line-height: 1.1; }
 .stat .label { color: var(--muted); font-size: 0.9rem; }
 
 /* ---------- Badges ---------- */
@@ -1279,25 +1279,26 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
 
 /* ---------- Тасалбар: постертой картууд ---------- */
 .tk-section-h { margin: 0.5rem 0 1rem; }
-.tk-grid { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); margin-bottom: 2.5rem; }
-.tk-pcard { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: var(--panel); color: inherit; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
+.tk-grid { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); margin-bottom: 2.5rem; }
+.tk-pcard { display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); overflow: hidden; border: 1px solid var(--border); background: var(--panel); color: inherit; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
 .tk-pcard:hover { color: inherit; transform: translateY(-3px); border-color: var(--border-strong); box-shadow: var(--shadow); }
 .tk-pcard.is-closed { opacity: 0.65; }
-.tk-pcard-img { position: relative; aspect-ratio: 3 / 4; background: #0b0d1f; overflow: hidden; }
+.tk-pcard-img { position: relative; aspect-ratio: 1 / 1; background: #0b0d1f; overflow: hidden; }
 .tk-pcard-img img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
 .tk-pcard:hover .tk-pcard-img img { transform: scale(1.03); }
 .tk-pcard-noimg { height: 100%; display: grid; place-content: center; text-align: center; background: var(--grad-soft); }
 .tk-pcard-noimg .tk-day { font-size: 3rem; line-height: 1; }
 .tk-pcard-badge { position: absolute; top: 0.6rem; left: 0.6rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
-.tk-pcard-body { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.8rem 0.85rem 0.9rem; flex: 1; }
-.tk-pcard-body h3 { font-size: 0.95rem; margin: 0 0 0.2rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.tk-pcard-row { display: flex; gap: 0.4rem; font-size: 0.82rem; color: var(--muted); }
+.tk-pcard-body { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.85rem 0.85rem 0.9rem; flex: 1; }
+.tk-pcard-body h3 { font-size: 0.9rem; font-weight: 700; margin: 0 0 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-pcard-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; color: var(--muted); min-width: 0; }
+.tk-ic { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
 .tk-pcard-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tk-pcard-price { color: #c7d2fe; font-weight: 700; }
-.tk-pcard-btn { margin-top: auto; display: block; text-align: center; padding: 0.55rem; border-radius: 10px; background: var(--grad); color: #fff; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.02em; }
+.tk-pcard-btn { margin-top: auto; display: block; text-align: center; padding: 0.6rem; border-radius: 8px; background: var(--grad); color: #fff; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .tk-pcard-body .tk-pcard-price + .tk-pcard-btn { margin-top: auto; }
 .tk-pcard-btn.off { background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
-.tk-pcard-body > .tk-pcard-row:last-of-type { margin-bottom: 0.5rem; }
+.tk-pcard-body > .tk-pcard-row:last-of-type { margin-bottom: 0.6rem; }
 @media (max-width: 700px) {
   .tk-slide-inner { grid-template-columns: 1fr; gap: 1rem; padding: 1.25rem 1.25rem 2.25rem; justify-items: center; text-align: center; }
   .tk-slide-poster { height: 220px; }
@@ -1390,3 +1391,97 @@ code { padding: 0.05rem 0.35rem; border-radius: 5px; background: rgba(139, 92, 2
 .member-title { padding-right: 2.5rem; }
 .member-title.has-edit { padding-right: 10rem; }
 @media (max-width: 560px) { .member-title.has-edit { padding-right: 0; } }
+
+/* ---------- Суудлын план: сектор, бичвэр, томруулах, сонгосон суудлын карт ---------- */
+.seat rect { fill: #ffffff; stroke: #6366f1; stroke-width: 1.2; transition: fill 0.12s; }
+.seat.can:hover rect { fill: #c7d2fe; stroke: #4338ca; }
+.seat.sel rect { fill: #7c3aed; stroke: #5b21b6; }
+.seat.pending rect { fill: #fde68a; stroke: #d97706; }
+.seat.paid rect { fill: #9ca3af; stroke: #6b7280; }
+.seat.mine rect { fill: #059669; stroke: #047857; }
+.seat-svg .block-label { fill: #1e293b; font-weight: 800; }
+.seat-svg .block-num { fill: #64748b; font-weight: 600; }
+.seat-svg .zone-text { fill: transparent; stroke: transparent; }
+.seat-editor .seat-item.t-zone .zone-text { stroke: rgba(139, 92, 246, 0.35); stroke-dasharray: 4 4; }
+.seat-svg ellipse.zone { fill: #ede9fe; stroke: #8b5cf6; stroke-dasharray: 6 4; }
+.seat-editor .seat-item.selected .seat rect { stroke: #f59e0b; }
+.seat-editor .seat-item.selected .block-label { fill: #d97706; }
+.seat-props select { padding: 0.45rem 0.6rem; font-size: 0.9rem; }
+.seat-zoom { display: flex; justify-content: flex-end; gap: 0.35rem; margin-bottom: 0.5rem; }
+.seat-zoom .btn { min-width: 2.4rem; }
+.seat-map-wrap.zoomed { max-height: 75vh; border: 1px solid var(--border); }
+.tk-pick-card { flex: 1 1 100%; display: flex; align-items: center; gap: 0.55rem; padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--panel-2); }
+.tk-pick-sec { flex: none; display: grid; place-items: center; min-width: 3.2rem; padding: 0.3rem 0.45rem; border-radius: 10px; background: #4c3f7a; color: #fff; line-height: 1.15; }
+.tk-pick-sec strong { font-size: 1.15rem; }
+.tk-pick-sec span { font-size: 0.72rem; opacity: 0.85; }
+.tk-pick-info { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.tk-pick-info strong { white-space: nowrap; }
+.tk-pick-info span { font-size: 0.8rem; color: var(--muted); }
+.tk-pick-price { flex: none; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+.tk-pick-card .btn { flex: none; }
+.seat-zoom.inline { margin: 0; }
+.seat-map-wrap.zoomed:not(.editing) { cursor: grab; }
+.seat-map-wrap.panning, .seat-map-wrap.panning .seat { cursor: grabbing; }
+.seat-props-sub { margin: 0.35rem 0 -0.2rem; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+/* Удирдлага гараар түгжсэн суудал */
+.seat.held circle, .seat.held rect { fill: #fb7185; stroke: #e11d48; }
+.seat.held text { fill: #fff; }
+.sw.held { background: #fb7185; border-color: #e11d48; }
+.tk-sell-mode { display: grid; grid-template-columns: 1fr 1fr; }
+.badge.held { background: rgba(251, 113, 133, 0.16); color: #fda4af; border-color: rgba(225, 29, 72, 0.5); }
+.tk-cancelled > summary { cursor: pointer; color: var(--muted); margin-bottom: 0.5rem; }
+
+/* ---------- Арга хэмжээний дэлгэрэнгүй: постер баннер, мэдээлэл + үнэ, байршил ---------- */
+.tk-detail > .small:first-child { display: inline-block; margin-bottom: 0.75rem; }
+.tk-banner { position: relative; display: grid; place-items: center; height: clamp(240px, 42vw, 460px); margin-bottom: 1.5rem; border-radius: var(--radius); overflow: hidden; background: #0b0d1f; border: 1px solid var(--border); }
+.tk-banner-bg { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); object-fit: cover; filter: blur(28px) brightness(0.55); }
+.tk-banner-img { position: relative; height: 100%; max-width: 100%; object-fit: contain; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+.tk-title { align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.tk-title h1 { margin: 0.45rem 0 0; font-size: clamp(1.5rem, 3vw, 2.1rem); }
+.tk-facts { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1rem 2rem; }
+.tk-facts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; font-size: 0.9rem; }
+.tk-facts-list li { display: flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
+.tk-facts-list strong { font-weight: 600; overflow-wrap: anywhere; }
+.tk-fi { width: 1.3rem; flex: none; text-align: center; }
+.tk-fl { color: var(--muted); white-space: nowrap; font-size: 0.88rem; }
+.tk-prices { display: grid; gap: 0.45rem; align-content: start; font-size: 0.9rem; }
+.tk-price-row { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 0.35rem; border-bottom: 1px dashed var(--border); }
+.tk-price-row span { color: var(--muted); }
+.tk-rule { border: 0; height: 2px; margin: 1.5rem 0; background: var(--grad); opacity: 0.7; border-radius: 2px; }
+.tk-sec { margin-bottom: 1.5rem; }
+.tk-sec h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+.tk-map { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 0.5rem; }
+.tk-map iframe { display: block; width: 100%; height: 340px; border: 0; }
+@media (max-width: 700px) { .tk-facts { grid-template-columns: 1fr; } .tk-banner { height: 260px; } }
+
+/* ---------- Төлөвлөгөө: мэдээллийн самбар ---------- */
+.plan-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.plan-stat { display: grid; gap: 0.35rem; align-content: start; padding: 1.1rem 1.2rem; border-top: 3px solid var(--border-strong); }
+.plan-stat-top { display: flex; align-items: center; gap: 0.45rem; }
+.plan-stat-top .label { color: var(--muted); font-size: 0.88rem; font-weight: 600; }
+.plan-stat-ic { font-size: 1.05rem; }
+.plan-stat .num { font-size: 1.9rem; font-weight: 800; line-height: 1.1; }
+.plan-stat.is-done { border-top-color: #34d399; }
+.plan-stat.is-done .num { color: #6ee7b7; }
+.plan-stat.is-active { border-top-color: #8b5cf6; }
+.plan-stat.is-active .num { color: #c4b5fd; }
+.plan-stat.is-upcoming { border-top-color: #4f7cff; }
+.plan-stat.is-upcoming .num { color: #a5b4fc; }
+.plan-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; background: var(--panel-2); margin: 0.2rem 0 0.1rem; }
+.plan-bar i { display: block; height: 100%; }
+.plan-bar .b-done { background: #34d399; }
+.plan-bar .b-active { background: #8b5cf6; }
+.plan-next { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-expire { margin-top: 0.25rem; color: #fcd34d; }
+.tk-expire strong, .tk-expire-cd { font-variant-numeric: tabular-nums; }
+.tk-mine-foot { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.tk-mine-foot .tk-expire { margin: 0; font-size: 0.9rem; }
+.tk-pay-btn { margin-left: auto; }
+dialog.tk-pay-dialog { width: min(480px, calc(100% - 2rem)); }
+.cmp-mine-row { flex-direction: column; align-items: stretch; }
+.tk-mine-dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.3rem 0.75rem; margin: 0; font-size: 0.88rem; }
+.tk-mine-dl dt { color: var(--muted); white-space: nowrap; }
+.tk-mine-dl dd { margin: 0; }
+.tk-mine-foot { flex-wrap: nowrap; gap: 0.5rem; }
+.tk-mine-foot .badge { font-size: 0.72rem; }
+.tk-mine-foot .tk-expire { font-size: 0.85rem; white-space: nowrap; }

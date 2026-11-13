@@ -3,7 +3,6 @@
   <div class="page-head row between">
     <div>
       <h1>Удирдах зөвлөл</h1>
-      <p style="margin:0">Дорнод аймгийн 2006 оны төгсөгчдийн холбооны удирдах зөвлөлийн бүрэлдэхүүн, хариуцсан ажил.</p>
     </div>
     <% if (can('manage_board')) { %><a class="btn" href="<%= boardElection ? '/admin/elections/' + boardElection.id + '/board' : '/admin/elections' %>">✎ Зөвлөл засах</a><% } %>
   </div>

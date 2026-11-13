@@ -3,7 +3,6 @@
   <div class="card auth-card glow modal">
     <a href="/" class="modal-close" data-modal-close aria-label="Хаах" title="Хаах (Esc)">&times;</a>
     <h1>Нэвтрэх</h1>
-    <p class="muted">Бүртгүүлсэн утасны дугаар, нууц үгээрээ нэвтэрнэ үү.</p>
     <% if (error) { %><div class="flash error"><%= error %></div><% } %>
     <form method="post" action="/login" class="form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">

@@ -18,7 +18,7 @@
       <h2 style="margin:0">Сонгуулийн явц</h2>
       <a class="btn btn-sm" href="/elections/<%= e.id %>">Нийтийн хуудас →</a>
     </div>
-    <p class="muted" style="margin-top:.5rem">Одоогийн шат: <span class="badge grad"><%= PHASE_LABELS[e.phase] %></span> — <%= hint[e.phase] %></p>
+    <p class="muted" style="margin-top:.5rem">Одоогийн шат: <span class="badge grad"><%= PHASE_LABELS[e.phase] %></span></p>
     <p class="small muted">
       Нэр дэвшигч: <strong style="color:<%= rd.active >= e.seats ? 'var(--success, #4ade80)' : 'var(--warn)' %>"><%= rd.active %> / <%= e.seats %></strong>
       · Зөвшөөрсөн: <strong style="color:<%= rd.accepted >= e.seats ? 'var(--success, #4ade80)' : 'var(--warn)' %>"><%= rd.accepted %> / <%= e.seats %></strong>
@@ -55,7 +55,6 @@
       <% if (deadline) { %>
         <p class="small" style="margin-top:.75rem"><%= deadline.label %>: <strong data-countdown="<%= deadline.at %>"></strong> <span class="faint">(<%= deadline.atText %>)</span></p>
       <% } %>
-      <p class="small faint" style="margin-top:.5rem">"Одоо эхлүүлэх" товчоор дараагийн шатыг хугацаанаас нь өмнө эхлүүлж болно. Бүрэн гараар удирдах бол доорх тохиргооноос "Хуваарийн дагуу автоматаар явуулах"-ыг унтраана уу.</p>
     <% } else { %>
     <h3 style="margin-top:1rem">Шат солих</h3>
     <div class="phase-controls">
@@ -72,7 +71,7 @@
         </form>
       <% }) %>
     </div>
-    <p class="small faint" style="margin-top:.75rem">Дараалал: Ноорог → Нэр дэвшүүлэх → Зөвшөөрөл авах → Санал хураалт → Дүн гарсан. Санал өгөгдсөний дараа өмнөх шатууд руу буцах боломжгүй.</p>
+    <p class="small faint" style="margin-top:.75rem">Санал өгөгдсөний дараа өмнөх шатууд руу буцах боломжгүй.</p>
     <% } %>
   </div>
 

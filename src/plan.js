@@ -127,4 +127,18 @@ function defaultYear(items) {
   return +items[0].start_date.slice(0, 4);
 }
 
-module.exports = { PLAN_COLORS, loadItems, buildTimeline, buildMonthly, defaultYear };
+// Мэдээллийн самбар: нийт, дууссан, явагдаж буй, төлөвлөсөн, гүйцэтгэлийн хувь, дараагийн ажил
+function stats(items) {
+  const today = todayStr();
+  const s = { total: items.length, done: 0, active: 0, upcoming: 0, milestones: 0, pct: 0, next: null, nextDays: null };
+  for (const it of items) {
+    s[it.status]++;
+    if (it.kind === 'milestone') s.milestones++;
+    if (it.status === 'upcoming' && (!s.next || it.start_date < s.next.start_date)) s.next = it;
+  }
+  s.pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+  if (s.next) s.nextDays = Math.round((toMs(s.next.start_date) - toMs(today)) / DAY);
+  return s;
+}
+
+module.exports = { PLAN_COLORS, loadItems, buildTimeline, buildMonthly, defaultYear, stats };

@@ -25,7 +25,6 @@
         <button class="btn btn-sm btn-ghost">Анхны тохиргоо</button>
       </form>
     </div>
-    <p class="muted small">Чагтлаад "Хадгалах" дарна. Эрх тухайн төлөвтэй бүх баталгаажсан хэрэглэгчид шууд үйлчилнэ. Баталгаажаагүй бүртгэлд ямар ч эрх үйлчлэхгүй. 🔒 — админаас авах боломжгүй эрх (бүгд удирдлагаас түгжигдэхээс сэргийлнэ).</p>
     <form method="post" action="/admin/roles">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <div class="table-wrap">
@@ -64,7 +63,6 @@
 
   <div class="card" style="margin-bottom:1.25rem" id="groups">
     <h2 style="margin:0 0 .35rem">Эрхийн бүлэг</h2>
-    <p class="muted small" style="margin-top:0">Эрх бүр өөрийн бүлэгтэй. Бүлэгт нэмсэн хэрэглэгч төлвөөсөө үл хамааран тухайн эрхийг авна (жишээ нь энгийн төгсөгчид зөвхөн тасалбарын төлбөр баталгаажуулах эрх өгөх). Бүлгээс хасахад эрх нь шууд цуцлагдана — төлвөөрөө авсан эрх хэвээр үлдэнэ.</p>
     <datalist id="perm-people">
       <% people.forEach(function (u) { %><option value="<%= u.phone %>"><%= u.surname %> <%= u.name %></option><% }) %>
     </datalist>
@@ -114,7 +112,6 @@
 
   <div class="card">
     <h2>Модератор, дэд админ, админууд</h2>
-    <p class="muted small">Төлөв олгохдоо <a href="/admin/users">Төгсөгчид</a> хэсгийн "Төлөв" баганаас сонгоно.</p>
     <% if (!staff.length) { %>
       <p class="muted">Алга.</p>
     <% } else { %>

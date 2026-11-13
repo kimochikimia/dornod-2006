@@ -77,7 +77,6 @@
           <select name="role" <%= user.id === me.id || !can('manage_roles') ? 'disabled' : '' %>>
             <% Object.keys(ROLE_LABELS).forEach(function (r) { %><option value="<%= r %>" <%= user.role === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option><% }) %>
           </select>
-          <% if (can('manage_roles')) { %><div class="hint">Төлөв бүрийн эрхийг <a href="/admin/roles">Эрх, төлөв</a> хэсэгт тохируулна.</div><% } %>
         </div>
       </div>
       <div class="field"><label>Мэргэжил</label></div>
@@ -90,7 +89,6 @@
   <div class="grid grid-2">
     <div class="card">
       <h3>Нууц үг шинэчлэх</h3>
-      <p class="small muted">Төгсөгч нууц үгээ мартсан үед шинэ нууц үг тохируулж өгнө.</p>
       <form method="post" action="/admin/users/<%= user.id %>/password" class="row">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <input type="text" name="password" minlength="8" placeholder="Шинэ нууц үг" required style="flex:1">

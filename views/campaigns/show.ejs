@@ -74,12 +74,10 @@
         <% if (k.status !== 'active') { %>
           <p class="small muted" style="margin:0">Энэ аян дууссан. Дэмжсэн бүх хүмүүст баярлалаа! 🙏</p>
         <% } else if (!me) { %>
-          <p class="small muted">Хандив өгсөн бол нэвтэрч мэдэгдээрэй — удирдлага шалгаад жагсаалтад нэмнэ.</p>
           <a class="btn btn-primary btn-sm" href="/login?next=<%= encodeURIComponent('/campaigns/' + k.id + '#support') %>">Нэвтрэх</a>
         <% } else if (me.status !== 'approved') { %>
           <p class="small muted" style="margin:0">Таны бүртгэл баталгаажсаны дараа дэмжлэгээ мэдэгдэх боломжтой.</p>
         <% } else { %>
-          <p class="small muted">Данс руу шилжүүлсэн эсвэл бусад зүйлээр дэмжсэн бол энд бүртгүүлнэ үү. Удирдлага баталгаажуулсны дараа нийтэд харагдана.</p>
           <% if (errors.length) { %><div class="flash error small"><% errors.forEach(function (e) { %><div><%= e %></div><% }) %></div><% } %>
           <form method="post" action="/campaigns/<%= k.id %>/support" class="form support-form">
             <input type="hidden" name="_csrf" value="<%= csrf %>">

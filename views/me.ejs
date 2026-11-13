@@ -25,7 +25,6 @@
         <dt>Мэргэжил</dt><dd><% var profs = h.readProfessions(me); %><% if (profs.length) { %><% profs.forEach(function (p) { %><div><%= p.title || h.PROFESSION_LABELS[p.field] %><% if (p.field && p.title) { %> <span class="small muted">· <%= h.PROFESSION_LABELS[p.field] %></span><% } %></div><% }) %><% } else { %>—<% } %></dd>
         <dt>Хот</dt><dd><%= me.city || '—' %></dd>
       </dl>
-      <p class="small faint" style="margin-top:1rem">Мэдээллийн өөрчлөлтийг админ хийнэ. Доорх маягтаар хүсэлт илгээнэ үү.</p>
     </div>
 
     <div class="card">

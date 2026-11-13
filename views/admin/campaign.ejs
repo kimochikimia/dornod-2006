@@ -29,7 +29,6 @@
     <% if (!pending.length) { %>
       <p class="small faint">Шалгах мэдэгдэл алга.</p>
     <% } else { %>
-      <p class="small muted">Дансны хуулга эсвэл хүлээн авсан зүйлтэй тулгаад баталгаажуулна уу. Баталгаажсан нь нийтэд харагдаж, дүнд нэмэгдэнэ.</p>
       <%- include('_contrib-table', { rows: pending, k: k, what: what, actions: [['confirmed', '✓ Баталгаажуулах', 'btn-primary'], ['rejected', 'Татгалзах', '']] }) %>
     <% } %>
   </section>
@@ -47,7 +46,6 @@
   <%# ---------- Гараар бүртгэх ---------- %>
   <details class="card settings-card" style="margin-bottom:1.5rem" <%= errors.length ? 'open' : '' %>>
     <summary><h3 style="margin:0">+ Дэмжлэг гараар бүртгэх</h3></summary>
-    <p class="small muted" style="margin-top:.75rem">Бэлнээр өгсөн, эсвэл сайтад бүртгэлгүй хүн / байгууллагын дэмжлэгийг энд бүртгэнэ. Шууд баталгаажна.</p>
     <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (e) { %><div>• <%= e %></div><% }) %></div><% } %>
     <form method="post" action="/admin/campaigns/<%= k.id %>/contributions" class="form support-form">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -76,7 +74,7 @@
           <datalist id="donor-members">
             <% opts.forEach(function (o) { %><option value="<%= o.label %>" data-id="<%= o.id %>"></option><% }) %>
           </datalist>
-          <div class="hint" data-member-status><%= picked ? '✓ Сонгогдсон' : 'Нэрийн эхний үсгүүдийг бичихэд жагсаалт гарна.' %></div>
+          <div class="hint" data-member-status><%= picked ? '✓ Сонгогдсон' : '' %></div>
         </div>
         <div class="form-grid only-guest">
           <input type="text" name="donor_name" value="<%= f.donor_name || '' %>" maxlength="150" placeholder="Нэр эсвэл байгууллагын нэр">

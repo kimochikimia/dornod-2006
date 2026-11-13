@@ -140,6 +140,7 @@ router.get('/plan', wrap(async (req, res) => {
   res.render('plan', {
     title: 'Төлөвлөгөө',
     items,
+    stats: plan.stats(items),
     view,
     timeline: view === 'timeline' ? plan.buildTimeline(items) : null,
     monthly: view === 'monthly' ? plan.buildMonthly(items, year) : null,
