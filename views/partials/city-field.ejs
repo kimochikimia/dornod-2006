@@ -1,33 +1,48 @@
 <%#
-  Одоо амьдарч буй газар: Улаанбаатар / Дорнод / Бусад (+ аймаг, сумын жагсаалт).
+  Одоо амьдарч буй газар: Монголд (аймаг/нийслэл → сум/дүүрэг) эсвэл Гадаадад (улс).
   Хэрэглэх: include('city-field', { value: хадгалсан утга })
 %><%
-  var v = value || '';
-  var choice = !v ? '' : (LOC.MAIN.indexOf(v) !== -1 ? v : 'other');
-  var known = LOC.OTHER_VALUES.has(v);
+  var p = LOC.parsePlace(value);
+  var where = p.where || '';
+  var region = p.region || '';
+  var sub = p.sub || '';
+  var country = p.country || '';
+  var subsJson = {};
+  LOC.REGIONS.forEach(function (r) { subsJson[r[0]] = { list: r[1], kind: r[2] }; });
+  var cur = region ? subsJson[region] : null;
 %>
-<div class="field city-field" data-city>
-  <label for="city_choice">Одоо амьдарч буй газар</label>
-  <select id="city_choice" name="city_choice" data-city-choice>
-    <option value="">— Сонгох —</option>
-    <option value="Улаанбаатар" <%= choice === 'Улаанбаатар' ? 'selected' : '' %>>Улаанбаатар</option>
-    <option value="Дорнод" <%= choice === 'Дорнод' ? 'selected' : '' %>>Дорнод</option>
-    <option value="other" <%= choice === 'other' ? 'selected' : '' %>>Бусад</option>
-  </select>
-  <div class="city-other" data-city-other <%= choice === 'other' ? '' : 'hidden' %>>
-    <input type="search" placeholder="🔍 Аймаг эсвэл сумаар хайх" data-filter-select="city_other" autocomplete="off">
-    <select id="city_other" name="city_other">
-      <option value="">— Аймаг, сум сонгох —</option>
-      <% if (choice === 'other' && !known) { %><option value="<%= v %>" selected><%= v %> (одоогийн)</option><% } %>
-      <% LOC.AIMAGS.forEach(function (a) { %>
-        <optgroup label="<%= a[0] %> аймаг">
-          <% a[1].forEach(function (s) { var label = LOC.sumLabel(a[0], s); %>
-            <option value="<%= label %>" <%= v === label ? 'selected' : '' %>><%= s %> сум — <%= a[0] %></option>
-          <% }) %>
-        </optgroup>
+<div class="field city-field" data-place>
+  <label>Одоо амьдарч буй газар</label>
+  <script type="application/json" data-place-json><%- JSON.stringify(subsJson).replace(/</g, '\\u003c') %></script>
+  <div class="seg">
+    <label><input type="radio" name="place_where" value="mn" <%= where === 'mn' ? 'checked' : '' %>> 🏠 Монголд</label>
+    <label><input type="radio" name="place_where" value="abroad" <%= where === 'abroad' ? 'checked' : '' %>> 🌐 Гадаадад</label>
+  </div>
+  <% if (p.raw) { %><div class="hint">Одоогийн бичлэг: <strong><%= p.raw %></strong> — шинээр сонгоогүй бол хэвээр үлдэнэ.</div><% } %>
+
+  <div class="city-other" data-place-mn <%= where === 'mn' ? '' : 'hidden' %>>
+    <select name="place_region" data-place-region aria-label="Аймаг, нийслэл">
+      <option value="">— Аймаг, нийслэл сонгох —</option>
+      <% LOC.REGIONS.forEach(function (r, i) { %>
+        <% if (i === 2) { %><option disabled>──────────</option><% } %>
+        <option value="<%= r[0] %>" <%= region === r[0] ? 'selected' : '' %>><%= r[0] === LOC.UB ? 'Улаанбаатар (нийслэл)' : r[0] + ' аймаг' %></option>
       <% }) %>
-      <optgroup label="Гадаад">
-        <option value="<%= LOC.ABROAD %>" <%= v === LOC.ABROAD ? 'selected' : '' %>><%= LOC.ABROAD %></option>
+    </select>
+    <select name="place_sub" data-place-sub aria-label="Сум, дүүрэг" <%= cur ? '' : 'disabled' %>>
+      <option value=""><%= cur ? '— ' + (cur.kind === 'дүүрэг' ? 'Дүүрэг' : 'Сум') + ' (заавал биш) —' : '— Эхлээд аймаг, нийслэлээ сонгоно уу —' %></option>
+      <% if (cur) cur.list.forEach(function (s) { %><option value="<%= s %>" <%= sub === s ? 'selected' : '' %>><%= s %> <%= cur.kind %></option><% }) %>
+    </select>
+  </div>
+
+  <div class="city-other" data-place-abroad <%= where === 'abroad' ? '' : 'hidden' %>>
+    <input type="search" placeholder="🔍 Улсаар хайх" data-filter-select="place_country" autocomplete="off">
+    <select id="place_country" name="place_country" aria-label="Улс">
+      <option value="">— Улс сонгох —</option>
+      <optgroup label="Түгээмэл">
+        <% LOC.POPULAR_COUNTRIES.forEach(function (c) { %><option value="<%= c %>" <%= country === c ? 'selected' : '' %>><%= c %></option><% }) %>
+      </optgroup>
+      <optgroup label="Бусад улс">
+        <% LOC.OTHER_COUNTRIES.forEach(function (c) { %><option value="<%= c %>" <%= country === c ? 'selected' : '' %>><%= c %></option><% }) %>
       </optgroup>
     </select>
   </div>

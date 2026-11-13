@@ -12,6 +12,7 @@
       </div>
     </div>
     <dl class="dl">
+      <dt>Хүйс</dt><dd><%= member.gender ? h.GENDER_LABELS[member.gender] : '—' %></dd>
       <dt>Ажил эрхлэлт</dt><dd><%= member.employment ? h.EMPLOYMENT_LABELS[member.employment] : '—' %></dd>
       <dt>Ажлын газар</dt><dd><%= member.workplace || '—' %></dd>
       <dt>Албан тушаал</dt><dd><%= h.positionText(member) || '—' %></dd>

@@ -1,0 +1,25 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <div class="page-head">
+    <a href="/tickets" class="small">← Тасалбар</a>
+    <h1 style="margin:.5rem 0 0">Миний тасалбар</h1>
+  </div>
+  <% if (!orders.length) { %>
+    <div class="empty">Танд идэвхтэй тасалбар алга. <a href="/tickets">Арга хэмжээнүүдийг үзэх →</a></div>
+  <% } else { %>
+    <div class="cmp-donors">
+      <% orders.forEach(function (o) { %>
+        <a class="cmp-donor card-link" href="/tickets/order/<%= o.code %>">
+          <div class="cmp-donor-icon">🎟️</div>
+          <div class="cmp-donor-main">
+            <strong><%= o.title %></strong>
+            <div class="small muted">🕒 <%= h.fmtDate(o.event_at) %> · <%= o.seatText || (o.quantity + ' тасалбар') %> · <%= tk.fmtMoney(o.amount) %></div>
+            <div class="small faint">Код: <%= o.code %></div>
+          </div>
+          <span class="badge <%= o.status === 'paid' ? 'success' : 'pending' %>"><%= tk.STATUS_LABELS[o.status] %></span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

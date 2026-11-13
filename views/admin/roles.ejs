@@ -62,6 +62,56 @@
     </form>
   </div>
 
+  <div class="card" style="margin-bottom:1.25rem" id="groups">
+    <h2 style="margin:0 0 .35rem">Эрхийн бүлэг</h2>
+    <p class="muted small" style="margin-top:0">Эрх бүр өөрийн бүлэгтэй. Бүлэгт нэмсэн хэрэглэгч төлвөөсөө үл хамааран тухайн эрхийг авна (жишээ нь энгийн төгсөгчид зөвхөн тасалбарын төлбөр баталгаажуулах эрх өгөх). Бүлгээс хасахад эрх нь шууд цуцлагдана — төлвөөрөө авсан эрх хэвээр үлдэнэ.</p>
+    <datalist id="perm-people">
+      <% people.forEach(function (u) { %><option value="<%= u.phone %>"><%= u.surname %> <%= u.name %></option><% }) %>
+    </datalist>
+    <div class="perm-groups">
+      <% groups.forEach(function (g) { %>
+        <div class="perm-groups-h"><%= g %></div>
+        <% perms.PERMISSIONS.filter(function (p) { return p.group === g; }).forEach(function (p) { var list = members[p.key] || []; %>
+          <details class="perm-grp" id="g-<%= p.key %>">
+            <summary>
+              <span class="perm-grp-name"><%= p.label %></span>
+              <span class="perm-grp-roles small faint">
+                <%= roles.filter(function (r) { return current[r].has(p.key); }).map(function (r) { return ROLE_LABELS[r]; }).join(', ') || 'Төлөвт олгоогүй' %>
+              </span>
+              <span class="badge <%= list.length ? 'grad' : '' %>"><%= list.length %> хүн</span>
+            </summary>
+            <div class="perm-grp-body">
+              <% if (list.length) { %>
+                <ul class="perm-grp-list">
+                  <% list.forEach(function (u) { %>
+                    <li>
+                      <div>
+                        <strong><%= u.surname %> <%= u.name %></strong>
+                        <span class="small muted"> · <%= u.phone %><%= u.school_name ? ' · ' + u.school_name : '' %> · <%= ROLE_LABELS[u.role] %></span>
+                        <% if (u.status !== 'approved') { %><span class="badge pending">баталгаажаагүй</span><% } %>
+                      </div>
+                      <form method="post" action="/admin/roles/groups/<%= p.key %>/<%= u.id %>/remove" class="inline" data-confirm="<%= u.surname %> <%= u.name %>-г энэ бүлгээс хасах уу?">
+                        <input type="hidden" name="_csrf" value="<%= csrf %>">
+                        <button class="btn btn-sm btn-ghost" type="submit">Хасах</button>
+                      </form>
+                    </li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <p class="small faint" style="margin:0 0 .6rem">Бүлэгт хүн алга.</p>
+              <% } %>
+              <form method="post" action="/admin/roles/groups/<%= p.key %>/add" class="perm-grp-add">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <input type="text" name="user" list="perm-people" placeholder="Нэр эсвэл утасны дугаараар хайж сонгох…" autocomplete="off" required>
+                <button class="btn btn-sm btn-primary" type="submit">+ Нэмэх</button>
+              </form>
+            </div>
+          </details>
+        <% }) %>
+      <% }) %>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Модератор, дэд админ, админууд</h2>
     <p class="muted small">Төлөв олгохдоо <a href="/admin/users">Төгсөгчид</a> хэсгийн "Төлөв" баганаас сонгоно.</p>

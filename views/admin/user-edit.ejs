@@ -25,6 +25,12 @@
       <div class="form-grid">
         <div class="field"><label>Овог</label><input type="text" name="surname" value="<%= user.surname %>" maxlength="80" required></div>
         <div class="field"><label>Нэр</label><input type="text" name="name" value="<%= user.name %>" maxlength="80" required></div>
+        <div class="field"><label>Хүйс</label>
+          <select name="gender">
+            <option value="">—</option>
+            <% Object.keys(h.GENDER_LABELS).forEach(function (g) { %><option value="<%= g %>" <%= user.gender === g ? 'selected' : '' %>><%= h.GENDER_LABELS[g] %></option><% }) %>
+          </select>
+        </div>
         <div class="field"><label>Утас (нэвтрэх нэр)</label><input type="tel" name="phone" value="<%= user.phone %>" maxlength="20" required></div>
         <div class="field"><label>И-мэйл</label><input type="email" name="email" value="<%= user.email || '' %>" maxlength="120"></div>
         <div class="field"><label>Сургууль</label>

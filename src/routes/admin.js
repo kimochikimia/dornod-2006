@@ -8,7 +8,7 @@ const sched = require('../electionSchedule');
 const { fromUbInput, parsePhoto, normalizeFacebook, parseDocFile } = require('../helpers');
 const h = require('../helpers');
 const photos = require('../photos');
-const { parseCity } = require('../locations');
+const { parsePlaceForm } = require('../locations');
 const { electionStats } = require('../electionStats');
 
 const router = express.Router();
@@ -19,6 +19,7 @@ router.use('/news', requirePerm('manage_news'));
 router.use('/plans', requirePerm('manage_plans'));
 router.use('/gallery', requirePerm('manage_gallery'));
 router.use('/campaigns', requirePerm('manage_campaigns'));
+router.use('/tickets', requirePerm('manage_tickets', 'sell_tickets', 'confirm_tickets'), require('./adminTickets'));
 router.use('/requests', requirePerm('manage_requests'));
 // Удирдах зөвлөл = сонгууль бүрийн ажлын орчин. Сонгуулийн шатыг manage_elections,
 // албан тушаал / томилгоо / бүтэц / баримт бичгийг manage_board эрхээр удирдана.
@@ -51,7 +52,8 @@ router.get('/', wrap(async (req, res) => {
       (SELECT COUNT(*) FROM change_requests WHERE status='open') AS requests,
       (SELECT COUNT(*) FROM announcements) AS news,
       (SELECT COUNT(*) FROM elections WHERE phase NOT IN ('draft','closed')) AS activeElections,
-      (SELECT COUNT(*) FROM campaign_contributions WHERE status='pending') AS campaignPending`
+      (SELECT COUNT(*) FROM campaign_contributions WHERE status='pending') AS campaignPending,
+      (SELECT COUNT(*) FROM ticket_orders WHERE status='pending' AND (expires_at IS NULL OR expires_at > NOW())) AS ticketPending`
   );
   let pendingUsers = [];
   if (can(req.user, 'approve_users')) {
@@ -71,9 +73,38 @@ router.get('/roles', wrap(async (req, res) => {
     `SELECT u.id, u.surname, u.name, u.role, s.name AS school_name FROM users u LEFT JOIN schools s ON s.id = u.school_id
      WHERE u.role <> 'member' ORDER BY FIELD(u.role,'admin','subadmin','moderator'), u.name`
   );
+  const [people] = await pool.query(
+    "SELECT id, surname, name, phone FROM users WHERE status = 'approved' ORDER BY name, surname"
+  );
   res.render('admin/roles', {
     title: 'Эрх, төлөв — Админ', perms, current: perms.rolePerms(), roleCounts, staff,
+    members: await perms.groupMembers(), people,
   });
+}));
+
+// ---------- Эрхийн бүлэг: тухайн эрхийг төлвөөс үл хамааран хүнд нэмж олгох ----------
+router.post('/roles/groups/:perm/add', wrap(async (req, res) => {
+  const perm = req.params.perm;
+  const label = (perms.PERMISSIONS.find((p) => p.key === perm) || {}).label;
+  if (!label) return res.redirect('/admin/roles');
+  // Утасны дугаар (datalist-ээс сонгоход) эсвэл "Овог Нэр · утас" хэлбэрээс утсыг гаргана
+  const raw = String(req.body.user || '').trim();
+  const digits = (raw.match(/\d[\d\s-]{5,}\d/g) || []).pop();
+  const phone = digits ? digits.replace(/\D/g, '') : '';
+  const [[u]] = phone
+    ? await pool.query('SELECT id, surname, name, status FROM users WHERE phone = ?', [phone])
+    : [[null]];
+  if (!u) flash(req, 'error', 'Ийм утасны дугаартай хэрэглэгч олдсонгүй. Жагсаалтаас сонгоно уу.');
+  else if (u.status !== 'approved') flash(req, 'error', `${u.surname} ${u.name} — бүртгэл баталгаажаагүй тул эрх үйлчлэхгүй.`);
+  else if (await perms.addToGroup(perm, u.id, req.user.id)) flash(req, 'success', `${u.surname} ${u.name} "${label}" бүлэгт нэмэгдлээ.`);
+  else flash(req, 'info', `${u.surname} ${u.name} энэ бүлэгт аль хэдийн байна.`);
+  res.redirect(`/admin/roles#g-${perm}`);
+}));
+
+router.post('/roles/groups/:perm/:uid(\\d+)/remove', wrap(async (req, res) => {
+  await perms.removeFromGroup(req.params.perm, Number(req.params.uid));
+  flash(req, 'success', 'Бүлгээс хасагдлаа.');
+  res.redirect(`/admin/roles#g-${req.params.perm}`);
 }));
 
 router.post('/roles', wrap(async (req, res) => {
@@ -160,7 +191,7 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
     flash(req, 'error', 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна.');
     return res.redirect(`/admin/users/${id}`);
   }
-  const place = parseCity(req.body.city_choice, req.body.city_other, target.city);
+  const place = parsePlaceForm(req.body, target.city);
   if (place.error) {
     flash(req, 'error', place.error);
     return res.redirect(`/admin/users/${id}`);
@@ -177,10 +208,10 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
     ? req.body.status : target.status;
   const professions = h.parseProfessions(req.body.prof_field, req.body.prof_title);
   await pool.query(
-    `UPDATE users SET surname=?, name=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?, position_level=?, position=?,
+    `UPDATE users SET surname=?, name=?, gender=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?, position_level=?, position=?,
        city=?, facebook=?, bio=?, role=?, status=?
      WHERE id = ?`,
-    [clean(req.body.surname, 80), clean(req.body.name, 80), phone, clean(req.body.email, 120) || null,
+    [clean(req.body.surname, 80), clean(req.body.name, 80), h.genderKey(req.body.gender), phone, clean(req.body.email, 120) || null,
       Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null,
       h.professionsText(professions) || null, professions.length ? JSON.stringify(professions) : null,
       h.employmentKey(req.body.employment), clean(req.body.workplace, 150) || null,

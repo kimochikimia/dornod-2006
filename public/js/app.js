@@ -131,19 +131,43 @@
       });
     });
 
-    // Амьдарч буй газар: "Бусад" сонгоход аймаг, сумын жагсаалт гарна
-    $$('[data-city]').forEach(function (box) {
-      var choice = $('[data-city-choice]', box);
-      var other = $('[data-city-other]', box);
-      var otherSel = $('select', other);
-      function update() {
-        var on = choice.value === 'other';
-        other.hidden = !on;
-        otherSel.required = on;
-        if (!on) otherSel.value = '';
+    // Амьдарч буй газар: Монголд (аймаг → сум/дүүрэг) эсвэл Гадаадад (улс)
+    $$('[data-place]').forEach(function (box) {
+      var data = {};
+      try { data = JSON.parse($('[data-place-json]', box).textContent); } catch (e) { /* хоосон */ }
+      var mn = $('[data-place-mn]', box);
+      var abroad = $('[data-place-abroad]', box);
+      var region = $('[data-place-region]', box);
+      var sub = $('[data-place-sub]', box);
+      var country = $('#place_country', box) || $('[name="place_country"]', box);
+      function where() { var r = $('input[name="place_where"]:checked', box); return r ? r.value : ''; }
+      function fillSubs() {
+        var d = data[region.value];
+        sub.innerHTML = '';
+        var first = document.createElement('option');
+        first.value = '';
+        first.textContent = d ? '— ' + (d.kind === 'дүүрэг' ? 'Дүүрэг' : 'Сум') + ' (заавал биш) —' : '— Эхлээд аймаг, нийслэлээ сонгоно уу —';
+        sub.appendChild(first);
+        (d ? d.list : []).forEach(function (s) {
+          var o = document.createElement('option');
+          o.value = s;
+          o.textContent = s + ' ' + d.kind;
+          sub.appendChild(o);
+        });
+        sub.disabled = !d;
       }
-      choice.addEventListener('change', function () { update(); if (choice.value === 'other') $('input', other).focus(); });
-      otherSel.required = choice.value === 'other';
+      function update(focus) {
+        var w = where();
+        mn.hidden = w !== 'mn';
+        abroad.hidden = w !== 'abroad';
+        region.required = w === 'mn';
+        country.required = w === 'abroad';
+        if (focus && w === 'mn') region.focus();
+        if (focus && w === 'abroad') $('input[type="search"]', abroad).focus();
+      }
+      $$('input[name="place_where"]', box).forEach(function (r) { r.addEventListener('change', function () { update(true); }); });
+      region.addEventListener('change', fillSubs);
+      update(false);
     });
 
     initPhotoPickers();
@@ -916,4 +940,16 @@
       lastBallots = d.ballots;
     }
   }
+})();
+
+// Эрхийн бүлэг: URL-ийн #g-эрх-тэй бүлгийг нээж харуулна
+(function () {
+  function openHash() {
+    var id = decodeURIComponent(location.hash.slice(1));
+    if (!/^g-/.test(id)) return;
+    var el = document.getElementById(id);
+    if (el && el.tagName === 'DETAILS') { el.open = true; el.scrollIntoView({ block: 'center' }); }
+  }
+  document.addEventListener('DOMContentLoaded', openHash);
+  window.addEventListener('hashchange', openHash);
 })();

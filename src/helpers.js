@@ -110,6 +110,10 @@ function parsePhoto(dataUrl) {
   return { mime: `image/${kind}`, buf };
 }
 
+// Хүйс
+const GENDER_LABELS = { male: 'Эрэгтэй', female: 'Эмэгтэй' };
+const genderKey = (v) => (GENDER_LABELS[v] ? v : null);
+
 // Facebook линкийг https://www.facebook.com/... хэлбэрт оруулна. Хоосон бол null, буруу бол false.
 function normalizeFacebook(input) {
   let s = String(input || '').trim();
@@ -311,6 +315,7 @@ function readProfessions(user) {
 }
 
 module.exports = {
+  GENDER_LABELS, genderKey,
   TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
   PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, normalizeMapUrl, renderDoc, parseDocFile, fmtSize,
   EMPLOYMENT, EMPLOYMENT_LABELS, employmentKey,

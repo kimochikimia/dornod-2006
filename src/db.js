@@ -247,6 +247,7 @@ async function init() {
   await ensureModeratorRole();
   await ensureElectionSchedule();
   await ensureColumn('users', 'facebook', 'VARCHAR(255) NULL AFTER city');
+  await ensureColumn('users', 'gender', "ENUM('male','female') NULL AFTER name");
   await ensureColumn('users', 'photo_v', 'INT NULL AFTER facebook');
   await ensureColumn('users', 'employment', 'VARCHAR(20) NULL AFTER class_name');
   await ensureColumn('users', 'workplace', 'VARCHAR(150) NULL AFTER employment');
@@ -274,6 +275,10 @@ async function init() {
   await ensureElectionScoping();
   await ensureAppointments();
   await ensureColumn('campaign_contributions', 'donor_contact', 'VARCHAR(150) NULL AFTER donor_name');
+  // Тасалбартай арга хэмжээний постер
+  await ensureColumn('ticket_events', 'poster', 'MEDIUMBLOB NULL');
+  await ensureColumn('ticket_events', 'poster_thumb', 'MEDIUMBLOB NULL');
+  await ensureColumn('ticket_events', 'poster_v', 'INT NULL');
   await syncSchools();
 
   await seedAdmin();

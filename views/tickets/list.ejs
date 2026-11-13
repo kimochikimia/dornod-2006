@@ -1,0 +1,99 @@
+<%- include('../partials/head') %>
+<%
+  var phaseClass = { onsale: 'grad', soon: 'pending', soldout: 'danger', ended: '', draft: '' };
+  var current = events.filter(function (e) { return e.phase !== 'ended'; });
+  var past = events.filter(function (e) { return e.phase === 'ended'; });
+  // Слайдерт: нийтлэгдсэн, өнгөрөөгүй бүх арга хэмжээ (постергүй бол огнооны дүрс)
+  var featured = current.slice(0, 12);
+  var cta = function (e) {
+    return { onsale: 'Тасалбар авах', soon: 'Удахгүй', soldout: 'Дууссан', ended: 'Дууссан', draft: 'Ноорог' }[e.phase];
+  };
+  var poster = function (e, size) { return '/tickets/' + e.id + '/poster?' + (size ? 's=t&' : '') + 'v=' + e.poster_v; };
+%>
+<div class="container">
+  <div class="page-head row between">
+    <div>
+      <h1>Тасалбар</h1>
+      <p style="margin:0">Төгсөгчдийн холбооны зохион байгуулж буй арга хэмжээний тасалбар.</p>
+    </div>
+    <div class="row" style="gap:.5rem">
+      <% if (me) { %><a class="btn" href="/tickets/mine">🎟️ Миний тасалбар</a><% } %>
+      <% if (can('manage_tickets')) { %><a class="btn btn-primary" href="/admin/tickets/new">+ Арга хэмжээ</a><% } %>
+    </div>
+  </div>
+
+  <% if (featured.length) { %>
+    <section class="tk-hero" data-carousel aria-label="Онцлох арга хэмжээ">
+      <div class="tk-hero-track" data-carousel-track>
+        <% featured.forEach(function (e) { %>
+          <a class="tk-slide<%= e.poster_v ? '' : ' no-poster' %>" href="/tickets/<%= e.id %>">
+            <% if (e.poster_v) { %><img class="tk-slide-bg" src="<%= poster(e, true) %>" alt="" aria-hidden="true"><% } %>
+            <div class="tk-slide-inner">
+              <% if (e.poster_v) { %>
+                <img class="tk-slide-poster" src="<%= poster(e) %>" alt="<%= e.title %> — постер">
+              <% } else { %>
+                <div class="tk-slide-date" aria-hidden="true">
+                  <span class="tk-day"><%= e.eventText.slice(8, 10) %></span>
+                  <span class="tk-month"><%= e.eventText.slice(0, 7) %></span>
+                  <span class="tk-slide-time"><%= e.eventText.slice(11) %></span>
+                </div>
+              <% } %>
+              <div class="tk-slide-info">
+                <span class="badge <%= phaseClass[e.phase] %>"><%= tk.PHASE_LABELS[e.phase] %></span>
+                <h2><%= e.title %></h2>
+                <% if (e.summary) { %><p class="tk-slide-sum"><%= e.summary %></p><% } %>
+                <div class="tk-slide-meta">
+                  <span>📅 <%= e.eventText %></span>
+                  <% if (e.venue) { %><span>📍 <%= e.venue %></span><% } %>
+                </div>
+                <div class="tk-slide-foot">
+                  <strong class="tk-price"><%= e.priceText %></strong>
+                  <span class="btn btn-primary"><%= cta(e) %></span>
+                </div>
+              </div>
+            </div>
+          </a>
+        <% }) %>
+      </div>
+      <% if (featured.length > 1) { %>
+        <button class="tk-hero-nav prev" type="button" aria-label="Өмнөх" data-carousel-prev>‹</button>
+        <button class="tk-hero-nav next" type="button" aria-label="Дараах" data-carousel-next>›</button>
+        <div class="tk-hero-dots" data-carousel-dots></div>
+      <% } %>
+    </section>
+  <% } %>
+
+  <% if (!events.length) { %>
+    <div class="empty">Одоогоор тасалбартай арга хэмжээ алга.</div>
+  <% } %>
+
+  <% [['Арга хэмжээ', current], ['Өнгөрсөн', past]].forEach(function (sec) { if (!sec[1].length) return; %>
+    <h2 class="tk-section-h"><%= sec[0] %> <span class="muted small">(<%= sec[1].length %>)</span></h2>
+    <div class="tk-grid">
+      <% sec[1].forEach(function (e) { %>
+        <a class="tk-pcard<%= e.phase === 'ended' ? ' is-closed' : '' %>" href="/tickets/<%= e.id %>">
+          <div class="tk-pcard-img">
+            <% if (e.poster_v) { %>
+              <img src="<%= poster(e, true) %>" alt="<%= e.title %> — постер" loading="lazy">
+            <% } else { %>
+              <div class="tk-pcard-noimg">
+                <span class="tk-day"><%= e.eventText.slice(8, 10) %></span>
+                <span class="tk-month"><%= e.eventText.slice(0, 7) %></span>
+              </div>
+            <% } %>
+            <span class="badge <%= phaseClass[e.phase] %> tk-pcard-badge"><%= tk.PHASE_LABELS[e.phase] %></span>
+          </div>
+          <div class="tk-pcard-body">
+            <h3><%= e.title %></h3>
+            <% if (e.venue) { %><div class="tk-pcard-row">📍 <span><%= e.venue %></span></div><% } %>
+            <div class="tk-pcard-row">📅 <span><%= e.eventText %></span></div>
+            <div class="tk-pcard-row tk-pcard-price"><%= e.priceText %><% if (e.left != null && e.phase !== 'ended') { %><span class="faint"> · <%= e.left %> үлдсэн</span><% } %></div>
+            <span class="tk-pcard-btn<%= e.onSale ? '' : ' off' %>"><%= cta(e) %></span>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% }) %>
+</div>
+<script src="/js/tickets.js" defer></script>
+<%- include('../partials/foot') %>

@@ -24,11 +24,11 @@
     <button class="nav-toggle" type="button" aria-label="Цэс" data-nav-toggle>☰</button>
     <div class="nav-menu" data-nav>
     <nav class="nav-links">
-      <a href="/" class="<%= path === '/' ? 'active' : '' %>">Нүүр</a>
-      <a href="/news" class="<%= path.startsWith('/news') ? 'active' : '' %>">Мэдээ</a>
+      <a href="/" class="<%= (path === '/' || path.startsWith('/news')) ? 'active' : '' %>">Нүүр</a>
       <a href="/members" class="<%= path.startsWith('/members') ? 'active' : '' %>">Төгсөгчид</a>
       <a href="/plan" class="<%= path.startsWith('/plan') ? 'active' : '' %>">Төлөвлөгөө</a>
       <a href="/campaigns" class="<%= path.startsWith('/campaigns') ? 'active' : '' %>">Аян хөтөлбөр</a>
+      <a href="/tickets" class="<%= path.startsWith('/tickets') ? 'active' : '' %>">Тасалбар</a>
       <a href="/board" class="<%= path.startsWith('/board') || path.startsWith('/elections') ? 'active' : '' %>">Удирдах зөвлөл</a>
       <% if (canManage) { %>
         <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><%= me.role === 'admin' ? 'Админ' : 'Удирдлага' %></a>

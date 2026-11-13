@@ -1,0 +1,129 @@
+<%- include('../partials/head') %>
+<%
+  var e = event;
+  var f = form || {};
+  var phaseClass = { onsale: 'grad', soon: 'pending', soldout: 'danger', ended: '', draft: '' };
+  var seated = e.seating === 'seated';
+  var canBuy = e.onSale && me && me.status === 'approved';
+%>
+<div class="container">
+  <div class="page-head">
+    <a href="/tickets" class="small">← Бүх арга хэмжээ</a>
+    <div class="row between" style="margin-top:.75rem;align-items:flex-end">
+      <div>
+        <h1 style="margin:0"><%= e.title %></h1>
+        <p class="muted" style="margin:.4rem 0 0">
+          <span class="badge <%= phaseClass[e.phase] %>"><%= tk.PHASE_LABELS[e.phase] %></span>
+          &nbsp;🕒 <%= e.eventText %><% if (e.venue) { %> &nbsp;📍 <%= e.venue %><% } %>
+        </p>
+      </div>
+      <% if (can('manage_tickets') || can('sell_tickets') || can('confirm_tickets')) { %><a class="btn" href="/admin/tickets/<%= e.id %><%= can('confirm_tickets') ? '' : can('sell_tickets') ? '/sell' : '/edit' %>">✎ Удирдах<%= e.pending_orders ? ' (' + e.pending_orders + ' хүлээгдэж буй)' : '' %></a><% } %>
+    </div>
+  </div>
+
+  <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (m) { %><div><%= m %></div><% }) %></div><% } %>
+
+  <div class="cmp-layout">
+    <div class="cmp-main">
+      <% if (e.poster_v) { %>
+        <a class="tk-poster" href="/tickets/<%= e.id %>/poster?v=<%= e.poster_v %>" data-lightbox data-caption="<%= e.title %>">
+          <img src="/tickets/<%= e.id %>/poster?v=<%= e.poster_v %>" alt="<%= e.title %> — постер">
+        </a>
+      <% } %>
+      <% if (e.summary) { %><p class="cmp-summary"><%= e.summary %></p><% } %>
+      <% if (e.body) { %><article class="card prose"><%- h.text(e.body) %></article><% } %>
+
+      <% if (seated) { %>
+        <section class="card" id="seats">
+          <div class="row between" style="margin-bottom:.5rem">
+            <h2 style="margin:0">Суудлын план</h2>
+            <div class="seat-legend small">
+              <span><i class="sw free"></i>Сул</span>
+              <span><i class="sw sel"></i>Сонгосон</span>
+              <span><i class="sw pending"></i>Захиалагдсан</span>
+              <span><i class="sw paid"></i>Зарагдсан</span>
+              <% if (me) { %><span><i class="sw mine"></i>Миний</span><% } %>
+            </div>
+          </div>
+          <% if (canBuy) { %><p class="small muted" style="margin:0 0 .5rem">Сул суудал дээр дарж сонгоно уу (нэг удаад <%= e.max_per_order %> хүртэл).</p><% } %>
+          <div class="seat-map-wrap" data-seat-map data-mode="<%= canBuy ? 'pick' : 'view' %>" data-form="buy-form">
+            <script type="application/json" data-map-json><%- mapJson %></script>
+          </div>
+        </section>
+      <% } %>
+    </div>
+
+    <aside class="cmp-side">
+      <div class="card cmp-info">
+        <div class="cmp-info-row"><span>🕒 Хэзээ</span><div><%= e.eventText %></div></div>
+        <% if (e.venue) { %><div class="cmp-info-row"><span>📍 Хаана</span><div><%= e.venue %></div></div><% } %>
+        <div class="cmp-info-row"><span>💳 Тасалбарын үнэ</span><div><strong class="tk-price"><%= e.priceText %></strong></div></div>
+        <div class="cmp-info-row"><span>🗓️ Худалдаалах хугацаа</span><div><%= e.saleText %></div></div>
+        <% if (e.left != null) { %><div class="cmp-info-row"><span>🎟️ Үлдсэн</span><div><%= e.left %> / <%= e.total %></div></div><% } %>
+        <% if (e.contact) { %><div class="cmp-info-row"><span>📞 Холбоо барих</span><div><%= e.contact %></div></div><% } %>
+      </div>
+
+      <div class="card" id="buy">
+        <h3>Тасалбар авах</h3>
+        <% if (e.phase === 'draft') { %>
+          <p class="small muted" style="margin:0">Ноорог — нийтлэгдээгүй байна.</p>
+        <% } else if (e.phase === 'soon') { %>
+          <p class="small muted" style="margin:0">Худалдаа <strong><%= h.fmtDate(e.sale_start) %></strong>-д эхэлнэ.</p>
+        <% } else if (e.phase === 'soldout') { %>
+          <p class="small muted" style="margin:0">Тасалбар дууссан. Төлөгдөөгүй захиалгын хугацаа дуусвал дахин гарч магадгүй.</p>
+        <% } else if (e.phase === 'ended') { %>
+          <p class="small muted" style="margin:0">Тасалбарын худалдаа хаагдсан.</p>
+        <% } else if (!me) { %>
+          <p class="small muted">Тасалбар авахын тулд нэвтэрнэ үү.</p>
+          <a class="btn btn-primary btn-sm" href="/login?next=<%= encodeURIComponent('/tickets/' + e.id) %>">Нэвтрэх</a>
+        <% } else if (me.status !== 'approved') { %>
+          <p class="small muted" style="margin:0">Таны бүртгэл баталгаажсаны дараа тасалбар авах боломжтой.</p>
+        <% } else { %>
+          <form method="post" action="/tickets/<%= e.id %>/buy" class="form support-form" id="buy-form" data-price="<%= e.price %>">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <% if (seated) { %>
+              <input type="hidden" name="seats" value="" data-pick-input>
+              <div class="tk-picked" data-pick-list><span class="small faint">Суудал сонгоогүй байна.</span></div>
+            <% } else { %>
+              <div class="field">
+                <label>Тасалбарын тоо</label>
+                <div class="qty" data-qty>
+                  <button type="button" class="btn btn-sm" data-qty-step="-1" aria-label="Хасах">−</button>
+                  <input type="number" name="quantity" value="<%= f.quantity || 1 %>" min="1" max="<%= Math.min(e.max_per_order, e.left == null ? 999 : e.left) %>" inputmode="numeric">
+                  <button type="button" class="btn btn-sm" data-qty-step="1" aria-label="Нэмэх">+</button>
+                </div>
+              </div>
+            <% } %>
+            <div class="tk-total"><span>Нийт дүн</span><strong data-pick-total><%= seated ? '0₮' : tk.fmtMoney(e.price * (Number(f.quantity) || 1)) %></strong></div>
+            <div class="field"><label>Утас</label><input type="tel" name="buyer_phone" value="<%= f.buyer_phone || me.phone || '' %>" maxlength="40"></div>
+            <div class="field"><label>Тэмдэглэл <span class="small faint">(заавал биш)</span></label><input type="text" name="note" value="<%= f.note || '' %>" maxlength="500" placeholder="Жишээ нь: гэр бүлийн хамт"></div>
+            <button class="btn btn-primary" type="submit" <%= seated ? 'disabled' : '' %> data-pick-submit>Захиалах</button>
+            <% if (e.price > 0) { %><p class="small faint" style="margin:0">Захиалсны дараа <%= e.hold_hours %> цагийн дотор төлбөрөө шилжүүлнэ. Хугацаандаа төлөөгүй бол захиалга автоматаар цуцлагдана.</p><% } %>
+          </form>
+        <% } %>
+      </div>
+
+      <% if (mine.length) { %>
+        <div class="card" id="mine">
+          <h3>Миний захиалга</h3>
+          <div class="cmp-mine">
+            <% mine.forEach(function (o) { %>
+              <div class="cmp-mine-row">
+                <div>
+                  <a href="/tickets/order/<%= o.code %>"><strong><%= o.code %></strong></a>
+                  <div class="small muted"><%= o.seatText || (o.quantity + ' тасалбар') %> · <%= tk.fmtMoney(o.amount) %></div>
+                  <% if (o.status === 'cancelled' && o.cancel_reason) { %><div class="small faint"><%= tk.CANCEL_LABELS[o.cancel_reason] %></div><% } %>
+                </div>
+                <span class="badge <%= o.status === 'paid' ? 'success' : o.status === 'pending' ? 'pending' : 'danger' %>"><%= tk.STATUS_LABELS[o.status] %></span>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+    </aside>
+  </div>
+</div>
+<% if (e.poster_v) { %><%- include('../partials/lightbox') %><% } %>
+<script src="/js/seatmap.js" defer></script>
+<script src="/js/tickets.js" defer></script>
+<%- include('../partials/foot') %>

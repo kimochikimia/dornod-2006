@@ -2,8 +2,97 @@
 <div class="container">
   <div class="page-head">
     <h1>Төгсөгчид</h1>
-    <p>Баталгаажсан <%= members.length %> төгсөгч<%= q || school || employment ? ' (шүүлтүүрээр)' : '' %>.</p>
   </div>
+<%
+  var st = stats;
+  var fmt = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var genderRows = [
+    { key: 'male', label: 'Эрэгтэй', n: st.gender.male, pct: st.genderPct.male, cls: 'male' },
+    { key: 'female', label: 'Эмэгтэй', n: st.gender.female, pct: st.genderPct.female, cls: 'female' },
+  ];
+  if (st.gender.unknown) genderRows.push({ key: 'unknown', label: 'Бөглөөгүй', n: st.gender.unknown, pct: st.genderPct.unknown, cls: 'unknown' });
+%>
+<% function bars(items, opts) {
+     opts = opts || {};
+     var max = opts.max || items.reduce(function (m, it) { return Math.max(m, it.n); }, 0) || 1;
+     if (!items.length) { %><p class="small faint" style="margin:0">Мэдээлэл алга.</p><% return; } %>
+     <div class="dsb-list<%= opts.scroll ? ' scroll' : '' %>">
+     <% items.forEach(function (it) { var isLink = !!(opts.href && it.id); var tag = isLink ? 'a' : 'div'; %>
+       <<%= tag %> class="dsb<%= isLink ? ' link' : '' %>"<% if (isLink) { %> href="<%= opts.href(it) %>"<% } %> title="<%= it.label || it.name %>: <%= it.n %> (<%= it.pct %>%)">
+         <span class="dsb-label"><% if (it.cls) { %><i class="mdot <%= it.cls %>"></i><% } %><span><%= it.label || it.name %></span></span>
+         <span class="dsb-track"><i class="<%= it.cls || '' %>" style="width:<%= it.n ? Math.max(3, Math.round(it.n / max * 100)) : 0 %>%"></i></span>
+         <span class="dsb-num"><strong><%= fmt(it.n) %></strong><small><%= it.pct %>%</small></span>
+       </<%= tag %>>
+     <% }) %>
+     </div>
+<% } %>
+  <section class="dash" aria-label="Төгсөгчдийн товчоо">
+    <div class="dash-tiles">
+      <div class="dtile">
+        <span class="dtile-label">Нийт баталгаажсан төгсөгч</span>
+        <span class="dtile-num"><%= fmt(st.total) %></span>
+      </div>
+      <div class="dtile">
+        <span class="dtile-label">Бүртгэлийн хүсэлт хүлээж буй</span>
+        <span class="dtile-num<%= st.pending ? ' warn' : '' %>"><%= fmt(st.pending) %></span>
+      </div>
+      <div class="dtile">
+        <span class="dtile-label">Сүүлийн 30 хоногт шинэ</span>
+        <span class="dtile-num"><%= fmt(st.recent) %></span>
+      </div>
+      <div class="dtile">
+        <span class="dtile-label">Хамрагдсан сургууль</span>
+        <span class="dtile-num"><%= st.schoolCount %><small> / <%= st.schoolTotal %></small></span>
+      </div>
+      <div class="dtile">
+        <span class="dtile-label">Ажил эрхэлж буй</span>
+        <span class="dtile-num good"><%= fmt(st.working) %><small> / <%= fmt(st.empFilledCount) %></small></span>
+      </div>
+    </div>
+
+    <% if (st.full) { %>
+    <div class="dash-cards">
+      <div class="dcard">
+        <div class="dcard-h"><h3>👫 Хүйс</h3><span><%= fmt(st.total) %> төгсөгч</span></div>
+        <% if (st.total) { %>
+          <div class="msplit" role="img" aria-label="<%= genderRows.map(function (g) { return g.label + ' ' + g.pct + '%'; }).join(', ') %>">
+            <% genderRows.forEach(function (g) { if (!g.n) return; %><i class="<%= g.cls %>" style="flex:<%= g.n %>" title="<%= g.label %>: <%= g.n %> (<%= g.pct %>%)"></i><% }) %>
+          </div>
+        <% } %>
+        <% bars(genderRows); %>
+      </div>
+      <div class="dcard">
+        <div class="dcard-h"><h3>🏫 Сургуулиар</h3><span><%= st.schoolCount %> сургууль</span></div>
+        <% bars(st.schools, { scroll: true, href: function (s) { return '/members?school=' + s.id; } }); %>
+      </div>
+      <div class="dcard">
+        <div class="dcard-h"><h3>📋 Мэдээллийн бүрдэл</h3><span>бүрэн: <%= st.fullProfiles %> (<%= st.fullPct %>%)</span></div>
+        <div class="dfill">
+          <% st.completeness.forEach(function (c) { %>
+            <div class="dfill-item" title="<%= c.label %>: <%= c.n %> / <%= st.total %> (<%= c.pct %>%)">
+              <div class="dfill-top"><span><%= c.label %></span><strong><%= c.pct %>%</strong></div>
+              <span class="dsb-track"><i style="width:<%= c.pct %>%"></i></span>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+      <% if (st.full) { %>
+        <div class="dcard">
+          <div class="dcard-h"><h3>💼 Ажил эрхлэлт</h3><span><%= fmt(st.empFilledCount) %> бөглөсөн</span></div>
+          <% bars(st.employment, { scroll: true }); %>
+        </div>
+        <div class="dcard">
+          <div class="dcard-h"><h3>📍 Амьдарч буй газар</h3><span>Монголд <%= st.mnCount %> · гадаадад <%= st.abroadCount %></span></div>
+          <% bars(st.cities, { scroll: true }); %>
+        </div>
+        <div class="dcard">
+          <div class="dcard-h"><h3>🎓 Мэргэжлийн чиглэл</h3><span><%= st.profCount %> чиглэл</span></div>
+          <% bars(st.professions, { scroll: true }); %>
+        </div>
+      <% } %>
+    </div>
+    <% } %>
+  </section>
   <form method="get" action="/members" class="card row" style="margin-bottom:1.5rem">
     <input type="search" name="q" value="<%= q %>" placeholder="<%= me ? 'Нэр, мэргэжил, байгууллага, хотоор хайх' : 'Нэрээр хайх' %>" style="flex:2;min-width:200px">
     <select name="school" style="flex:1;min-width:160px">
@@ -19,9 +108,6 @@
     <button class="btn btn-primary" type="submit">Хайх</button>
     <% if (q || school || employment) { %><a class="btn btn-ghost" href="/members">Цэвэрлэх</a><% } %>
   </form>
-  <% if (!me) { %>
-    <p class="small muted" style="margin:-.5rem 0 1rem">🔒 Мэргэжил, ажил, амьдарч буй газар болон дэлгэрэнгүй мэдээллийг харахын тулд <a href="/login?next=/members">нэвтэрнэ үү</a>.</p>
-  <% } %>
   <% if (!members.length) { %>
     <div class="empty">Илэрц олдсонгүй.</div>
   <% } else { %>

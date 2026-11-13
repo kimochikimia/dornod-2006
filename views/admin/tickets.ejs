@@ -1,0 +1,45 @@
+<%- include('../partials/head') %>
+<%
+  var canEdit = can('manage_tickets'), canSell = can('sell_tickets'), canPay = can('confirm_tickets');
+  var home = function (e) { return '/admin/tickets/' + e.id + (canPay ? '' : canSell ? '/sell' : '/edit'); };
+  var phaseClass = { onsale: 'grad', soon: 'pending', soldout: 'danger', ended: '', draft: '' };
+%>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="row between" style="margin-bottom:1rem">
+    <h2 style="margin:0">Тасалбар</h2>
+    <div class="row" style="gap:.5rem">
+      <a class="btn" href="/tickets">Нийтийн хуудас</a>
+      <% if (canEdit) { %><a class="btn btn-primary" href="/admin/tickets/new">+ Шинэ арга хэмжээ</a><% } %>
+    </div>
+  </div>
+  <% if (!events.length) { %>
+    <div class="empty">Арга хэмжээ алга.<%= canEdit ? ' "+ Шинэ арга хэмжээ" товчоор үүсгэнэ үү.' : '' %></div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Арга хэмжээ</th><th>Төлөв</th><th>Төрөл</th><th>Зарагдсан</th><th>Орлого</th><th>Хүлээгдэж буй</th><th></th></tr></thead>
+        <tbody>
+          <% events.forEach(function (e) { %>
+            <tr>
+              <td><a href="<%= home(e) %>"><strong><%= e.title %></strong></a><div class="small muted">🕒 <%= e.eventText %></div></td>
+              <td><span class="badge <%= phaseClass[e.phase] %>"><%= tk.PHASE_LABELS[e.phase] %></span></td>
+              <td class="small"><%= e.seating === 'seated' ? '💺 Суудалтай' : '🎟️ Суудалгүй' %></td>
+              <td class="small"><%= e.paid_qty %><%= e.total != null ? ' / ' + e.total : '' %></td>
+              <td class="small"><%= tk.fmtMoney(e.paid_amount) %></td>
+              <td><% if (e.pending_orders && canPay) { %><a class="badge pending" href="/admin/tickets/<%= e.id %>#pending"><%= e.pending_orders %> шалгах</a><% } else if (e.pending_orders) { %><span class="badge pending"><%= e.pending_orders %></span><% } else { %><span class="small faint">—</span><% } %></td>
+              <td>
+                <div class="row" style="gap:.35rem;flex-wrap:nowrap">
+                  <% if (canPay) { %><a class="btn btn-sm" href="/admin/tickets/<%= e.id %>">Борлуулалт</a><% } %>
+                  <% if (canSell) { %><a class="btn btn-sm" href="/admin/tickets/<%= e.id %>/sell">Гараар бичих</a><% } %>
+                  <% if (canEdit) { %><a class="btn btn-sm" href="/admin/tickets/<%= e.id %>/edit">Засах</a><% } %>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

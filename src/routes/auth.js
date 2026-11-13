@@ -6,7 +6,7 @@ const { flash, wrap } = require('../middleware');
 const { clean, parsePhoto, normalizeFacebook, employmentKey } = require('../helpers');
 const h = require('../helpers');
 const { savePhoto } = require('../photos');
-const { parseCity } = require('../locations');
+const { parsePlaceForm } = require('../locations');
 
 const router = express.Router();
 
@@ -47,6 +47,7 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   const form = {
     surname: clean(req.body.surname, 80),
     name: clean(req.body.name, 80),
+    gender: h.genderKey(req.body.gender),
     phone: normalizePhone(req.body.phone).slice(0, 20),
     email: clean(req.body.email, 120),
     school_id: Number(req.body.school_id) || null,
@@ -64,11 +65,12 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   const errors = [];
   if (!form.surname) errors.push('Овгоо оруулна уу.');
   if (!form.name) errors.push('Нэрээ оруулна уу.');
+  if (!form.gender) errors.push('Хүйсээ сонгоно уу.');
   if (!/^\+?\d{8,15}$/.test(form.phone)) errors.push('Утасны дугаар буруу байна (8-15 оронтой тоо).');
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.push('И-мэйл хаяг буруу байна.');
   if (!form.school_id) errors.push('Төгссөн сургуулиа сонгоно уу.');
   if (!form.employment) errors.push('Ажил эрхлэлтийн байдлаа сонгоно уу.');
-  const place = parseCity(req.body.city_choice, req.body.city_other);
+  const place = parsePlaceForm(req.body);
   if (place.error) errors.push(place.error);
   else form.city = place.city;
   const facebook = normalizeFacebook(form.facebook);
@@ -89,9 +91,9 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const [result] = await pool.query(
-    `INSERT INTO users (surname, name, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, position_level, position, city, facebook)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [form.surname, form.name, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
+    `INSERT INTO users (surname, name, gender, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, position_level, position, city, facebook)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [form.surname, form.name, form.gender, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
       h.professionsText(form.professions) || null, form.professions.length ? JSON.stringify(form.professions) : null, form.employment, form.workplace || null,
       form.position_level, form.position || null, form.city || null, facebook || null]
   );

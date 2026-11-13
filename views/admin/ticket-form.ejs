@@ -1,0 +1,112 @@
+<%- include('../partials/head') %>
+<div class="container">
+  <%- include('_nav') %>
+  <div class="card">
+    <h2><%= item.id ? 'Арга хэмжээ засах' : 'Шинэ арга хэмжээ' %></h2>
+    <% if (errors.length) { %>
+      <div class="flash error"><% errors.forEach(function (m) { %><div>• <%= m %></div><% }) %></div>
+    <% } %>
+    <form method="post" action="/admin/tickets<%= item.id ? '/' + item.id + '/edit' : '' %>" class="form tk-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+
+      <h3 class="tk-form-h">1. Арга хэмжээ</h3>
+      <div class="field"><label>Нэр <span class="req">*</span></label><input type="text" name="title" value="<%= item.title %>" maxlength="200" required placeholder="Жишээ нь: Төгсөлтийн 20 жилийн ойн хүлээн авалт"></div>
+      <div class="field"><label>Товч тайлбар</label><input type="text" name="summary" value="<%= item.summary || '' %>" maxlength="500" placeholder="Карт дээр харагдах 1–2 өгүүлбэр"></div>
+      <div class="field"><label>Дэлгэрэнгүй</label><textarea name="body" rows="5"><%= item.body || '' %></textarea></div>
+      <div class="field">
+        <label>Постер <span class="small faint">(заавал биш)</span></label>
+        <div class="cmp-cover-pick tk-poster-pick" data-cover-picker>
+          <input type="hidden" name="poster" data-cover-data>
+          <input type="hidden" name="poster_thumb" data-cover-thumb>
+          <div class="cmp-cover-preview">
+            <img data-cover-preview <%- item.poster_v ? 'src="/tickets/' + item.id + '/poster?s=t&v=' + item.poster_v + '"' : 'hidden' %> alt="">
+          </div>
+          <div class="row" style="gap:.5rem">
+            <label class="btn btn-sm" style="margin:0">🖼️ Постер сонгох<input type="file" accept="image/*" hidden data-cover-file></label>
+            <% if (item.poster_v) { %><label class="check small" style="margin:0"><input type="checkbox" name="remove_poster" value="1"> Постерыг устгах</label><% } %>
+            <span class="small faint" data-cover-status></span>
+          </div>
+          <div class="hint">Босоо, хэвтээ аль ч хэлбэртэй зураг болно — тайрахгүй, бүтнээр нь харуулна.</div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Болох огноо, цаг <span class="req">*</span></label><input type="datetime-local" name="event_at" value="<%= item.event_input %>" required></div>
+        <div class="field"><label>Байршил</label><input type="text" name="venue" value="<%= item.venue || '' %>" maxlength="300" placeholder="Жишээ нь: Хэрлэн ордон, их заал"></div>
+      </div>
+
+      <h3 class="tk-form-h">2. Худалдааны хугацаа</h3>
+      <div class="form-grid">
+        <div class="field"><label>Худалдаа эхлэх</label><input type="datetime-local" name="sale_start" value="<%= item.sale_start_input %>"><div class="hint">Хоосон бол нийтэлмэгц эхэлнэ.</div></div>
+        <div class="field"><label>Худалдаа дуусах <span class="req">*</span></label><input type="datetime-local" name="sale_end" value="<%= item.sale_end_input %>" required><div class="hint">Арга хэмжээ эхлэхээс өмнө байна.</div></div>
+        <div class="field"><label>Төлөх хугацаа (цаг)</label><input type="number" name="hold_hours" value="<%= item.hold_hours %>" min="1" max="168"><div class="hint">Захиалснаас хойш энэ хугацаанд төлөөгүй бол цуцлагдана.</div></div>
+        <div class="field"><label>Нэг захиалгын дээд тоо</label><input type="number" name="max_per_order" value="<%= item.max_per_order %>" min="1" max="50"></div>
+      </div>
+
+      <h3 class="tk-form-h">3. Тасалбар</h3>
+      <div class="seg" style="max-width:520px">
+        <label><input type="radio" name="seating" value="none" <%= item.seating !== 'seated' ? 'checked' : '' %>> 🎟️ Суудалгүй</label>
+        <label><input type="radio" name="seating" value="seated" <%= item.seating === 'seated' ? 'checked' : '' %>> 💺 Суудалтай (план)</label>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Тасалбарын үнэ (₮)</label>
+          <input type="text" name="price" value="<%= item.price || '' %>" inputmode="numeric" maxlength="20" placeholder="50,000" data-money data-base-price>
+          <div class="hint"><span class="only-none">0 эсвэл хоосон бол үнэгүй (бүртгэл).</span><span class="only-seated">Үндсэн үнэ — ширээ, эгнээ тус бүрд өөр үнэ тавьж болно.</span></div>
+        </div>
+        <div class="field only-none"><label>Нийт тасалбарын тоо</label><input type="number" name="capacity" value="<%= item.capacity || '' %>" min="1" max="100000" placeholder="Хязгааргүй"></div>
+      </div>
+
+      <div class="only-seated">
+        <div class="seat-editor" data-seat-editor>
+          <input type="hidden" name="layout" value="<%= item.layout %>" data-layout-input>
+          <script type="application/json" data-editor-json><%- editorJson %></script>
+          <div class="seat-toolbar">
+            <button type="button" class="btn btn-sm" data-add="table">◯ Дугуй ширээ</button>
+            <button type="button" class="btn btn-sm" data-add="row">▭▭ Эгнээ суудал</button>
+            <button type="button" class="btn btn-sm" data-add="zone">▢ Тайз / талбай</button>
+            <button type="button" class="btn btn-sm btn-danger" data-clear-tables>✕ Бүх ширээг арилгах</button>
+            <span class="seat-toolbar-sep"></span>
+            <label class="small">Талбай <input type="number" data-canvas="w" min="300" max="4000" step="50"> × <input type="number" data-canvas="h" min="200" max="4000" step="50"></label>
+            <span class="small muted" data-editor-stats></span>
+          </div>
+          <div class="seat-editor-body">
+            <div class="seat-map-wrap editing" data-editor-canvas></div>
+            <div class="seat-props" data-props></div>
+          </div>
+          <p class="small faint" style="margin:.5rem 0 0">Элементийг чирж байрлуулна — бусад элемент эсвэл талбайн төвтэй ирмэг/төвөөрөө тэгшрэхэд ягаан шугам гарч наалдана (<kbd>Alt</kbd> дарж чирвэл наалдахгүй). Тор — 25 нэгж, тод шугам — 100 нэгж. Сонгоод баруун талд нь суудлын тоо, нэр, үнийг тохируулна. <kbd>Delete</kbd> — устгах, сумтай товч — 1 нэгж зөөх.</p>
+        </div>
+      </div>
+
+      <h3 class="tk-form-h">4. Төлбөр хүлээн авах данс</h3>
+      <div class="form-grid">
+        <div class="field"><label>Банк</label><input type="text" name="bank_name" value="<%= item.bank_name || '' %>" maxlength="100" placeholder="Хаан банк"></div>
+        <div class="field"><label>Дансны дугаар</label><input type="text" name="bank_account" value="<%= item.bank_account || '' %>" maxlength="60" placeholder="5000 1234 56"></div>
+        <div class="field"><label>Хүлээн авагчийн нэр</label><input type="text" name="bank_holder" value="<%= item.bank_holder || '' %>" maxlength="150"></div>
+      </div>
+      <div class="field"><label>Холбоо барих</label><input type="text" name="contact" value="<%= item.contact || '' %>" maxlength="300" placeholder="Хариуцагчийн нэр, утас"></div>
+
+      <div class="field" style="max-width:360px">
+        <label>Төлөв</label>
+        <select name="status">
+          <% ['draft', 'open', 'closed'].forEach(function (s) { %>
+            <option value="<%= s %>" <%= item.status === s ? 'selected' : '' %>><%= { draft: 'Ноорог (нийтэд харагдахгүй)', open: 'Нийтлэх', closed: 'Хаах (худалдаа зогсоно)' }[s] %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="row between">
+        <div class="row">
+          <button class="btn btn-primary" type="submit">Хадгалах</button>
+          <a class="btn btn-ghost" href="/admin/tickets<%= item.id ? '/' + item.id : '' %>">Буцах</a>
+        </div>
+        <% if (item.id) { %>
+          <button class="btn btn-danger btn-sm" type="submit" formaction="/admin/tickets/<%= item.id %>/delete" formnovalidate
+                  data-confirm="&quot;<%= item.title %>&quot; арга хэмжээг бүх захиалгатай нь устгах уу? Буцаах боломжгүй.">Устгах</button>
+        <% } %>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="/js/seatmap.js" defer></script>
+<script src="/js/tickets.js" defer></script>
+<%- include('../partials/foot') %>

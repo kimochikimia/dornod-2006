@@ -152,6 +152,18 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   PRIMARY KEY (role, permission)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Эрхийн бүлэг: төлвөөс үл хамааран тухайн хэрэглэгчид нэмж олгосон эрх
+CREATE TABLE IF NOT EXISTS user_permissions (
+  user_id INT NOT NULL,
+  permission VARCHAR(50) NOT NULL,
+  added_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, permission),
+  KEY idx_userperm_perm (permission),
+  CONSTRAINT fk_userperm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_userperm_by FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Төгсөгчийн зураг (Railway-ийн файлын систем түр зуурынх тул өгөгдлийн санд хадгална)
 CREATE TABLE IF NOT EXISTS user_photos (
   user_id INT PRIMARY KEY,
@@ -319,4 +331,71 @@ CREATE TABLE IF NOT EXISTS campaign_contributions (
   CONSTRAINT fk_contrib_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
   CONSTRAINT fk_contrib_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT fk_contrib_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Тасалбартай (төлбөртэй) арга хэмжээ. seating: 'none' — суудалгүй (тоо ширхгээр), 'seated' — суудлын плантай.
+-- layout: суудлын план (JSON) — ширээ, эгнээ, талбайнууд (public/js/seatmap.js).
+CREATE TABLE IF NOT EXISTS ticket_events (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  summary VARCHAR(500) NULL,
+  body TEXT NULL,
+  venue VARCHAR(300) NULL,
+  event_at DATETIME NOT NULL,
+  sale_start DATETIME NULL,
+  sale_end DATETIME NOT NULL,
+  seating ENUM('none','seated') NOT NULL DEFAULT 'none',
+  price BIGINT NOT NULL DEFAULT 0,
+  capacity INT NULL,
+  max_per_order INT NOT NULL DEFAULT 10,
+  hold_hours INT NOT NULL DEFAULT 24,
+  layout MEDIUMTEXT NULL,
+  bank_name VARCHAR(100) NULL,
+  bank_account VARCHAR(60) NULL,
+  bank_holder VARCHAR(150) NULL,
+  contact VARCHAR(300) NULL,
+  status ENUM('draft','open','closed') NOT NULL DEFAULT 'draft',
+  created_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_tevent_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Тасалбарын захиалга. code — гүйлгээний утгад бичих давтагдашгүй код.
+-- pending: төлбөр хүлээгдэж буй (expires_at хүртэл суудал/тоо түгжигдэнэ), paid: төлсөн, cancelled: цуцлагдсан/хугацаа дууссан.
+-- seats: захиалсан суудлууд (JSON) — цуцлагдсан ч түүхэнд үлдэнэ.
+CREATE TABLE IF NOT EXISTS ticket_orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  event_id INT NOT NULL,
+  code VARCHAR(12) NOT NULL,
+  user_id INT NULL,
+  buyer_name VARCHAR(150) NOT NULL,
+  buyer_phone VARCHAR(40) NULL,
+  quantity INT NOT NULL,
+  amount BIGINT NOT NULL,
+  seats TEXT NULL,
+  note VARCHAR(500) NULL,
+  status ENUM('pending','paid','cancelled') NOT NULL DEFAULT 'pending',
+  cancel_reason VARCHAR(20) NULL,
+  expires_at DATETIME NULL,
+  reviewed_by INT NULL,
+  reviewed_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_ticket_code (code),
+  INDEX idx_torder_event (event_id, status, created_at),
+  INDEX idx_torder_user (user_id),
+  CONSTRAINT fk_torder_event FOREIGN KEY (event_id) REFERENCES ticket_events(id) ON DELETE CASCADE,
+  CONSTRAINT fk_torder_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_torder_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Идэвхтэй (pending/paid) захиалгын эзэлсэн суудал. (event_id, seat_key) давтагдашгүй тул нэг суудлыг хоёр хүн авч чадахгүй.
+CREATE TABLE IF NOT EXISTS ticket_seat_locks (
+  event_id INT NOT NULL,
+  seat_key VARCHAR(40) NOT NULL,
+  order_id INT NOT NULL,
+  PRIMARY KEY (event_id, seat_key),
+  INDEX idx_tlock_order (order_id),
+  CONSTRAINT fk_tlock_event FOREIGN KEY (event_id) REFERENCES ticket_events(id) ON DELETE CASCADE,
+  CONSTRAINT fk_tlock_order FOREIGN KEY (order_id) REFERENCES ticket_orders(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

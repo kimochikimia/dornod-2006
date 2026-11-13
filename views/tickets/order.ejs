@@ -1,0 +1,63 @@
+<%- include('../partials/head') %>
+<%
+  var o = order;
+  var e = event;
+  var badge = o.status === 'paid' ? 'success' : o.status === 'pending' ? 'pending' : 'danger';
+%>
+<div class="container tk-order">
+  <div class="page-head">
+    <a href="/tickets/<%= e.id %>" class="small">← <%= e.title %></a>
+  </div>
+
+  <div class="ticket <%= o.status %>">
+    <div class="ticket-main">
+      <div class="row" style="gap:.5rem">
+        <span class="badge <%= badge %>"><%= tk.STATUS_LABELS[o.status] %></span>
+        <% if (o.status === 'cancelled' && o.cancel_reason) { %><span class="small faint"><%= tk.CANCEL_LABELS[o.cancel_reason] %></span><% } %>
+      </div>
+      <h2 style="margin:.6rem 0 .25rem"><%= e.title %></h2>
+      <div class="muted">🕒 <%= e.eventText %><% if (e.venue) { %> · 📍 <%= e.venue %><% } %></div>
+      <dl class="ticket-facts">
+        <div><dt>Эзэмшигч</dt><dd><%= o.buyer_name %></dd></div>
+        <% if (o.seatArr.length) { %>
+          <div><dt>Суудал</dt><dd><%= o.seatArr.map(function (s) { return s.group + ' · ' + s.label; }).join(', ') %></dd></div>
+        <% } else { %>
+          <div><dt>Тасалбар</dt><dd><%= o.quantity %> ширхэг</dd></div>
+        <% } %>
+        <div><dt>Дүн</dt><dd><%= tk.fmtMoney(o.amount) %></dd></div>
+        <div><dt>Захиалсан</dt><dd><%= h.fmtDate(o.created_at) %></dd></div>
+      </dl>
+    </div>
+    <div class="ticket-stub">
+      <span class="small muted">Захиалгын код</span>
+      <strong class="ticket-code"><%= o.code %></strong>
+      <% if (o.status === 'paid') { %><span class="small" style="color:var(--success)">✓ Орох хаалган дээр энэ кодыг үзүүлнэ</span><% } %>
+    </div>
+  </div>
+
+  <% if (o.status === 'pending') { %>
+    <div class="card tk-pay">
+      <h3>Төлбөр шилжүүлэх</h3>
+      <p class="small muted">Доорх данс руу <strong>гүйлгээний утга</strong>-д захиалгын кодоо заавал бичиж шилжүүлнэ үү. Удирдлага төлбөрийг шалгаад баталгаажуулахад тасалбар тань идэвхжинэ.</p>
+      <div class="tk-pay-grid">
+        <% if (e.bank_name) { %><div class="tk-pay-row"><span>Банк</span><strong><%= e.bank_name %></strong></div><% } %>
+        <div class="tk-pay-row"><span>Дансны дугаар</span><strong><%= e.bank_account || '—' %></strong><% if (e.bank_account) { %><button class="btn btn-sm" type="button" data-copy="<%= e.bank_account %>">Хуулах</button><% } %></div>
+        <% if (e.bank_holder) { %><div class="tk-pay-row"><span>Хүлээн авагч</span><strong><%= e.bank_holder %></strong></div><% } %>
+        <div class="tk-pay-row"><span>Дүн</span><strong><%= tk.fmtMoney(o.amount) %></strong><button class="btn btn-sm" type="button" data-copy="<%= o.amount %>">Хуулах</button></div>
+        <div class="tk-pay-row hl"><span>Гүйлгээний утга</span><strong><%= o.code %></strong><button class="btn btn-sm" type="button" data-copy="<%= o.code %>">Хуулах</button></div>
+      </div>
+      <% if (o.expires_at) { %>
+        <p class="small" style="margin:.9rem 0 0">⏳ <strong><%= h.fmtDate(o.expires_at) %></strong>-аас өмнө төлнө үү. Төлөөгүй бол захиалга автоматаар цуцлагдана.</p>
+      <% } %>
+      <% if (o.user_id === me.id) { %>
+        <form method="post" action="/tickets/order/<%= o.code %>/cancel" style="margin-top:.75rem" data-confirm="Энэ захиалгыг цуцлах уу?">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="link-btn small" type="submit">Захиалга цуцлах</button>
+        </form>
+      <% } %>
+    </div>
+  <% } %>
+  <% if (e.contact) { %><p class="small muted" style="margin-top:1rem">📞 Асуух зүйл байвал: <%= e.contact %></p><% } %>
+</div>
+<script src="/js/tickets.js" defer></script>
+<%- include('../partials/foot') %>

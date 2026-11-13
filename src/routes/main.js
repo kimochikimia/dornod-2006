@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db');
 const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware');
 const { clean, employmentKey } = require('../helpers');
+const h = require('../helpers');
+const LOC = require('../locations');
 const plan = require('../plan');
 const rx = require('../reactions');
 const gallery = require('../gallery');
@@ -182,6 +184,87 @@ router.get('/gallery/photo/:id', wrap(async (req, res, next) => {
   res.send(p.img);
 }));
 
+// Төгсөгчдийн товчоо статистик (бүх баталгаажсан хэрэглэгчээр, шүүлтүүрээс үл хамаарна).
+// full=false (нэвтрээгүй) үед ажил эрхлэлт, хот, мэргэжлийн задаргааг гаргахгүй.
+async function memberStats(full) {
+  const [rows] = await pool.query(
+    `SELECT u.gender, u.school_id, u.employment, u.city, u.professions, u.created_at, u.photo_v, u.facebook, u.email, u.workplace, s.name AS school_name, s.sort_order
+     FROM users u LEFT JOIN schools s ON s.id = u.school_id WHERE u.status = 'approved'`
+  );
+  const total = rows.length;
+  const pct = (n) => (total ? Math.round((n / total) * 1000) / 10 : 0);
+  const gender = { male: 0, female: 0, unknown: 0 };
+  const bySchool = new Map();
+  const byEmp = {};
+  const byCity = {};
+  let mnCount = 0;
+  let abroadCount = 0;
+  const byProf = {};
+  const monthAgo = Date.now() - 30 * 24 * 3600 * 1000;
+  let recent = 0;
+  for (const r of rows) {
+    const g = r.gender === 'male' || r.gender === 'female' ? r.gender : 'unknown';
+    gender[g]++;
+    if (new Date(r.created_at).getTime() >= monthAgo) recent++;
+    const sk = r.school_id || 0;
+    if (!bySchool.has(sk)) bySchool.set(sk, { id: r.school_id, name: r.school_name || 'Сургууль тодорхойгүй', order: r.sort_order ?? 9999, n: 0, male: 0, female: 0 });
+    const s = bySchool.get(sk);
+    s.n++;
+    if (g !== 'unknown') s[g]++;
+    if (r.employment) byEmp[r.employment] = (byEmp[r.employment] || 0) + 1;
+    const place = LOC.placeGroup(r.city);
+    if (place) {
+      if (!byCity[place.key]) byCity[place.key] = { label: (place.abroad ? '🌐 ' : '') + place.label, n: 0 };
+      byCity[place.key].n++;
+      if (place.abroad) abroadCount++; else mnCount++;
+    }
+    const fields = new Set(h.readProfessions(r).map((p) => p.field).filter(Boolean));
+    for (const f of fields) byProf[f] = (byProf[f] || 0) + 1;
+  }
+  const list = (obj, label) => Object.entries(obj)
+    .map(([k, n]) => ({ key: k, label: label ? label(k) : k, n, pct: pct(n) }))
+    .sort((a, b) => b.n - a.n || a.label.localeCompare(b.label));
+  const schools = [...bySchool.values()]
+    .map((s) => ({ ...s, pct: pct(s.n) }))
+    .sort((a, b) => b.n - a.n || a.order - b.order);
+  const [[{ pending }]] = await pool.query("SELECT COUNT(*) AS pending FROM users WHERE status = 'pending'");
+  const [[{ schoolTotal }]] = await pool.query('SELECT COUNT(*) AS schoolTotal FROM schools');
+  // Мэдээллийн бүрдэл: талбар бүрийг бөглөсөн хүний тоо
+  const filled = (fn) => rows.filter(fn).length;
+  const completeness = [
+    ['Зурагтай', (r) => r.photo_v],
+    ['Хүйс', (r) => r.gender],
+    ['Ажил эрхлэлт', (r) => r.employment],
+    ['Мэргэжил', (r) => h.readProfessions(r).length],
+    ['Амьдарч буй газар', (r) => (r.city || '').trim()],
+    ['Ажлын газар', (r) => (r.workplace || '').trim()],
+    ['Facebook', (r) => r.facebook],
+    ['И-мэйл', (r) => r.email],
+  ].map(([label, fn]) => { const n = filled(fn); return { label, n, pct: pct(n) }; });
+  const fullProfiles = filled((r) => r.photo_v && r.gender && r.employment && h.readProfessions(r).length && (r.city || '').trim());
+  const cityList = Object.values(byCity)
+    .map((c) => ({ label: c.label, n: c.n, pct: pct(c.n) }))
+    .sort((a, b) => b.n - a.n || a.label.localeCompare(b.label));
+  const profList = list(byProf, (k) => h.PROFESSION_LABELS[k] || k);
+  const working = ['public', 'private', 'business', 'abroad'].reduce((a, k) => a + (byEmp[k] || 0), 0);
+  const empFilled = Object.values(byEmp).reduce((a, b) => a + b, 0);
+  return {
+    pending, schoolTotal, mnCount, abroadCount, completeness, fullProfiles, fullPct: pct(fullProfiles),
+    cityCount: cityList.length, topCity: cityList[0] || null,
+    cityFilled: cityList.reduce((a, c) => a + c.n, 0),
+    working, workingPct: empFilled ? Math.round((working / empFilled) * 100) : 0,
+    abroad: byEmp.abroad || 0, empFilledCount: empFilled,
+    profCount: profList.length, topProf: profList[0] || null,
+    total, recent, gender, genderPct: { male: pct(gender.male), female: pct(gender.female), unknown: pct(gender.unknown) },
+    schools, schoolCount: schools.filter((s) => s.id).length,
+    full,
+    employment: full ? list(byEmp, (k) => h.EMPLOYMENT_LABELS[k] || k) : [],
+    employmentFilled: full ? Object.values(byEmp).reduce((a, b) => a + b, 0) : 0,
+    cities: full ? cityList : [],
+    professions: full ? profList : [],
+  };
+}
+
 router.get('/members', wrap(async (req, res) => {
   const guest = !req.user; // бүртгэлгүй: зөвхөн нэр, сургууль
   const q = clean(req.query.q, 80);
@@ -212,12 +295,13 @@ router.get('/members', wrap(async (req, res) => {
     params
   );
   const [schools] = await pool.query('SELECT * FROM schools ORDER BY sort_order, name');
-  res.render('members/list', { title: 'Төгсөгчид', members, schools, q, school, employment });
+  const stats = await memberStats(!guest);
+  res.render('members/list', { title: 'Төгсөгчид', members, schools, q, school, employment, stats });
 }));
 
 router.get('/members/:id', requireLogin, wrap(async (req, res, next) => {
   const [[member]] = await pool.query(
-    `SELECT u.id, u.surname, u.name, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.professions, u.employment, u.workplace, u.position_level, u.position,
+    `SELECT u.id, u.surname, u.name, u.gender, u.phone, u.email, u.facebook, u.photo_v, u.class_name, u.occupation, u.professions, u.employment, u.workplace, u.position_level, u.position,
             u.city, u.bio, u.role, u.created_at,
             s.name AS school_name
      FROM users u LEFT JOIN schools s ON s.id = u.school_id

@@ -31,6 +31,13 @@
           <input id="name" type="text" name="name" value="<%= form.name || '' %>" maxlength="80" required>
         </div>
         <div class="field">
+          <label>Хүйс <span class="req">*</span></label>
+          <div class="seg">
+            <label><input type="radio" name="gender" value="male" <%= form.gender === 'male' ? 'checked' : '' %> required> 👨 Эрэгтэй</label>
+            <label><input type="radio" name="gender" value="female" <%= form.gender === 'female' ? 'checked' : '' %>> 👩 Эмэгтэй</label>
+          </div>
+        </div>
+        <div class="field">
           <label for="phone">Утасны дугаар <span class="req">*</span></label>
           <input id="phone" type="tel" name="phone" value="<%= form.phone || '' %>" maxlength="20" autocomplete="username" required>
           <div class="hint">Нэвтрэхдээ энэ дугаарыг ашиглана.</div>
