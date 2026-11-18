@@ -4,6 +4,7 @@ const helpers = require('./helpers');
 const perms = require('./permissions');
 const { avatarHtml } = require('./photos');
 const locations = require('./locations');
+const emailVerify = require('./emailVerify');
 
 function flash(req, type, message) {
   if (!req.session.flash) req.session.flash = [];
@@ -62,6 +63,7 @@ function locals(req, res, next) {
   res.locals.flash = req.session.flash || [];
   delete req.session.flash;
   res.locals.path = req.path;
+  res.locals.emailVerifyOn = emailVerify.available();
   res.locals.h = helpers;
   res.locals.guideData = require('./guides');
   next();

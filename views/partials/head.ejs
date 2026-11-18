@@ -57,6 +57,12 @@
 <% if (me && me.status === 'pending') { %>
   <div class="container flash-wrap"><div class="flash warn">Таны бүртгэл админы баталгаажуулалт хүлээж байна. Баталгаажсаны дараа төгсөгчдийн жагсаалт үзэх, нэр дэвшүүлэх, санал өгөх боломжтой болно.</div></div>
 <% } %>
+<% if (me && !me.email && path !== '/me') { %>
+  <div class="container flash-wrap"><div class="flash info">Тасалбар, төлбөрийн мэдээллээ имэйлээр авахын тулд <a href="/me#email">и-мэйл хаягаа нэмнэ үү</a>.</div></div>
+<% } %>
+<% if (me && me.email && !me.email_verified_at && locals.emailVerifyOn && path !== '/me') { %>
+  <div class="container flash-wrap"><div class="flash info">Тасалбар, төлбөрийн мэдээллээ имэйлээр авахын тулд <a href="/me#email">и-мэйл хаягаа баталгаажуулна уу</a>.</div></div>
+<% } %>
 <% if (flash.length) { %>
   <div class="container flash-wrap">
     <% flash.forEach(function (f) { %><div class="flash <%= f.type %>"><%= f.message %></div><% }) %>

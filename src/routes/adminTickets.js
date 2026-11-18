@@ -6,6 +6,7 @@ const { pool } = require('../db');
 const { flash, wrap, requirePerm, can } = require('../middleware');
 const { clean, fullName } = require('../helpers');
 const tk = require('../tickets');
+const ticketMail = require('../ticketMail');
 
 const gallery = require('../gallery');
 
@@ -179,6 +180,7 @@ router.post('/:id(\\d+)/orders', sell, wrap(async (req, res, next) => {
       quantity: Number(req.body.quantity),
       seatKeys: String(req.body.seats || '').split(',').filter(Boolean).slice(0, 200),
     });
+    ticketMail.notify(r.code, ticketMail.originOf(req));
     flash(req, 'success', r.held
       ? `Түгжигдлээ (код ${r.code}). Энэ кодыг гүйлгээний утгад бичиж төлнө; төлбөр орвол борлуулалтаас "Төлсөн" болгоно.`
       : `Тасалбар бүртгэгдлээ (код ${r.code}).`);
@@ -194,14 +196,15 @@ router.post('/:id(\\d+)/orders/:oid(\\d+)', confirm, wrap(async (req, res) => {
   const id = Number(req.params.id);
   const oid = Number(req.params.oid);
   const action = req.body.action;
-  const [[o]] = await pool.query('SELECT id FROM ticket_orders WHERE id = ? AND event_id = ?', [oid, id]);
+  const [[o]] = await pool.query('SELECT id, code FROM ticket_orders WHERE id = ? AND event_id = ?', [oid, id]);
   if (o) {
     try {
       if (action === 'delete') {
         await pool.query('DELETE FROM ticket_orders WHERE id = ?', [oid]);
         flash(req, 'success', 'Захиалга устгагдлаа.');
       } else if (action === 'paid' || action === 'cancelled') {
-        await tk.setOrderStatus(oid, action, { reviewerId: req.user.id, reason: 'admin' });
+        const r = await tk.setOrderStatus(oid, action, { reviewerId: req.user.id, reason: 'admin' });
+        if (r.changed) ticketMail.notify(o.code, ticketMail.originOf(req));
         flash(req, 'success', action === 'paid' ? 'Төлбөр баталгаажлаа.' : 'Захиалга цуцлагдлаа.');
       }
     } catch (err) {

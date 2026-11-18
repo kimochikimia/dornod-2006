@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch-path=./src --watch-path=./server.js server.js",
-    "guide:screens": "node scripts/guide-screenshots.js"
+    "guide:screens": "node scripts/guide-screenshots.js",
+    "mail:auth": "node scripts/gmail-auth.js"
   },
   "engines": {
     "node": ">=20"
@@ -21,6 +22,7 @@
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
     "mysql2": "^3.12.0",
+    "nodemailer": "^10.6.0",
     "qrcode": "^1.5.4"
   }
 }

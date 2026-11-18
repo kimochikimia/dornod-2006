@@ -7,6 +7,8 @@ const { clean, parsePhoto, normalizeFacebook, employmentKey } = require('../help
 const h = require('../helpers');
 const { savePhoto } = require('../photos');
 const { parsePlaceForm } = require('../locations');
+const emailVerify = require('../emailVerify');
+const { originOf } = require('../ticketMail');
 
 const router = express.Router();
 
@@ -68,7 +70,8 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   if (!form.name) errors.push('Нэрээ оруулна уу.');
   if (!form.gender) errors.push('Хүйсээ сонгоно уу.');
   if (!/^\+?\d{8,15}$/.test(form.phone)) errors.push('Утасны дугаар буруу байна (8-15 оронтой тоо).');
-  if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.push('И-мэйл хаяг буруу байна.');
+  if (!form.email) errors.push('И-мэйл хаягаа оруулна уу.');
+  else if (!h.isEmail(form.email)) errors.push('И-мэйл хаяг буруу байна.');
   if (!form.school_id) errors.push('Төгссөн сургуулиа сонгоно уу.');
   if (!form.employment) errors.push('Ажил эрхлэлтийн байдлаа сонгоно уу.');
   const place = parsePlaceForm(req.body);
@@ -94,14 +97,28 @@ router.post('/register', authLimiter, wrap(async (req, res) => {
   const [result] = await pool.query(
     `INSERT INTO users (surname, name, short_name, gender, phone, email, password_hash, school_id, class_name, occupation, professions, employment, workplace, position_level, position, city, facebook)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [form.surname, form.name, form.short_name || null, form.gender, form.phone, form.email || null, hash, form.school_id, form.class_name || null,
+    [form.surname, form.name, form.short_name || null, form.gender, form.phone, form.email, hash, form.school_id, form.class_name || null,
       h.professionsText(form.professions) || null, form.professions.length ? JSON.stringify(form.professions) : null, form.employment, form.workplace || null,
       form.position_level, form.position || null, form.city || null, facebook || null]
   );
   if (photo) await savePhoto(result.insertId, photo);
   await startSession(req, result.insertId);
-  flash(req, 'success', 'Бүртгэл амжилттай үүслээ! Админ таныг 2006 оны төгсөгч мөн эсэхийг шалгаж баталгаажуулна.');
+  emailVerify.sendLink(result.insertId, originOf(req)).catch((err) => console.error(`[mail] бүртгэл ${result.insertId}: ${err.message}`));
+  flash(req, 'success', `Бүртгэл амжилттай үүслээ! Админ таныг 2006 оны төгсөгч мөн эсэхийг шалгаж баталгаажуулна.${emailVerify.available() ? ' И-мэйлээ шалгаж, хаягаа баталгаажуулна уу.' : ''}`);
   res.redirect('/me');
+}));
+
+// Имэйлийн холбоос: зөвхөн нээхэд баталгаажуулахгүй (шуудангийн систем холбоосыг урьдчилан нээж болно)
+router.get('/verify-email/:token', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const ok = await emailVerify.isValid(req.params.token);
+  res.status(ok ? 200 : 400).render('auth/verify-email', { title: 'И-мэйл баталгаажуулах', state: ok ? 'confirm' : 'invalid', token: req.params.token });
+}));
+
+router.post('/verify-email/:token', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const ok = await emailVerify.confirm(req.params.token);
+  res.status(ok ? 200 : 400).render('auth/verify-email', { title: 'И-мэйл баталгаажуулах', state: ok ? 'done' : 'invalid', token: '' });
 }));
 
 router.get('/login', (req, res) => {

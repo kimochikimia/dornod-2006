@@ -16,7 +16,7 @@
         <dt>Овог, нэр</dt><dd><%= me.surname %> <%= me.name %><%= me.short_name ? ' (' + me.short_name + ')' : '' %></dd>
         <dt>Хүйс</dt><dd><%= me.gender ? h.GENDER_LABELS[me.gender] : '—' %></dd>
         <dt>Утас</dt><dd><%= me.phone %></dd>
-        <dt>И-мэйл</dt><dd><%= me.email || '—' %></dd>
+        <dt>И-мэйл</dt><dd><%= me.email || '—' %><% if (me.email && me.email_verified_at) { %> <span class="badge success">Баталгаажсан</span><% } else if (me.email && emailVerifyOn) { %> <span class="badge pending">Баталгаажаагүй</span><% } %></dd>
         <dt>Facebook</dt><dd><% if (me.facebook) { %><a class="fb-link" href="<%= me.facebook %>" target="_blank" rel="noopener noreferrer"><span class="fb-icon">f</span> Facebook хуудас</a><% } else { %>—<% } %></dd>
         <dt>Сургууль</dt><dd><%= me.school_name || '—' %><%= me.class_name ? ' · ' + me.class_name : '' %></dd>
         <dt>Ажил эрхлэлт</dt><dd><%= me.employment ? h.EMPLOYMENT_LABELS[me.employment] : '—' %></dd>
@@ -25,6 +25,22 @@
         <dt>Мэргэжил</dt><dd><% var profs = h.readProfessions(me); %><% if (profs.length) { %><% profs.forEach(function (p) { %><div><%= p.title || h.PROFESSION_LABELS[p.field] %><% if (p.field && p.title) { %> <span class="small muted">· <%= h.PROFESSION_LABELS[p.field] %></span><% } %></div><% }) %><% } else { %>—<% } %></dd>
         <dt>Хот</dt><dd><%= me.city || '—' %></dd>
       </dl>
+      <hr class="sep">
+      <form method="post" action="/me/email" class="form" id="email">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field">
+          <label for="my-email">И-мэйл хаяг</label>
+          <input id="my-email" type="email" name="email" value="<%= me.email || '' %>" maxlength="120" autocomplete="email" required>
+          <div class="hint"><%= me.email_verified_at ? 'Тасалбар, төлбөрийн мэдээлэл энэ хаягаар ирнэ.' : 'Хаягаа баталгаажуулсны дараа тасалбар, төлбөрийн мэдээлэл ирнэ.' %></div>
+        </div>
+        <div><button class="btn btn-primary" type="submit"><%= me.email ? 'И-мэйл солих' : 'И-мэйл нэмэх' %></button></div>
+      </form>
+      <% if (me.email && !me.email_verified_at && emailVerifyOn) { %>
+        <form method="post" action="/me/email/resend" style="margin-top:.6rem">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn" type="submit">Баталгаажуулах холбоос илгээх</button>
+        </form>
+      <% } %>
     </div>
 
     <div class="card">

@@ -310,6 +310,7 @@ async function setOrderStatus(orderId, status, { reviewerId, reason } = {}) {
       await conn.query('DELETE FROM ticket_seat_locks WHERE order_id = ?', [o.id]);
     }
     await conn.commit();
+    return { changed: o.status !== status };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -342,8 +343,12 @@ async function ensureToken(o) {
   return o.checkin_token;
 }
 
+function checkinUrlFor(origin, token) {
+  return `${origin}/admin/tickets/checkin/${token}`;
+}
+
 function checkinUrl(req, token) {
-  return `${req.protocol}://${req.get('host')}/admin/tickets/checkin/${token}`;
+  return checkinUrlFor(`${req.protocol}://${req.get('host')}`, token);
 }
 
 // Төлсөн захиалгуудад QR (SVG) нэмнэ
@@ -468,6 +473,6 @@ function formValues(e) {
 
 module.exports = {
   STATUS_LABELS, CANCEL_LABELS, EVENT_STATUS, PHASE_LABELS, MAX_PENDING_PER_USER, OrderError,
-  attachQr, getByToken, checkinLog, checkIn,
+  attachQr, ensureToken, checkinUrlFor, getByToken, checkinLog, checkIn,
   fmtMoney, list, get, seatStates, orders, userOrders, allUserOrders, getOrder, placeOrder, setOrderStatus, eventFields, formValues, expireStale,
 };

@@ -228,6 +228,8 @@ function clean(s, max = 255) {
   return String(s ?? '').trim().slice(0, max);
 }
 
+const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s ?? ''));
+
 // Reaction-ууд (src/reactions.js-д мөн ашиглана)
 const REACTIONS = [
   ['like', '👍', 'Таалагдлаа'],
@@ -317,7 +319,7 @@ function readProfessions(user) {
 module.exports = {
   GENDER_LABELS, genderKey,
   TZ, fmtDate, fmtDay, hourKey, ubInput, fromUbInput, escapeHtml, text, fullName, initials,
-  PHASES, PHASE_LABELS, STATUS_LABELS, clean, parsePhoto, normalizeFacebook, normalizeMapUrl, renderDoc, parseDocFile, fmtSize,
+  PHASES, PHASE_LABELS, STATUS_LABELS, clean, isEmail, parsePhoto, normalizeFacebook, normalizeMapUrl, renderDoc, parseDocFile, fmtSize,
   EMPLOYMENT, EMPLOYMENT_LABELS, employmentKey,
   REACTIONS,
   POSITION_LEVELS, POSITION_LABELS, positionKey, positionText,

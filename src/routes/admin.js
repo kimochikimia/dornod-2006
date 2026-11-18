@@ -216,11 +216,15 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
   const status = !self && can(req.user, 'approve_users') && ['pending', 'approved', 'rejected'].includes(req.body.status)
     ? req.body.status : target.status;
   const professions = h.parseProfessions(req.body.prof_field, req.body.prof_title);
+  const email = clean(req.body.email, 120) || null;
+  // Хаяг өөрчлөгдвөл баталгаажуулалт хүчингүй болно (email-ээс өмнө шалгах тул дараалал чухал)
   await pool.query(
-    `UPDATE users SET surname=?, name=?, short_name=?, gender=?, phone=?, email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?, position_level=?, position=?,
+    `UPDATE users SET surname=?, name=?, short_name=?, gender=?, phone=?,
+       email_verified_at=IF(email <=> ?, email_verified_at, NULL), email_token_hash=IF(email <=> ?, email_token_hash, NULL),
+       email_token_expires=IF(email <=> ?, email_token_expires, NULL), email=?, school_id=?, class_name=?, occupation=?, professions=?, employment=?, workplace=?, position_level=?, position=?,
        city=?, facebook=?, bio=?, role=?, status=?
      WHERE id = ?`,
-    [clean(req.body.surname, 80), clean(req.body.name, 80), clean(req.body.short_name, 40) || null, h.genderKey(req.body.gender), phone, clean(req.body.email, 120) || null,
+    [clean(req.body.surname, 80), clean(req.body.name, 80), clean(req.body.short_name, 40) || null, h.genderKey(req.body.gender), phone, email, email, email, email,
       Number(req.body.school_id) || null, clean(req.body.class_name, 20) || null,
       h.professionsText(professions) || null, professions.length ? JSON.stringify(professions) : null,
       h.employmentKey(req.body.employment), clean(req.body.workplace, 150) || null,

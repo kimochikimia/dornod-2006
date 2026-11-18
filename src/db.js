@@ -289,6 +289,10 @@ async function init() {
   await ensureColumn('ticket_orders', 'checkin_token', 'VARCHAR(32) NULL UNIQUE AFTER code');
   await ensureColumn('ticket_orders', 'checked_in', 'INT NOT NULL DEFAULT 0 AFTER held');
   await ensureColumn('ticket_events', 'venue_url', 'VARCHAR(500) NULL AFTER venue'); // Google Maps линк
+  // И-мэйл баталгаажуулалт: токеныг зөвхөн SHA-256 хэшээр хадгална
+  await ensureColumn('users', 'email_verified_at', 'DATETIME NULL AFTER email');
+  await ensureColumn('users', 'email_token_hash', 'CHAR(64) NULL UNIQUE AFTER email_verified_at');
+  await ensureColumn('users', 'email_token_expires', 'DATETIME NULL AFTER email_token_hash');
   await syncSchools();
 
   await seedAdmin();

@@ -4,6 +4,9 @@ const { pool } = require('../db');
 const { flash, wrap, requireLogin, requirePerm, can } = require('../middleware');
 const { clean, employmentKey } = require('../helpers');
 const h = require('../helpers');
+const rateLimit = require('express-rate-limit');
+const emailVerify = require('../emailVerify');
+const ticketMail = require('../ticketMail');
 const LOC = require('../locations');
 const plan = require('../plan');
 const rx = require('../reactions');
@@ -352,6 +355,47 @@ router.post('/me/password', requireLogin, wrap(async (req, res) => {
     flash(req, 'success', 'Нууц үг амжилттай солигдлоо.');
   }
   res.redirect('/me');
+}));
+
+// Нэг хэрэглэгч сайтаар дамжуулж олон имэйл илгээхээс сэргийлнэ
+const emailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 6,
+  standardHeaders: false,
+  legacyHeaders: false,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  handler: (req, res) => {
+    flash(req, 'warn', 'Хэт олон оролдлого хийлээ. Нэг цагийн дараа дахин оролдоно уу.');
+    res.redirect('/me#email');
+  },
+});
+
+function flashVerifyResult(req, result) {
+  if (result === 'sent') flash(req, 'success', 'Баталгаажуулах холбоосыг и-мэйлээр илгээлээ. 24 цагийн дотор нээнэ үү.');
+  else if (result === 'failed') flash(req, 'warn', 'Баталгаажуулах холбоос илгээж чадсангүй. Түр хүлээгээд дахин оролдоно уу.');
+  else flash(req, 'success', 'И-мэйл хаяг хадгалагдлаа.');
+}
+
+router.post('/me/email', requireLogin, emailLimiter, wrap(async (req, res) => {
+  const email = clean(req.body.email, 120);
+  if (!h.isEmail(email)) {
+    flash(req, 'error', 'И-мэйл хаяг буруу байна.');
+  } else if (req.user.email_verified_at && String(req.user.email).toLowerCase() === email.toLowerCase()) {
+    flash(req, 'info', 'Энэ хаяг аль хэдийн баталгаажсан байна.');
+  } else {
+    await pool.query(
+      'UPDATE users SET email = ?, email_verified_at = NULL, email_token_hash = NULL, email_token_expires = NULL WHERE id = ?',
+      [email, req.user.id]
+    );
+    flashVerifyResult(req, await emailVerify.sendLink(req.user.id, ticketMail.originOf(req)));
+  }
+  res.redirect('/me#email');
+}));
+
+router.post('/me/email/resend', requireLogin, emailLimiter, wrap(async (req, res) => {
+  const result = await emailVerify.sendLink(req.user.id, ticketMail.originOf(req));
+  if (result === 'sent' || result === 'failed') flashVerifyResult(req, result);
+  res.redirect('/me#email');
 }));
 
 router.post('/me/request', requireLogin, wrap(async (req, res) => {

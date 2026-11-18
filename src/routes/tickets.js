@@ -4,6 +4,7 @@ const { pool } = require('../db');
 const { flash, wrap, requireLogin, requireMember, can } = require('../middleware');
 const { fullName } = require('../helpers');
 const tk = require('../tickets');
+const ticketMail = require('../ticketMail');
 
 const router = express.Router();
 // Тасалбарын удирдлагын аль нэг эрхтэй (ноорог харах, бусдын захиалга харах)
@@ -71,6 +72,7 @@ router.post('/:id(\\d+)/buy', requireMember, wrap(async (req, res, next) => {
       quantity: Number(req.body.quantity),
       seatKeys: String(req.body.seats || '').split(',').filter(Boolean).slice(0, 200),
     });
+    ticketMail.notify(r.code, ticketMail.originOf(req));
     flash(req, 'success', r.status === 'paid' ? 'Тасалбар амжилттай бүртгэгдлээ!' : 'Захиалга үүслээ. Доорх данс руу төлбөрөө шилжүүлнэ үү.');
     res.redirect(`/tickets/order/${r.code}`);
   } catch (err) {
