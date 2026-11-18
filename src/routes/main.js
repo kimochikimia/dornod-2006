@@ -357,6 +357,8 @@ router.post('/me/password', requireLogin, wrap(async (req, res) => {
   res.redirect('/me');
 }));
 
+router.get('/privacy', (req, res) => res.render('privacy', { title: 'Нууцлалын бодлого' }));
+
 // Нэг хэрэглэгч сайтаар дамжуулж олон имэйл илгээхээс сэргийлнэ
 const emailLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
