@@ -4,11 +4,9 @@
   var f = form || {};
   var seated = e.seating === 'seated';
   var phaseClass = { onsale: 'grad', soon: 'pending', soldout: 'danger', ended: '', draft: '' };
-  // Борлуулалтын задаргаа: хүлээгдэж буй, түгжсэн, төлсөн — нэг жагсаалтад (шинэ нь эхэндээ), цуцлагдсан нь доор тусдаа
-  var sections = [
-    ['sales', 'Борлуулалтын задаргаа', active, 'Төлбөр хүлээгдэж буй захиалгыг дансны хуулгын гүйлгээний утга (код), дүнтэй тулгаад "Төлсөн" болгоно. Түгжсэн суудал хугацаа дуусахгүй — төлбөр хийгдвэл "Төлсөн", чөлөөлөх бол "Цуцлах".', true],
-    ['cancelled', 'Цуцлагдсан', cancelled, 'Төлөх хугацаа нь дууссан эсвэл цуцлагдсан захиалга. Хожим төлсөн бол "Төлсөн" болгож сэргээнэ (суудал сул байвал).', false],
-  ];
+  // Борлуулалтын задаргаа: бүх захиалга (цуцлагдсаныг оруулаад) нэг жагсаалтад, шинэ нь эхэндээ; төлөвөөр шүүнэ
+  var sections = [['sales', 'Борлуулалтын задаргаа', orders, '', true]];
+  var stCount = { pending: pending.length, held: held.length, paid: paid.length, cancelled: cancelled.length };
   var stBadge = { pending: 'pending', held: 'held', paid: 'success', cancelled: 'danger' };
   var stLabel = { pending: 'Төлбөр хүлээгдэж буй', held: '🔒 Түгжсэн', paid: '✓ Төлсөн', cancelled: 'Цуцлагдсан' };
 %>
@@ -30,6 +28,17 @@
     </div>
   </div>
 
+  <%# Борлуулалтын тойм — табуудын дээр (борлуулалт харах эрхтэй бол) %>
+  <% if (can('confirm_tickets')) { %>
+  <div class="grid grid-4" style="margin-bottom:1.25rem">
+    <div class="card stat"><div class="num grad-text"><%= tk.fmtMoney(e.paid_amount) %></div><div class="label">Төлөгдсөн орлого</div></div>
+    <div class="card stat"><div class="num"><%= e.paid_qty %><% if (e.total != null) { %><span class="small muted"> / <%= e.total %></span><% } %></div><div class="label">Зарагдсан тасалбар</div></div>
+    <div class="card stat"><div class="num" style="color:<%= e.pending_qty ? 'var(--warn)' : 'inherit' %>"><%= e.pending_qty %></div><div class="label">Төлбөр хүлээгдэж буй<% if (e.held_qty) { %> · 🔒 <%= e.held_qty %> түгжсэн<% } %></div></div>
+    <div class="card stat"><div class="num"><%= e.left == null ? '∞' : e.left %></div><div class="label">Сул үлдсэн</div></div>
+    <div class="card stat"><div class="num" style="color:#6ee7b7"><%= e.checked_qty %><span class="small muted"> / <%= e.paid_qty %></span></div><div class="label">🎫 Орсон · <%= e.checkinPct %>% дүүргэлт</div><div class="ci-fill" style="margin-top:.4rem"><i><b style="width:<%= e.checkinPct %>%"></b></i></div></div>
+  </div>
+  <% } %>
+
   <% if (errors.length) { %><div class="flash error"><% errors.forEach(function (m) { %><div><%= m %></div><% }) %></div><% } %>
 
   <nav class="admin-subnav" aria-label="Тасалбарын ажлын хэсэг">
@@ -38,15 +47,12 @@
   </nav>
 
   <% if (tab === 'sales') { %>
-  <div class="grid grid-4" style="margin-bottom:1.25rem">
-    <div class="card stat"><div class="num grad-text"><%= tk.fmtMoney(e.paid_amount) %></div><div class="label">Төлөгдсөн орлого</div></div>
-    <div class="card stat"><div class="num"><%= e.paid_qty %><% if (e.total != null) { %><span class="small muted"> / <%= e.total %></span><% } %></div><div class="label">Зарагдсан тасалбар</div></div>
-    <div class="card stat"><div class="num" style="color:<%= e.pending_qty ? 'var(--warn)' : 'inherit' %>"><%= e.pending_qty %></div><div class="label">Төлбөр хүлээгдэж буй<% if (e.held_qty) { %> · 🔒 <%= e.held_qty %> түгжсэн<% } %></div></div>
-    <div class="card stat"><div class="num"><%= e.left == null ? '∞' : e.left %></div><div class="label">Сул үлдсэн</div></div>
-  </div>
-
   <div class="tk-search" data-order-search>
     <input type="search" placeholder="🔍 Код, захиалагчийн нэр эсвэл утсаар хайх…" aria-label="Захиалга хайх" autocomplete="off" data-order-q>
+    <select aria-label="Төлөвөөр шүүх" data-order-status>
+      <option value="">Бүх төлөв (<%= orders.length %>)</option>
+      <% ['pending', 'held', 'paid', 'cancelled'].forEach(function (k) { %><option value="<%= k %>"><%= stLabel[k] %> (<%= stCount[k] %>)</option><% }) %>
+    </select>
     <span class="small muted" data-order-hint></span>
   </div>
 
@@ -62,7 +68,7 @@
               <thead><tr><th>Код</th><th>Захиалагч</th><th><%= seated ? 'Суудал' : 'Тоо' %></th><th>Дүн</th><th>Огноо</th><th>Төлөв</th><th></th></tr></thead>
               <tbody>
                 <% rows.forEach(function (o) { %>
-                  <tr data-order-row="<%= [o.code, o.buyer_name, o.buyer_phone || ''].join(' ').toLowerCase() %>">
+                  <tr data-order-row="<%= [o.code, o.buyer_name, o.buyer_phone || ''].join(' ').toLowerCase() %>" data-order-st="<%= o.statusKey %>">
                     <td><strong class="mono"><%= o.code %></strong></td>
                     <td>
                       <%= o.buyer_name %>

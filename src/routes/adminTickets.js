@@ -136,7 +136,7 @@ async function renderManage(res, event, tab, errors = [], form = {}) {
   res.status(errors.length ? 400 : 200).render('admin/ticket', {
     title: `${event.title} — Тасалбар`, event, tk, errors, form, tab,
     members: tab === 'sell' ? await memberOptions() : [],
-    active: all.filter((o) => o.status !== 'cancelled'),
+    orders: all,
     pending: all.filter((o) => o.status === 'pending' && !o.held),
     held: all.filter((o) => o.held),
     paid: all.filter((o) => o.status === 'paid'),

@@ -811,27 +811,30 @@
     var box = document.querySelector('[data-order-search]');
     if (!box) return;
     var input = box.querySelector('[data-order-q]');
+    var st = box.querySelector('[data-order-status]');
     var hint = box.querySelector('[data-order-hint]');
     var norm = function (v) { return String(v).toLowerCase().replace(/[\s-]+/g, ''); };
     var run = function () {
       var q = norm(input.value);
+      var want = st ? st.value : '';
       var total = 0;
       document.querySelectorAll('section[id]').forEach(function (sec) {
         var rows = sec.querySelectorAll('[data-order-row]');
         if (!rows.length) return;
         var n = 0;
         rows.forEach(function (tr) {
-          var ok = !q || norm(tr.getAttribute('data-order-row')).indexOf(q) !== -1;
+          var ok = (!q || norm(tr.getAttribute('data-order-row')).indexOf(q) !== -1) && (!want || tr.getAttribute('data-order-st') === want);
           tr.hidden = !ok;
           if (ok) n++;
         });
         var c = sec.querySelector('[data-order-count]');
-        if (c) c.textContent = q ? n + ' / ' + rows.length : rows.length;
+        if (c) c.textContent = q || want ? n + ' / ' + rows.length : rows.length;
         total += n;
       });
-      hint.textContent = q ? (total ? total + ' захиалга олдлоо' : 'Олдсонгүй') : '';
+      hint.textContent = q || want ? (total ? total + ' захиалга олдлоо' : 'Олдсонгүй') : '';
     };
     input.addEventListener('input', run);
+    if (st) st.addEventListener('change', run);
     input.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { input.value = ''; run(); } });
   }
 

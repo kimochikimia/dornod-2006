@@ -1513,3 +1513,10 @@ dialog.tk-pay-dialog { width: min(480px, calc(100% - 2rem)); }
 .tk-qr-meta { text-align: center; margin-top: 0.6rem; }
 dialog.tk-qr-dialog { width: min(380px, calc(100% - 2rem)); }
 .ticket-stub .tk-qr { max-width: 170px; margin: 0.5rem 0; }
+/* Дүүргэлт (QR уншуулж орсон / зарагдсан) */
+.ci-fill { display: grid; gap: 0.3rem; min-width: 110px; }
+.ci-fill span { white-space: nowrap; }
+.ci-fill i { display: block; height: 6px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+.ci-fill b { display: block; height: 100%; background: linear-gradient(90deg, #059669, #34d399); border-radius: 999px; }
+.tk-search { flex-wrap: wrap; }
+.tk-search select { width: auto; min-width: 210px; }

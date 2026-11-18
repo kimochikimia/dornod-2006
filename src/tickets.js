@@ -43,12 +43,13 @@ const EV = `e.id, e.title, e.summary, e.body, e.venue, e.venue_url, e.event_at, 
 const STATS = `
   (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'paid') AS paid_qty,
   (SELECT COALESCE(SUM(o.amount), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'paid') AS paid_amount,
+  (SELECT COALESCE(SUM(o.checked_in), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'paid') AS checked_qty,
   (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending' AND o.held = 0) AS pending_qty,
   (SELECT COALESCE(SUM(o.quantity), 0) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending' AND o.held = 1) AS held_qty,
   (SELECT COUNT(*) FROM ticket_orders o WHERE o.event_id = e.id AND o.status = 'pending' AND o.held = 0) AS pending_orders`;
 
 function decorate(e) {
-  for (const k of ['price', 'paid_qty', 'paid_amount', 'pending_qty', 'held_qty', 'pending_orders']) e[k] = Number(e[k] || 0);
+  for (const k of ['price', 'paid_qty', 'paid_amount', 'pending_qty', 'held_qty', 'pending_orders', 'checked_qty']) e[k] = Number(e[k] || 0);
   e.capacity = e.capacity == null ? null : Number(e.capacity);
   let layout = null;
   if (e.layout) {
@@ -60,6 +61,8 @@ function decorate(e) {
   e.total = e.seating === 'seated' ? e.seatList.length : e.capacity;
   e.sold = e.paid_qty + e.pending_qty + e.held_qty; // эзэлсэн (төлсөн + хүлээгдэж буй + түгжсэн)
   e.left = e.total == null ? null : Math.max(0, e.total - e.sold);
+  // Дүүргэлт: зарагдсан (төлсөн) тасалбараас хэд нь QR уншуулж орсон
+  e.checkinPct = e.paid_qty ? Math.round((e.checked_qty / e.paid_qty) * 100) : 0;
   if (e.seating === 'seated' && e.seatList.length) {
     const prices = e.seatList.map((s) => s.price);
     e.minPrice = Math.min(...prices);
@@ -254,6 +257,8 @@ async function placeOrder(eventId, opts) {
 
 // Захиалгын төлөв солих: paid | cancelled. Цуцлагдсаныг дахин "paid" болгоход суудал/тоо чөлөөтэй эсэхийг шалгана.
 async function setOrderStatus(orderId, status, { reviewerId, reason } = {}) {
+  // Хугацаа нь дууссан захиалгуудын түгжээг эхлээд чөлөөлнө (сул суудлыг "зарагдсан" гэж буруу хориглохгүй)
+  if (status === 'paid') await expireStale();
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -266,6 +271,20 @@ async function setOrderStatus(orderId, status, { reviewerId, reason } = {}) {
       if (o.status === 'cancelled') {
         const seats = parseSeats(o);
         if (seats.length) {
+          // 1) Суудал одоогийн планд байгаа эсэх (планаас хассан бол сэргээхгүй)
+          let planKeys = new Set();
+          try { planKeys = new Set(SeatMap.seats(SeatMap.normalize(e.layout).layout || { items: [] }, 0).map((s) => s.key)); } catch (err) { /* хоосон план */ }
+          const gone = seats.filter((s) => !planKeys.has(s.key));
+          if (gone.length) throw new OrderError(`Суудлын планд байхгүй болсон тул сэргээх боломжгүй: ${gone.map((s) => s.label).join(', ')}.`);
+          // 2) Өөр идэвхтэй (хүлээгдэж буй / түгжсэн / төлсөн) захиалгад орсон суудал байгаа эсэх
+          const [taken] = await conn.query(
+            'SELECT seat_key FROM ticket_seat_locks WHERE event_id = ? AND seat_key IN (?) AND order_id <> ?',
+            [o.event_id, seats.map((s) => s.key), o.id]
+          );
+          if (taken.length) {
+            const busy = new Set(taken.map((t) => t.seat_key));
+            throw new OrderError(`Эдгээр суудал өөр захиалгад орсон тул сэргээх боломжгүй: ${seats.filter((s) => busy.has(s.key)).map((s) => s.label).join(', ')}.`);
+          }
           try {
             await conn.query('INSERT INTO ticket_seat_locks (event_id, seat_key, order_id) VALUES ?', [seats.map((s) => [o.event_id, s.key, o.id])]);
           } catch (err) {

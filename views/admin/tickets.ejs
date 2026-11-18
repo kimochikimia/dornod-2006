@@ -18,7 +18,7 @@
   <% } else { %>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Арга хэмжээ</th><th>Төлөв</th><th>Төрөл</th><th>Зарагдсан</th><th>Орлого</th><th>Хүлээгдэж буй</th><th></th></tr></thead>
+        <thead><tr><th>Арга хэмжээ</th><th>Төлөв</th><th>Төрөл</th><th>Зарагдсан</th><th>Орсон</th><th>Орлого</th><th>Хүлээгдэж буй</th><th></th></tr></thead>
         <tbody>
           <% events.forEach(function (e) { %>
             <tr>
@@ -26,6 +26,7 @@
               <td><span class="badge <%= phaseClass[e.phase] %>"><%= tk.PHASE_LABELS[e.phase] %></span></td>
               <td class="small"><%= e.seating === 'seated' ? '💺 Суудалтай' : '🎟️ Суудалгүй' %></td>
               <td class="small"><%= e.paid_qty %><%= e.total != null ? ' / ' + e.total : '' %></td>
+              <td class="small"><% if (e.paid_qty) { %><div class="ci-fill" title="Зарагдсан <%= e.paid_qty %>-аас <%= e.checked_qty %> нь орсон"><span><strong><%= e.checked_qty %></strong> / <%= e.paid_qty %> · <%= e.checkinPct %>%</span><i><b style="width:<%= e.checkinPct %>%"></b></i></div><% } else { %>—<% } %></td>
               <td class="small"><%= tk.fmtMoney(e.paid_amount) %></td>
               <td><% if (e.pending_orders && canPay) { %><a class="badge pending" href="/admin/tickets/<%= e.id %>#sales"><%= e.pending_orders %> шалгах</a><% } else if (e.pending_orders) { %><span class="badge pending"><%= e.pending_orders %></span><% } else { %><span class="small faint">—</span><% } %></td>
               <td>
