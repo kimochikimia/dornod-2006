@@ -7,6 +7,7 @@ const { flash, wrap, requirePerm, can } = require('../middleware');
 const { clean, fullName } = require('../helpers');
 const tk = require('../tickets');
 const ticketMail = require('../ticketMail');
+const notify = require('../notify');
 
 const gallery = require('../gallery');
 
@@ -88,6 +89,7 @@ router.post('/', manage, wrap(async (req, res) => {
   if (b.error) errors.push(b.error);
   if (errors.length) return renderForm(res, tk.formValues({ ...fields, layout: req.body.layout }), errors, [], req.body);
   const [r] = await pool.query('INSERT INTO ticket_events SET ?', [{ ...fields, ...(p.poster || {}), ...(b.bg || {}), created_by: req.user.id }]);
+  if (fields.status === 'open') notify.announceTicketEvent(r.insertId, req);
   flash(req, 'success', fields.status === 'open' ? 'Арга хэмжээ нийтлэгдлээ.' : 'Ноорог хадгалагдлаа.');
   res.redirect(`/admin/tickets/${r.insertId}`);
 }));
@@ -112,6 +114,7 @@ router.post('/:id(\\d+)/edit', manage, wrap(async (req, res, next) => {
     return renderForm(res, tk.formValues({ ...fields, id: item.id, poster_v: item.poster_v, plan_bg_v: item.plan_bg_v, layout: req.body.layout || item.layout }), errors, locked, req.body);
   }
   await pool.query('UPDATE ticket_events SET ? WHERE id = ?', [{ ...fields, ...(p.poster || {}), ...(b.bg || {}) }, item.id]);
+  if (fields.status === 'open') notify.announceTicketEvent(item.id, req);
   flash(req, 'success', 'Хадгалагдлаа.');
   res.redirect(`/admin/tickets/${item.id}`);
 }));

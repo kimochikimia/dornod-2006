@@ -1513,6 +1513,40 @@ dialog.tk-pay-dialog { width: min(480px, calc(100% - 2rem)); }
 .tk-qr-meta { text-align: center; margin-top: 0.6rem; }
 dialog.tk-qr-dialog { width: min(380px, calc(100% - 2rem)); }
 .ticket-stub .tk-qr { max-width: 170px; margin: 0.5rem 0; }
+.tk-qr img { display: block; width: 100%; height: auto; }
+
+/* Тасалбар: дээр нь бараан хэсэгт том QR, доор нь цагаан хэсэгт суудал, огноо */
+.tkt { max-width: 400px; margin: 0 auto 0.85rem; background: #fff; color: #101828; border-radius: 18px; overflow: hidden; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); }
+.tkt-top { position: relative; padding: 16px 18px 20px; background: #0c0f22; background-image: linear-gradient(160deg, #18205a 0%, #0c0f22 55%, #241452 100%); }
+.tkt-brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: #a3a9d1; font-size: 0.72rem; line-height: 1.3; text-align: right; }
+.tkt-brand img { display: block; height: 36px; width: auto; }
+.tkt-qr { max-width: 290px; margin: 0 auto; padding: 12px 12px 10px; background: #fff; border-radius: 14px; text-align: center; }
+.tkt-qr img { display: block; width: 100%; height: auto; }
+.tkt-code { margin-top: 6px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.35rem; font-weight: 700; letter-spacing: 0.14em; color: #101828; }
+.tkt-used { margin-top: 4px; color: #d92d20; font-weight: 700; font-size: 0.85rem; }
+.tkt.used .tkt-qr img { opacity: 0.25; filter: grayscale(1); }
+.tkt-body { padding: 18px 20px 4px; }
+.tkt-title { margin: 0 0 8px; font-size: 1.15rem; line-height: 1.3; color: #101828; }
+.tkt-parts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.9rem; color: #475467; }
+.tkt-parts b { color: #101828; }
+.tkt-seat { margin: 18px 0 8px; text-align: center; }
+.tkt-seat > span { display: block; color: #667085; font-weight: 600; font-size: 0.9rem; }
+.tkt-seat > strong { display: block; font-size: 1.75rem; letter-spacing: 0.04em; color: #101828; }
+.tkt-seat small { display: block; margin-top: 6px; color: #98a2b3; font-size: 0.76rem; }
+.tkt-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.tkt-chips strong { padding: 4px 10px; border-radius: 8px; background: #eef0ff; color: #3538cd; font-size: 1.05rem; }
+.tkt-tear { position: relative; height: 26px; background: radial-gradient(circle at 0 50%, var(--bg) 12px, transparent 13px), radial-gradient(circle at 100% 50%, var(--bg) 12px, transparent 13px); }
+.tkt-tear::before { content: ''; position: absolute; left: 20px; right: 20px; top: 50%; border-top: 2px dashed #d0d5dd; }
+.tkt-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; padding: 4px 20px 20px; }
+.tkt-foot span { display: block; color: #667085; font-size: 0.78rem; }
+.tkt-foot strong { font-size: 1.02rem; color: #101828; overflow-wrap: anywhere; }
+.tkt-foot .r { text-align: right; }
+.tkt-foot .wide { grid-column: 1 / -1; }
+.tkt-note { margin: 0 0 1.25rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
+dialog.tk-qr-dialog { width: min(420px, calc(100% - 1.5rem)); }
+dialog.tk-qr-dialog .dialog-body { padding-top: 3.6rem; }
+dialog.tk-qr-dialog .tkt { box-shadow: none; }
+dialog.tk-qr-dialog .tkt-tear { background: radial-gradient(circle at 0 50%, var(--panel-solid) 12px, transparent 13px), radial-gradient(circle at 100% 50%, var(--panel-solid) 12px, transparent 13px); }
 /* Дүүргэлт (QR уншуулж орсон / зарагдсан) */
 .ci-fill { display: grid; gap: 0.3rem; min-width: 110px; }
 .ci-fill span { white-space: nowrap; }

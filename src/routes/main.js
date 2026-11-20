@@ -7,6 +7,7 @@ const h = require('../helpers');
 const rateLimit = require('express-rate-limit');
 const emailVerify = require('../emailVerify');
 const ticketMail = require('../ticketMail');
+const notify = require('../notify');
 const LOC = require('../locations');
 const plan = require('../plan');
 const rx = require('../reactions');
@@ -358,6 +359,28 @@ router.post('/me/password', requireLogin, wrap(async (req, res) => {
 }));
 
 router.get('/privacy', (req, res) => res.render('privacy', { title: 'Нууцлалын бодлого' }));
+
+// Олон нийтийн мэдэгдэл авахаа болих (имэйлийн холбоосоор, нэвтрэхгүйгээр). Нээхэд биш, товч дарахад л цуцална.
+router.get('/unsubscribe/:uid(\\d+)/:sig', (req, res) => {
+  const ok = notify.checkUnsub(Number(req.params.uid), req.params.sig);
+  res.set('Cache-Control', 'no-store');
+  res.status(ok ? 200 : 400).render('unsubscribe', { title: 'Мэдэгдэл цуцлах', state: ok ? 'confirm' : 'invalid', uid: req.params.uid, sig: req.params.sig });
+});
+
+router.post('/unsubscribe/:uid(\\d+)/:sig', wrap(async (req, res) => {
+  const uid = Number(req.params.uid);
+  const ok = notify.checkUnsub(uid, req.params.sig);
+  if (ok) await pool.query('UPDATE users SET notify_news = 0 WHERE id = ?', [uid]);
+  res.set('Cache-Control', 'no-store');
+  res.status(ok ? 200 : 400).render('unsubscribe', { title: 'Мэдэгдэл цуцлах', state: ok ? 'done' : 'invalid', uid: '', sig: '' });
+}));
+
+router.post('/me/notifications', requireLogin, wrap(async (req, res) => {
+  const on = req.body.notify_news ? 1 : 0;
+  await pool.query('UPDATE users SET notify_news = ? WHERE id = ?', [on, req.user.id]);
+  flash(req, 'success', on ? 'Мэдэгдэл авахаар тохирууллаа.' : 'Олон нийтийн мэдэгдэл авахаа болилоо.');
+  res.redirect('/me#notifications');
+}));
 
 // Нэг хэрэглэгч сайтаар дамжуулж олон имэйл илгээхээс сэргийлнэ
 const emailLimiter = rateLimit({

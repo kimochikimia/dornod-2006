@@ -2,6 +2,8 @@
 const crypto = require('crypto');
 const { pool } = require('./db');
 const mailer = require('./mailer');
+const queue = require('./mailQueue');
+const layout = require('./mailLayout');
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 const hash = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -13,17 +15,11 @@ function available() {
 }
 
 function message(link) {
-  return {
-    subject: 'И-мэйл хаягаа баталгаажуулна уу',
-    text: `Дорнод 2006 сайтад бүртгэсэн и-мэйл хаягаа баталгаажуулахын тулд 24 цагийн дотор энэ холбоосыг нээнэ үү:\n\n${link}\n\nХэрэв та хүсэлт гаргаагүй бол энэ имэйлийг үл тоомсорлоно уу.`,
-    html: `<div style="background:#f2f4f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5">
-<div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:10px;padding:26px">
-<h1 style="margin:0 0 10px;font-size:21px;line-height:1.3;color:#12305c">И-мэйл хаягаа баталгаажуулна уу</h1>
-<p style="margin:0 0 20px;color:#344054">Баталгаажуулсны дараа тасалбар, төлбөрийн мэдээлэл энэ хаягаар ирнэ. Холбоос 24 цаг хүчинтэй.</p>
-<p style="margin:0"><a href="${link}" style="display:inline-block;background:#12305c;color:#ffffff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:7px">Баталгаажуулах</a></p>
-<p style="margin:20px 0 0;color:#667085;font-size:13px">Хэрэв та хүсэлт гаргаагүй бол энэ имэйлийг үл тоомсорлоно уу.</p>
-</div></div>`,
+  const c = {
+    title: 'И-мэйл хаягаа баталгаажуулна уу', link, linkText: 'Баталгаажуулах',
+    intro: 'Баталгаажуулсны дараа тасалбар, төлбөрийн мэдээлэл энэ хаягаар ирнэ. Холбоос 24 цаг хүчинтэй.\n\nХэрэв та хүсэлт гаргаагүй бол энэ имэйлийг үл тоомсорлоно уу.',
   };
+  return { subject: 'И-мэйл хаягаа баталгаажуулна уу', html: layout.html(c), text: layout.text(c) };
 }
 
 // Буцаах утга: 'sent' | 'verified' | 'none' | 'unavailable' | 'failed'
@@ -35,7 +31,7 @@ async function sendLink(userId, origin) {
   const token = crypto.randomBytes(32).toString('base64url');
   await pool.query('UPDATE users SET email_token_hash = ?, email_token_expires = ? WHERE id = ?', [hash(token), new Date(Date.now() + TTL_MS), userId]);
   try {
-    await mailer.send({ to: user.email, ...message(`${origin}/verify-email/${token}`) });
+    await queue.enqueue([{ userId, to: user.email, kind: 'verify_email', priority: 0, ...message(`${origin}/verify-email/${token}`) }]);
     return 'sent';
   } catch (err) {
     console.error(`[mail] баталгаажуулах холбоос (хэрэглэгч ${userId}): ${err.message}`);

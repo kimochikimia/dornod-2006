@@ -74,6 +74,7 @@ async function ensureColumn(table, column, ddl) {
     [table, column]
   );
   if (!cols.length) await pool.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  return !cols.length; // шинээр нэмсэн эсэх
 }
 
 // Сонгуулийн шат бүрийн хуваарь (UTC-ээр хадгална).
@@ -293,6 +294,35 @@ async function init() {
   await ensureColumn('users', 'email_verified_at', 'DATETIME NULL AFTER email');
   await ensureColumn('users', 'email_token_hash', 'CHAR(64) NULL UNIQUE AFTER email_verified_at');
   await ensureColumn('users', 'email_token_expires', 'DATETIME NULL AFTER email_token_hash');
+  // Мэдэгдэл: олон нийтийн мэдэгдэл авах эсэх (анхдагч — авна)
+  await ensureColumn('users', 'notify_news', 'TINYINT(1) NOT NULL DEFAULT 1 AFTER email_token_expires');
+  // Нэг үйл явдлыг нэг л удаа зарлах. Шинээр нэмэхэд өмнөх төлвүүдийг зарласанд тооцно (хуучныг дахин илгээхгүй).
+  if (await ensureColumn('elections', 'notified_phase', 'VARCHAR(20) NULL')) {
+    await pool.query('UPDATE elections SET notified_phase = phase');
+  }
+  if (await ensureColumn('ticket_events', 'announced_at', 'DATETIME NULL')) {
+    await pool.query("UPDATE ticket_events SET announced_at = NOW() WHERE status <> 'draft'");
+  }
+  await pool.query(`CREATE TABLE IF NOT EXISTS mail_queue (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    to_email VARCHAR(120) NOT NULL,
+    kind VARCHAR(40) NOT NULL,
+    priority TINYINT NOT NULL DEFAULT 1,
+    subject VARCHAR(255) NOT NULL,
+    html MEDIUMTEXT NULL,
+    text MEDIUMTEXT NULL,
+    attachments MEDIUMTEXT NULL,
+    status ENUM('pending','sending','sent','failed') NOT NULL DEFAULT 'pending',
+    attempts INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at DATETIME NULL,
+    sent_at DATETIME NULL,
+    last_error VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_mq_pick (status, priority, next_attempt_at),
+    INDEX idx_mq_sent (status, sent_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
   await syncSchools();
 
   await seedAdmin();

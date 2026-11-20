@@ -41,6 +41,13 @@
           <button class="btn" type="submit">Баталгаажуулах холбоос илгээх</button>
         </form>
       <% } %>
+      <hr class="sep">
+      <form method="post" action="/me/notifications" class="form" id="notifications">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label class="check"><input type="checkbox" name="notify_news" value="1" <%= me.notify_news ? 'checked' : '' %>> Шинэ мэдээ, төлөвлөгөө, арга хэмжээ, сонгуулийн мэдэгдлийг имэйлээр авах</label>
+        <div class="hint">Бүртгэл, тасалбар зэрэг таны өөрт хамаарах имэйл энэ тохиргооноос үл хамааран ирнэ.</div>
+        <div><button class="btn" type="submit">Хадгалах</button></div>
+      </form>
     </div>
 
     <div class="card">

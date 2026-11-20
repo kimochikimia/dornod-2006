@@ -1,0 +1,22 @@
+<%- include('partials/head') %>
+<div class="container">
+  <div class="card auth-card glow">
+    <% if (state === 'confirm') { %>
+      <h1>Мэдэгдэл цуцлах</h1>
+      <p class="muted">Шинэ мэдээ, төлөвлөгөө, арга хэмжээ, сонгуулийн мэдэгдлийг имэйлээр авахаа болих уу? Тасалбар, бүртгэлийн тухай таны өөрт хамаарах имэйл үргэлжлэн ирнэ.</p>
+      <form method="post" action="/unsubscribe/<%= uid %>/<%= sig %>" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button class="btn btn-primary btn-lg" type="submit">Мэдэгдэл авахаа болих</button>
+      </form>
+    <% } else if (state === 'done') { %>
+      <h1>Цуцлагдлаа</h1>
+      <p class="muted">Олон нийтийн мэдэгдэл танд цаашид ирэхгүй. «Миний хуудас»-наас хүссэн үедээ дахин асааж болно.</p>
+      <a class="btn btn-primary" href="<%= me ? '/me#notifications' : '/login?next=%2Fme' %>"><%= me ? 'Миний хуудас' : 'Нэвтрэх' %></a>
+    <% } else { %>
+      <h1>Холбоос буруу байна</h1>
+      <p class="muted">«Миний хуудас»-нд нэвтэрч мэдэгдлийн тохиргоогоо өөрчилнө үү.</p>
+      <a class="btn btn-primary" href="<%= me ? '/me#notifications' : '/login?next=%2Fme' %>"><%= me ? 'Миний хуудас' : 'Нэвтрэх' %></a>
+    <% } %>
+  </div>
+</div>
+<%- include('partials/foot') %>

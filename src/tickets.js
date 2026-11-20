@@ -7,7 +7,7 @@ const { pool } = require('./db');
 const { clean, fromUbInput, ubInput, fmtDate } = require('./helpers');
 const { fmtMoney, parseAmount } = require('./campaigns');
 const SeatMap = require('../public/js/seatmap');
-const QRCode = require('qrcode');
+const { ticketQrDataUri } = require('./qrImage');
 
 const STATUS_LABELS = { pending: 'Төлбөр хүлээгдэж буй', paid: 'Төлсөн', cancelled: 'Цуцлагдсан', held: 'Түгжсэн' };
 const CANCEL_LABELS = { expired: 'Төлөх хугацаа дууссан', user: 'Захиалагч цуцалсан', admin: 'Удирдлага цуцалсан' };
@@ -27,12 +27,21 @@ function newCode() {
 // QR тасалбарын токен (таах боломжгүй, 22 тэмдэгт)
 function newToken() { return crypto.randomBytes(16).toString('base64url'); }
 
-// Төлөх хугацаа нь өнгөрсөн захиалгыг цуцалж түгжээг чөлөөлнө.
+// Төлөх хугацаа нь өнгөрсөн захиалгыг цуцалж түгжээг чөлөөлнө. Цуцлагдсан захиалга бүрийн эзэнд имэйлээр мэдэгдэнэ.
+// Мөр бүрийг тусад нь шинэчилдэг тул зэрэг дуудагдсан ч нэг захиалгад нэг л удаа мэдэгдэнэ.
 async function expireStale(db = pool) {
-  await db.query(
-    "UPDATE ticket_orders SET status = 'cancelled', cancel_reason = 'expired' WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()"
+  const [due] = await db.query(
+    "SELECT id, code FROM ticket_orders WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()"
   );
+  const expired = [];
+  for (const o of due) {
+    const [r] = await db.query(
+      "UPDATE ticket_orders SET status = 'cancelled', cancel_reason = 'expired' WHERE id = ? AND status = 'pending' AND expires_at < NOW()", [o.id]
+    );
+    if (r.affectedRows) expired.push(o.code);
+  }
   await db.query("DELETE l FROM ticket_seat_locks l JOIN ticket_orders o ON o.id = l.order_id WHERE o.status = 'cancelled'");
+  if (expired.length) require('./ticketMail').notifyExpired(expired); // ticketMail нь энэ модулийг ашигладаг тул энд ачаална
 }
 
 // Постерын BLOB-оос бусад багана (жагсаалт, захиалгад зураг татахгүй)
@@ -351,14 +360,29 @@ function checkinUrl(req, token) {
   return checkinUrlFor(`${req.protocol}://${req.get('host')}`, token);
 }
 
-// Төлсөн захиалгуудад QR (SVG) нэмнэ
+// Төлсөн захиалгуудад логотой QR (PNG data URI) нэмнэ
 async function attachQr(req, orders) {
   for (const o of orders) {
     if (o.status !== 'paid') continue;
-    const url = checkinUrl(req, await ensureToken(o));
-    o.qrSvg = await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b1020', light: '#ffffff' } });
+    o.qrImg = ticketQrDataUri(checkinUrl(req, await ensureToken(o)));
   }
   return orders;
+}
+
+// Тасалбар дээр харуулах суудал, огноо. Суудал бүр: parts [[шошго, утга]...], short — товч хаяг (жишээ нь A-2-5)
+function ticketInfo(order, event) {
+  const items = new Map(((event.layoutObj && event.layoutObj.items) || []).map((it) => [it.id, it]));
+  const byKey = new Map((event.seatList || []).map((s) => [s.key, s]));
+  const seats = order.seatArr.map((s) => {
+    const full = byKey.get(s.key);
+    const it = full && items.get(full.item);
+    if (it && it.t === 'block') return { parts: [['Сектор', full.sec], ['Эгнээ', full.row], ['Суудал', full.seat]], short: `${full.sec}-${full.row}-${full.seat}` };
+    if (it && it.t === 'table') { const no = String(s.label).split('-').pop(); return { parts: [['Ширээ', it.name], ['Суудал', no]], short: `${it.name}-${no}` }; }
+    if (it && it.t === 'row') { const no = String(s.label).slice(String(it.name).length); return { parts: [['Эгнээ', it.name], ['Суудал', no]], short: s.label }; }
+    return { parts: [['Суудал', s.label]], short: s.label };
+  });
+  const [date, time] = String(fmtDate(event.event_at)).split(' ');
+  return { seats, date, time: time || '' };
 }
 
 async function getByToken(token) {
@@ -473,6 +497,6 @@ function formValues(e) {
 
 module.exports = {
   STATUS_LABELS, CANCEL_LABELS, EVENT_STATUS, PHASE_LABELS, MAX_PENDING_PER_USER, OrderError,
-  attachQr, ensureToken, checkinUrlFor, getByToken, checkinLog, checkIn,
+  attachQr, ticketInfo, ensureToken, checkinUrlFor, getByToken, checkinLog, checkIn,
   fmtMoney, list, get, seatStates, orders, userOrders, allUserOrders, getOrder, placeOrder, setOrderStatus, eventFields, formValues, expireStale,
 };

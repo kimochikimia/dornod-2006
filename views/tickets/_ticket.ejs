@@ -1,0 +1,45 @@
+<%#
+  Төлсөн захиалгын тасалбар: дээр нь том QR ба код, доор нь суудал, огноо.
+  Хэрэгтэй: o (захиалга, qrImg-тэй), e (арга хэмжээ), tk
+%>
+<%
+  var info = tk.ticketInfo(o, e);
+  var one = info.seats.length === 1 ? info.seats[0] : null;
+%>
+<article class="tkt<%= o.remaining ? '' : ' used' %>">
+  <div class="tkt-top">
+    <div class="tkt-brand">
+      <img src="/img/logo-header.png" alt="Дорнод 2006" width="116" height="36">
+      <span>Дорнод аймгийн<br>2006 оны төгсөгчид</span>
+    </div>
+    <div class="tkt-qr">
+      <img src="<%= o.qrImg %>" alt="QR тасалбар <%= o.code %>">
+      <div class="tkt-code"><%= o.code %></div>
+      <% if (!o.remaining) { %><div class="tkt-used">Бүх тасалбар ашиглагдсан</div><% } %>
+    </div>
+  </div>
+  <div class="tkt-body">
+    <h2 class="tkt-title"><%= e.title %></h2>
+    <% if (one) { %>
+      <div class="tkt-parts"><% one.parts.forEach(function (p) { %><span><b><%= p[0] %>:</b> <%= p[1] %></span><% }) %></div>
+      <div class="tkt-seat"><span>Суудлын хаягжилт</span><strong><%= one.short %></strong></div>
+    <% } else if (info.seats.length) { %>
+      <div class="tkt-seat">
+        <span><%= info.seats.length %> суудал</span>
+        <div class="tkt-chips"><% info.seats.forEach(function (s) { %><strong><%= s.short %></strong><% }) %></div>
+        <small><%= info.seats[0].parts.map(function (p) { return p[0]; }).join(' – ') %></small>
+      </div>
+    <% } else { %>
+      <div class="tkt-seat"><span>Тасалбар</span><strong><%= o.quantity %> хүн</strong></div>
+    <% } %>
+  </div>
+  <div class="tkt-tear" aria-hidden="true"></div>
+  <div class="tkt-foot">
+    <div><span>Өдөр</span><strong><%= info.date %></strong></div>
+    <div class="r"><span>Эхлэх цаг</span><strong><%= info.time %></strong></div>
+    <% if (e.venue) { %><div class="wide"><span>Байршил</span><strong><%= e.venue %></strong></div><% } %>
+    <div><span>Эзэмшигч</span><strong><%= o.buyer_name %></strong></div>
+    <div class="r"><span>Орсон</span><strong><%= o.checked_in %> / <%= o.quantity %></strong></div>
+  </div>
+</article>
+<p class="tkt-note">Орох хаалган дээр энэ QR-ийг уншуулна. Нэг QR-ээр <%= o.quantity %> хүн орно.</p>

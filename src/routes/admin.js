@@ -10,6 +10,7 @@ const h = require('../helpers');
 const photos = require('../photos');
 const { parsePlaceForm } = require('../locations');
 const { electionStats } = require('../electionStats');
+const notify = require('../notify');
 
 const router = express.Router();
 router.use(requireManage);
@@ -148,6 +149,7 @@ router.post('/users/:id/status', requirePerm('approve_users'), wrap(async (req, 
   if (status && target && target.id !== req.user.id) {
     // Татгалзсан хэрэглэгчийн сесс loadUser дээр автоматаар хүчингүй болно.
     await pool.query('UPDATE users SET status = ? WHERE id = ?', [status, target.id]);
+    if (status !== target.status) notify.accountStatus(target.id, status, req);
     flash(req, 'success', status === 'approved' ? 'Бүртгэлийг баталгаажууллаа.' : 'Төлөв шинэчлэгдлээ.');
   }
   res.redirect(req.get('Referer') || '/admin/users');
@@ -163,6 +165,7 @@ router.post('/users/:id/role', requirePerm('manage_roles'), wrap(async (req, res
     flash(req, 'error', 'Өөрийн төлөвийг өөрчлөх боломжгүй.');
   } else if (role) {
     await pool.query('UPDATE users SET role = ? WHERE id = ?', [role, target.id]);
+    if (role !== target.role) notify.roleChanged(target.id, role, req);
     flash(req, 'success', `${target.surname} ${target.name}: "${perms.ROLE_LABELS[role]}" төлөвтэй боллоо.`);
   }
   res.redirect(req.get('Referer') || `/admin/users/${target.id}`);
@@ -231,6 +234,8 @@ router.post('/users/:id', requirePerm('edit_users'), wrap(async (req, res, next)
       h.positionKey(req.body.position_level), clean(req.body.position, 150) || null,
       place.city, facebook || null, clean(req.body.bio, 3000) || null, role, status, id]
   );
+  if (status !== target.status) notify.accountStatus(id, status, req);
+  if (role !== target.role) notify.roleChanged(id, role, req);
   if (fromReq && can(req.user, 'manage_requests')) {
     flash(req, 'success', 'Мэдээлэл хадгалагдлаа. Хүсэлтийг «Шийдвэрлэсэн» болгоно уу.');
     return res.redirect(`/admin/requests#r${fromReq}`);
@@ -267,6 +272,7 @@ router.post('/users/:id/password', requirePerm('edit_users'), wrap(async (req, r
     flash(req, 'error', 'Нууц үг дор хаяж 8 тэмдэгт байх ёстой.');
   } else {
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(password, 12), target.id]);
+    notify.passwordReset(target.id, req);
     flash(req, 'success', 'Нууц үг шинэчлэгдлээ. Төгсөгчид шинэ нууц үгийг нь мэдэгдээрэй.');
   }
   res.redirect(`/admin/users/${target.id}`);
@@ -322,6 +328,7 @@ async function saveNews(req, res, id) {
     const [r] = await pool.query('INSERT INTO announcements (title, body, pinned, author_id) VALUES (?, ?, ?, ?)',
       [title, body, req.body.pinned ? 1 : 0, req.user.id]);
     id = r.insertId;
+    notify.newsPublished({ id, title, body }, req);
   }
   flash(req, 'success', req.params.id ? 'Мэдээ шинэчлэгдлээ.' : 'Мэдээ нийтлэгдлээ.');
   if (wantsJson) return res.json({ ok: true, id });
@@ -416,6 +423,7 @@ router.post('/plans', wrap(async (req, res) => {
     return res.status(400).render('admin/plan-form', { title: 'Шинэ ажил', PLAN_COLORS, errors, item: fields });
   }
   await pool.query('INSERT INTO plan_items SET ?', [fields]);
+  notify.planAdded(fields, req);
   flash(req, 'success', 'Төлөвлөгөөнд нэмэгдлээ.');
   res.redirect('/admin/plans');
 }));
@@ -1048,6 +1056,11 @@ router.post('/campaigns', wrap(async (req, res) => {
   if (c.error) errors.push(c.error);
   if (errors.length) return res.status(400).render('admin/campaign-form', { title: 'Шинэ аян', item: formBack(fields), errors });
   const [r] = await pool.query('INSERT INTO campaigns SET ?', [{ ...fields, ...(c.cover || {}), created_by: req.user.id }]);
+  if (fields.status === 'active') {
+    cmp.get(r.insertId)
+      .then((k) => k && notify.campaignStarted({ ...k, goalText: cmp.fmtMoney(k.goal_amount) }, req))
+      .catch((err) => console.error('[mail] campaign:', err.message));
+  }
   flash(req, 'success', 'Аян нийтлэгдлээ.');
   res.redirect(`/admin/campaigns/${r.insertId}`);
 }));
@@ -1097,6 +1110,9 @@ router.get('/campaigns/:id(\\d+)', wrap(async (req, res, next) => {
   await renderCampaignAdmin(res, campaign);
 }));
 
+// Имэйлд харуулах дэмжлэгийн товч
+const contributionText = (c) => (c.kind === 'item' ? c.item_desc || 'Бусад зүйл' : cmp.fmtMoney(c.amount));
+
 // Удирдлага гараар бүртгэх — бүртгэлтэй төгсөгчөөс сонгох эсвэл бүртгэлгүй хандивлагчийн мэдээллийг оруулах. Шууд баталгаажна.
 router.post('/campaigns/:id(\\d+)/contributions', wrap(async (req, res, next) => {
   const campaign = await cmp.get(req.params.id);
@@ -1116,6 +1132,9 @@ router.post('/campaigns/:id(\\d+)/contributions', wrap(async (req, res, next) =>
   await pool.query('INSERT INTO campaign_contributions SET ?', [{
     ...fields, ...donor, campaign_id: campaign.id, status: 'confirmed', reviewed_by: req.user.id, reviewed_at: new Date(),
   }]);
+  if (donor.user_id) {
+    notify.contribution(donor.user_id, 'confirmed', { title: campaign.title, campaignId: campaign.id, what: contributionText(fields) }, req);
+  }
   flash(req, 'success', 'Дэмжлэг бүртгэгдлээ.');
   res.redirect(`/admin/campaigns/${campaign.id}#confirmed`);
 }));
@@ -1128,8 +1147,13 @@ router.post('/campaigns/:id(\\d+)/contributions/:cid(\\d+)', wrap(async (req, re
     await pool.query('DELETE FROM campaign_contributions WHERE id = ? AND campaign_id = ?', [cid, id]);
     flash(req, 'success', 'Устгагдлаа.');
   } else if (['confirmed', 'rejected', 'pending'].includes(action)) {
+    const [[prev]] = await pool.query('SELECT user_id, status, kind, amount, item_desc FROM campaign_contributions WHERE id = ? AND campaign_id = ?', [cid, id]);
     await pool.query('UPDATE campaign_contributions SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ? AND campaign_id = ?',
       [action, req.user.id, new Date(), cid, id]);
+    if (prev && prev.user_id && prev.status !== action && action !== 'pending') {
+      const k = await cmp.get(id);
+      if (k) notify.contribution(prev.user_id, action, { title: k.title, campaignId: id, what: contributionText(prev) }, req);
+    }
     flash(req, 'success', { confirmed: 'Баталгаажлаа.', rejected: 'Татгалзлаа.', pending: 'Хянагдаж буй руу буцаалаа.' }[action]);
   }
   res.redirect(`/admin/campaigns/${id}`);
@@ -1189,8 +1213,10 @@ router.get('/requests', wrap(async (req, res) => {
 
 router.post('/requests/:id', wrap(async (req, res) => {
   const status = req.body.status === 'open' ? 'open' : 'done';
-  await pool.query('UPDATE change_requests SET status=?, admin_note=? WHERE id=?',
-    [status, clean(req.body.admin_note, 500) || null, req.params.id]);
+  const note = clean(req.body.admin_note, 500) || null;
+  const [[prev]] = await pool.query('SELECT user_id, status, message FROM change_requests WHERE id = ?', [req.params.id]);
+  await pool.query('UPDATE change_requests SET status=?, admin_note=? WHERE id=?', [status, note, req.params.id]);
+  if (prev && prev.status === 'open' && status === 'done') notify.requestDone(prev.user_id, prev.message, note, req);
   flash(req, 'success', 'Хүсэлт шинэчлэгдлээ.');
   res.redirect('/admin/requests');
 }));

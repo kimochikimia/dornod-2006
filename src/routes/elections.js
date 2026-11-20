@@ -4,6 +4,7 @@ const { flash, wrap, requireMember, requirePerm, can } = require('../middleware'
 const { clean } = require('../helpers');
 const { electionStats } = require('../electionStats');
 const sched = require('../electionSchedule');
+const notify = require('../notify');
 
 const router = express.Router();
 
@@ -115,6 +116,8 @@ router.post('/:id/nominate', requirePerm('nominate'), wrap(async (req, res, next
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    // Аль хэдийн нэр дэвшигч мөн эсэх (mysql2 давхардсан мөрийг ч 1 мөр гэж тоолдог тул тусад нь шалгана)
+    const [[existed]] = await conn.query('SELECT id FROM candidates WHERE election_id = ? AND user_id = ? FOR UPDATE', [e.id, nominee.id]);
     await conn.query(
       `INSERT INTO candidates (election_id, user_id, status, responded_at)
        VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id`,
@@ -130,6 +133,8 @@ router.post('/:id/nominate', requirePerm('nominate'), wrap(async (req, res, next
       [cand.id, req.user.id, reason || null]
     );
     await conn.commit();
+    // Анх нэр дэвшүүлэгдэхэд л тухайн хүнд мэдэгдэнэ
+    if (!existed && !isSelf) notify.nominated(nominee.id, e, req);
     if (r.affectedRows === 0) flash(req, 'info', `Та ${nominee.surname} ${nominee.name}-г аль хэдийн нэр дэвшүүлсэн байна.`);
     else if (isSelf) flash(req, 'success', 'Та өөрийгөө нэр дэвшүүллээ. Танд амжилт хүсье!');
     else flash(req, 'success', `${nominee.surname} ${nominee.name}-г нэр дэвшүүллээ. Тэрээр зөвшөөрсний дараа саналын хуудсанд орно.`);
